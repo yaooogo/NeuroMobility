@@ -6,6 +6,8 @@ const DEFAULT_WALLET_LEVEL_RULES = [
   { level: 1, min_price: 500000 }
 ];
 
+const FIXED_WALLET_LEVELS = DEFAULT_WALLET_LEVEL_RULES.map(rule => rule.level);
+
 function cloneRule(rule) {
   return {
     level: Number(rule.level || 0),
@@ -19,21 +21,38 @@ export function getDefaultWalletLevelRules() {
 
 export function normalizeWalletLevelRules(rules) {
   if (!Array.isArray(rules) || rules.length < 1) return getDefaultWalletLevelRules();
-  const levelMap = new Map();
-  for (const item of rules.slice(0, 100)) {
+  const amountMap = new Map();
+  for (const item of rules) {
     const level = Number.parseInt(item?.level, 10);
     const amount = Number(item?.min_price ?? item?.amount ?? item?.minSubRigs);
-    if (!Number.isInteger(level) || level < 1 || level > 999 || !Number.isFinite(amount) || amount < 0) continue;
-    levelMap.set(level, { level, min_price: amount });
+    if (!FIXED_WALLET_LEVELS.includes(level) || !Number.isFinite(amount) || amount < 0) continue;
+    amountMap.set(level, amount);
   }
-  return [...levelMap.values()].sort((a, b) => b.level - a.level).map(cloneRule);
+  return DEFAULT_WALLET_LEVEL_RULES.map(rule => ({
+    level: rule.level,
+    min_price: amountMap.has(rule.level) ? amountMap.get(rule.level) : rule.min_price
+  }));
 }
 
 export function validateWalletLevelRules(rules) {
-  if (!Array.isArray(rules) || rules.length < 1) throw new Error('至少需要配置一个等级');
-  const normalized = normalizeWalletLevelRules(rules);
+  if (!Array.isArray(rules) || rules.length !== FIXED_WALLET_LEVELS.length) {
+    throw new Error('等级配置固定为 1、2、3 级');
+  }
 
-  if (normalized.length !== rules.length) throw new Error('等级必须唯一且为 1-999，金额必须为非负数');
+  const levels = rules.map(item => Number(item?.level));
+  if (levels.some(level => !Number.isInteger(level))
+    || new Set(levels).size !== FIXED_WALLET_LEVELS.length
+    || FIXED_WALLET_LEVELS.some(level => !levels.includes(level))) {
+    throw new Error('等级配置固定为 1、2、3 级，只能修改金额');
+  }
+
+  const hasInvalidAmount = rules.some((item) => {
+    const amount = Number(item?.min_price ?? item?.amount ?? item?.minSubRigs);
+    return !Number.isFinite(amount) || amount < 0;
+  });
+  if (hasInvalidAmount) throw new Error('金额必须为非负数');
+
+  const normalized = normalizeWalletLevelRules(rules);
 
   for (let i = 0; i < normalized.length - 1; i += 1) {
     const currentRule = normalized[i];
