@@ -94,9 +94,9 @@ onMounted(load);
 
 <style scoped>
 .parameter-panel { display: flex; flex-direction: column; padding: 0; }
-.parameter-tabs { display: flex; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--line); overflow-x: auto; }
-.parameter-tab { min-height: 52px; padding: 0 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--panel-strong); color: var(--text); font: inherit; white-space: nowrap; }
-.parameter-tab--active { border-color: #3476df; background: #173267; }
+.parameter-tabs { display: flex; gap: 10px; padding: 12px 24px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.parameter-tab { min-height: 42px; padding: 0 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-strong); color: var(--text); font: inherit; white-space: nowrap; }
+.parameter-tab--active { border-color: #3d7bff66; background: #3d7bff2e; }
 .parameter-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding: 26px 24px 20px; }
 .parameter-section-head h2 { margin: 0 0 8px; font-size: 27px; }
 .parameter-section-head p { margin: 0; color: var(--muted); }
