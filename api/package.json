@@ -1,0 +1,33 @@
+{
+  "name": "coingame",
+  "version": "1.0.0",
+  "description": "",
+  "main": "ApiServer.js",
+  "type": "module",
+  "dependencies": {
+    "aws-sdk": "^2.1614.0",
+    "bcryptjs": "^3.0.2",
+    "bignumber": "^1.1.0",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.5.0",
+    "eth-sig-util": "^3.0.1",
+    "ethers": "^6.17.0",
+    "express": "^4.17.1",
+    "helmet": "^8.1.0",
+    "http": "^0.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "lru-cache": "^7.9.0",
+    "multer": "^2.0.1",
+    "mysql": "^2.18.1",
+    "node-uuid": "^1.4.8",
+    "redis": "^4.1.0",
+    "request": "^2.88.2",
+    "uuid": "^8.3.2",
+    "xss": "^1.0.15"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}

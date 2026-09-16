@@ -1,0 +1,84 @@
+import express from 'express';
+import ManageAuth from '../Util/ManageAuth.js';
+import ManageOperationLog from '../Util/ManageOperationLog.js';
+import AuthService from '../services/Manage/AuthService.js';
+import AdminService from '../services/Manage/AdminService.js';
+import AdminTypeService from '../services/Manage/AdminTypeService.js';
+import OperationLogService from '../services/Manage/OperationLogService.js';
+import UserService from '../services/Manage/UserService.js';
+import AssetTokenService from '../services/Manage/AssetTokenService.js';
+import AssetLogService from '../services/Manage/AssetLogService.js';
+import SystemConfigService from '../services/Manage/SystemConfigService.js';
+
+import ApiResult from '../Util/ApiResult.js';
+import Upload from '../Util/Upload.js';
+import multer from 'multer';
+const router = express.Router()
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: Upload.getMaxImageUploadBytes()
+  }
+});
+
+function singleImage(fieldName) {
+  return (req, res, next) => {
+    imageUpload.single(fieldName)(req, res, (error) => {
+      if (error) {
+        return res.send(ApiResult.error(400, error.message || "Upload failed"));
+      }
+
+      return next();
+    });
+  };
+}
+
+
+router.route('/login').post(AuthService.login)
+
+//以下为需要鉴权部分API
+router.route('*').all(ManageAuth.verifyToken)
+router.route('*').all(ManageOperationLog.capture)
+router.route('/user/info').post(AuthService.info)
+router.route('/logout').post(AuthService.logout)
+router.route('*').all(ManageAuth.verifyPermission)
+
+// 管理员
+router.route('/admin/list').post(AdminService.list)
+router.route('/admin/detail').post(AdminService.detail)
+router.route('/admin/create').post(AdminService.create)
+router.route('/admin/update').post(AdminService.update)
+router.route('/admin/delete').post(AdminService.remove)
+router.route('/admin/options').post(AdminTypeService.all)
+
+// 管理员类型
+router.route('/admin-type/list').post(AdminTypeService.list)
+router.route('/admin-type/detail').post(AdminTypeService.detail)
+router.route('/admin-type/save').post(AdminTypeService.save)
+router.route('/admin-type/delete').post(AdminTypeService.remove)
+router.route('/admin-type/options').post(AdminTypeService.all)
+router.route('/admin-type/permission-options').post(AdminTypeService.permissionOptions)
+
+// 操作日志
+router.route('/admin-operation-log/list').post(OperationLogService.list)
+router.route('/admin-operation-log/detail').post(OperationLogService.detail)
+router.route('/admin-operation-log/path-options').post(OperationLogService.pathOptions)
+
+// 资产类型与资产流水
+router.route('/asset-token/list').post(AssetTokenService.list)
+router.route('/asset-token/update').post(AssetTokenService.update)
+router.route('/user-asset-log/list').post(AssetLogService.list)
+router.route('/user-frozen-asset-log/list').post(AssetLogService.frozenList)
+
+// 参数配置 - 等级配置
+router.route('/system-config/wallet-level').post(SystemConfigService.walletLevelDetail)
+router.route('/system-config/wallet-level/update').post(SystemConfigService.walletLevelUpdate)
+
+// 用户
+router.route('/user/list').post(UserService.list)
+router.route('/user/detail').post(UserService.detail)
+router.route('/user/create').post(UserService.create)
+router.route('/user/update').post(UserService.update)
+router.route('/user/delete').post(UserService.remove)
+
+export default router;

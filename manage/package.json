@@ -1,0 +1,22 @@
+{
+  "name": "neuromobility-manage",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve_local": "vite --mode localdev",
+    "serve_dev": "vite --mode dev",
+    "serve_prod": "vite --mode prod",
+    "build_dev": "vite build --mode dev",
+    "build_prod": "vite build --mode prod",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.5.32",
+    "vue-router": "^4.6.4"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.4",
+    "vite": "^5.4.21"
+  }
+}
