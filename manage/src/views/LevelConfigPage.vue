@@ -105,7 +105,7 @@ onMounted(load);
 .level-config-table th:nth-child(1), .level-config-table td:nth-child(1) { width: 28%; }
 .level-config-table th:last-child, .level-config-table td:last-child { width: 120px; }
 .level-config-actions { display: flex; margin-top: auto; padding-top: 26px; border-top: 1px solid var(--line); }
-.level-config-actions .submit-button { width: 100%; min-height: 54px; border-radius: 0 0 24px 24px; font-size: 16px; }
+.level-config-actions .submit-button { width: 100%; min-height: 42px; border-radius: 0 0 24px 24px; font-size: 16px; }
 @media (max-width: 640px) {
   .parameter-section-head { align-items: stretch; flex-direction: column; }
   .level-config-wrap { margin: 0 14px; }
