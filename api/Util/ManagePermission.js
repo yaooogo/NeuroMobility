@@ -46,6 +46,7 @@ const ROUTE_PERMISSION_RULES = [
   { path: "/announcement/create", permissions: ["announcements-create"], exact: true },
   { path: "/announcement/update", permissions: ["announcements-update"], exact: true },
   { path: "/announcement/delete", permissions: ["announcements-delete"], exact: true },
+  { path: "/announcement/upload-cover", permissions: ["announcements-create", "announcements-update"], exact: true },
   { path: "/announcement", permissions: ["announcements"] },
   { path: "/admin-type/options", permissions: ["admins", "admin-types"], exact: true },
   { path: "/admin-type/permission-options", permissions: ["admins", "admin-types"], exact: true },

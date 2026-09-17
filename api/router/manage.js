@@ -61,6 +61,7 @@ router.route('/announcement/list').post(AnnouncementService.list)
 router.route('/announcement/create').post(AnnouncementService.create)
 router.route('/announcement/update').post(AnnouncementService.update)
 router.route('/announcement/delete').post(AnnouncementService.remove)
+router.route('/announcement/upload-cover').post(singleImage('cover'), AnnouncementService.uploadCover)
 
 // 管理员类型
 router.route('/admin-type/list').post(AdminTypeService.list)
