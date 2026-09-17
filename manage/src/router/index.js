@@ -13,6 +13,7 @@ import NoPermissionPage from '../views/NoPermissionPage.vue';
 import WalletsPage from '../views/WalletsPage.vue';
 import WalletAssetsPage from '../views/WalletAssetsPage.vue';
 import AnnouncementsPage from '../views/AnnouncementsPage.vue';
+import HelpArticlesPage from '../views/HelpArticlesPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -26,6 +27,7 @@ const router = createRouter({
     { path: '/wallets', component: WalletsPage, meta: { permission: 'wallets' } },
     { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
     { path: '/announcements', component: AnnouncementsPage, meta: { permission: 'announcements' } },
+    { path: '/help-articles', component: HelpArticlesPage, meta: { permission: 'help-articles' } },
     { path: '/asset-logs', component: AssetLogsPage, props: { frozen: false }, meta: { permission: 'user-asset-logs' } },
     { path: '/frozen-asset-logs', component: AssetLogsPage, props: { frozen: true }, meta: { permission: 'user-frozen-asset-logs' } },
     { path: '/parameter-config/levels', component: LevelConfigPage, meta: { permission: 'parameter-config' } },

@@ -10,6 +10,7 @@ import AssetLogService from '../services/Manage/AssetLogService.js';
 import SystemConfigService from '../services/Manage/SystemConfigService.js';
 import WalletService from '../services/Manage/WalletService.js';
 import AnnouncementService from '../services/Manage/AnnouncementService.js';
+import HelpArticleService from '../services/Manage/HelpArticleService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -62,6 +63,12 @@ router.route('/announcement/create').post(AnnouncementService.create)
 router.route('/announcement/update').post(AnnouncementService.update)
 router.route('/announcement/delete').post(AnnouncementService.remove)
 router.route('/announcement/upload-cover').post(singleImage('cover'), AnnouncementService.uploadCover)
+
+// 帮助中心
+router.route('/help-article/list').post(HelpArticleService.list)
+router.route('/help-article/create').post(HelpArticleService.create)
+router.route('/help-article/update').post(HelpArticleService.update)
+router.route('/help-article/delete').post(HelpArticleService.remove)
 
 // 管理员类型
 router.route('/admin-type/list').post(AdminTypeService.list)
