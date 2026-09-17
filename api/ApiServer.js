@@ -29,7 +29,6 @@ app.use(function(req, res, next) {
     }
     req.query =  Helper.xss(req.query || {});
     req.body =  Helper.xss(req.body || {});
-    Helper.setLang(req.body._lang);
     next();
 });
 
