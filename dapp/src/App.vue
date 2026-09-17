@@ -4,17 +4,16 @@ import { useAppKitAccount, useAppKitProvider } from "@reown/appkit/vue";
 import { disconnect as disconnectWagmi, getAccount, watchAccount } from "@wagmi/core";
 import { createWalletClient, custom, getAddress } from "viem";
 import { getAddresses, signMessage } from "viem/actions";
+import AppBottomNav from "./components/AppBottomNav.vue";
+import AppHeader from "./components/AppHeader.vue";
 import AppIcon from "./components/AppIcon.vue";
 import { useLocale } from "./composables/useLocale.js";
 import { requestLogin, requestLoginNonce, requestLogout, requestResolveInviter } from "./lib/api.js";
 import { activeNetwork, appKit, projectId, wagmiAdapter } from "./lib/reown.js";
-import logoSrc from "@assets/images/logo.png";
 const { lang } = useLocale();
 
-const { locale, currentLocale, supportedLocales, setLocale, t } = useLocale();
 const account = useAppKitAccount();
 const providerState = useAppKitProvider("eip155");
-const localeOpen = ref(false);
 const inviteVisible = ref(false);
 const inviteCode = ref(new URLSearchParams(window.location.search).get("t") || localStorage.getItem("invite_ref_code") || "");
 const inviterWallet = ref("");
@@ -44,11 +43,6 @@ const highlights = [
   { title: lang("资金安全透明"), sub: lang("链上可查"), icon: "share" },
   { title: lang("合伙人体系"), sub: lang("收益多元化"), icon: "partner" }
 ];
-const navItems = [
-  { key: "home", icon: "home" }, { key: "invest", icon: "compass" },
-  { key: "assets", icon: "stack" }, { key: "mine", icon: "user" }
-];
-
 function showNotice(message, type = "success") {
   notice.value = message;
   noticeType.value = type;
@@ -57,7 +51,6 @@ function showNotice(message, type = "success") {
 }
 
 async function openWallet() {
-  localeOpen.value = false;
   if (projectId === "YOUR_REOWN_PROJECT_ID") {
     showNotice(lang("请先配置 Reown Project ID"), "error");
     return;
@@ -158,6 +151,10 @@ function handleAction() {
   else showNotice(lang("连接钱包后可查看投资与资产"));
 }
 
+function handleNotification() {
+  showNotice(lang("暂无公告"));
+}
+
 watch(
   [
     () => accountState.value.isConnected,
@@ -195,29 +192,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="app-shell" @click="localeOpen = false">
+  <main class="app-shell">
     <section class="hero">
       <div class="hero__image" role="img" :aria-label="lang('租车投资')"></div>
       <div class="hero__shade"></div>
-      <header class="topbar">
-        <a class="brand" href="#" aria-label="NEURO">
-        <img :src="logoSrc" alt="" />
-        </a>
-        <div class="topbar__actions">
-          <div class="locale" @click.stop>
-            <button type="button" class="locale__trigger" :aria-label="lang('切换语言')" @click="localeOpen = !localeOpen">
-              {{ currentLocale.label }} <span>⌄</span>
-            </button>
-            <div v-if="localeOpen" class="locale__menu">
-              <button v-for="item in supportedLocales" :key="item.value" type="button" :class="{ active: locale === item.value }" @click="setLocale(item.value); localeOpen = false">{{ item.label }}</button>
-            </div>
-          </div>
-          <button class="wallet-button" type="button" :disabled="loggingIn" @click="openWallet">
-            {{ loggingIn ? lang('已登录') : walletLabel }}
-          </button>
-          <button class="bell" type="button" :aria-label="lang('公告')"><AppIcon name="bell" /></button>
-        </div>
-      </header>
+      <AppHeader
+        :wallet-label="walletLabel"
+        :loading="loggingIn"
+        @wallet-click="openWallet"
+        @notification-click="handleNotification"
+      />
     </section>
 
     <section class="content-card">
@@ -252,11 +236,7 @@ onBeforeUnmount(() => {
       </button>
     </section>
 
-    <nav class="bottom-nav" aria-label="Primary">
-      <button v-for="(item, index) in navItems" :key="item.key" type="button" :class="{ active: index === 0 }" @click="handleAction">
-        <AppIcon :name="item.icon" /><span>{{ item.key }}</span>
-      </button>
-    </nav>
+    <AppBottomNav active-key="home" @select="handleAction" />
 
     <transition name="toast"><div v-if="notice" class="toast" :class="`toast--${noticeType}`">{{ notice }}</div></transition>
 
