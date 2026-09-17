@@ -2,6 +2,7 @@ import ApiResult from '../../Util/ApiResult.js';
 import AssetToken from '../../Util/AssetToken.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { formatAssetAmount } from '../../Util/AssetAmount.js';
 
 const ASSET_TABLE = 'wallet_assets_logs';
 const FROZEN_TABLE = 'wallet_frozen_assets_logs';
@@ -28,9 +29,9 @@ async function normalize(row) {
   const decimals = await AssetToken.getTokenDecimals(row.token);
   return {
     id: Number(row.id || 0), biz_id: row.biz_id || '', wallet: row.wallet || '', token: row.token || '',
-    balance: Helper.formatDecimalPrice(row.balance || '0', decimals, 5),
-    before_balance: Helper.formatDecimalPrice(row.before_balance || '0', decimals, 5),
-    after_balance: Helper.formatDecimalPrice(row.after_balance || '0', decimals, 5),
+    balance: formatAssetAmount(row.balance || '0', decimals),
+    before_balance: formatAssetAmount(row.before_balance || '0', decimals),
+    after_balance: formatAssetAmount(row.after_balance || '0', decimals),
     scene: row.scene || '', reason: row.reason || '', type: row.type || '',
     created_at: row.created_at || '', updated_at: row.updated_at || ''
   };

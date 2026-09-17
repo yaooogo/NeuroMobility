@@ -2,9 +2,21 @@ import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
 import ApiResult from '../../Util/ApiResult.js';
 import ManagePermission from '../../Util/ManagePermission.js';
+import Config from '../../Util/Config.js';
+import { RedisCache } from '../../Util/Cache.js';
+import {
+  buildGoogleAuthenticatorUri,
+  generateGoogleAuthenticatorSecret,
+  verifyGoogleAuthenticatorCode
+} from '../../Util/GoogleAuthenticator.js';
 
 const TABLE_NAME = 'admin';
 const TYPE_TABLE_NAME = 'admin_type';
+const GOOGLE_AUTH_SETUP_TTL = 600;
+
+function googleAuthSetupKey(operatorId, adminId) {
+  return `admin_google_auth_setup:${Number(operatorId || 0)}:${Number(adminId || 0)}`;
+}
 
 function normalizePermissions(value) {
   return ManagePermission.serializePermissions(value);
@@ -25,9 +37,114 @@ function buildAdminPublic(admin) {
         : admin.permissions)
       : [],
     status: Number(admin.status || 0),
+    google_authentication_bound: Boolean(String(admin.google_secret || '').trim()),
+    google_bound_at: admin.google_bound_at || '',
     created_at: admin.created_at || '',
     updated_at: admin.updated_at || ''
   };
+}
+
+async function getGoogleAuthTarget(req, res) {
+  const id = Helper.parseInt(req.body?.id, 0);
+  if (!id) {
+    res.send(ApiResult.error(400, '管理员ID不能为空'));
+    return null;
+  }
+
+  const [target, operator] = await Promise.all([
+    DB.query().table(TABLE_NAME).where('id', id).first(),
+    DB.query().table(TABLE_NAME).where('id', req.auth?.id() || 0).first()
+  ]);
+  if (!target) {
+    res.send(ApiResult.error(404, '管理员不存在'));
+    return null;
+  }
+  const isSelf = Number(target.id) === Number(operator?.id || 0);
+  if (!isSelf && Number(operator?.is_super || 0) !== 1) {
+    res.send(ApiResult.error(403, '只有超级管理员可以管理其他账号的谷歌验证器'));
+    return null;
+  }
+  return { target, operator, isSelf };
+}
+
+async function googleAuthSetup(req, res) {
+  try {
+    const context = await getGoogleAuthTarget(req, res);
+    if (!context) return;
+    if (String(context.target.google_secret || '').trim()) {
+      return res.send(ApiResult.error(400, '该管理员已绑定谷歌验证器'));
+    }
+
+    const secret = generateGoogleAuthenticatorSecret();
+    await RedisCache.set(
+      googleAuthSetupKey(context.operator.id, context.target.id),
+      secret,
+      GOOGLE_AUTH_SETUP_TTL
+    );
+    return res.send(ApiResult.success({
+      id: Number(context.target.id),
+      username: context.target.username || '',
+      secret,
+      otpauth_uri: buildGoogleAuthenticatorUri(secret, context.target.username, Config.APP_NAME || 'NeuroMobility'),
+      expires_in: GOOGLE_AUTH_SETUP_TTL
+    }, '谷歌验证器绑定信息已生成'));
+  } catch (error) {
+    console.error('[AdminService.googleAuthSetup] error:', error);
+    return res.send(ApiResult.exception(error, 'AdminService.googleAuthSetup'));
+  }
+}
+
+async function googleAuthBind(req, res) {
+  try {
+    const context = await getGoogleAuthTarget(req, res);
+    if (!context) return;
+    if (String(context.target.google_secret || '').trim()) {
+      return res.send(ApiResult.error(400, '该管理员已绑定谷歌验证器'));
+    }
+    const cacheKey = googleAuthSetupKey(context.operator.id, context.target.id);
+    const secret = await RedisCache.get(cacheKey);
+    if (!secret) return res.send(ApiResult.error(400, '绑定信息已失效，请重新生成'));
+
+    const googleCode = String(req.body?.google_code || '').trim();
+    if (!verifyGoogleAuthenticatorCode(secret, googleCode)) {
+      return res.send(ApiResult.error(400, '谷歌验证码错误或已失效'));
+    }
+
+    await DB.query().table(TABLE_NAME).where('id', context.target.id).update({
+      google_secret: secret,
+      google_bound_at: Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date())
+    });
+    await RedisCache.delete(cacheKey);
+    return res.send(ApiResult.success({ id: Number(context.target.id) }, '谷歌验证器绑定成功'));
+  } catch (error) {
+    console.error('[AdminService.googleAuthBind] error:', error);
+    return res.send(ApiResult.exception(error, 'AdminService.googleAuthBind'));
+  }
+}
+
+async function googleAuthUnbind(req, res) {
+  try {
+    const context = await getGoogleAuthTarget(req, res);
+    if (!context) return;
+    const secret = String(context.target.google_secret || '').trim();
+    if (!secret) return res.send(ApiResult.error(400, '该管理员尚未绑定谷歌验证器'));
+
+    if (context.isSelf) {
+      const googleCode = String(req.body?.google_code || '').trim();
+      if (!verifyGoogleAuthenticatorCode(secret, googleCode)) {
+        return res.send(ApiResult.error(400, '谷歌验证码错误或已失效'));
+      }
+    }
+
+    await DB.query().table(TABLE_NAME).where('id', context.target.id).update({
+      google_secret: null,
+      google_bound_at: null
+    });
+    return res.send(ApiResult.success({ id: Number(context.target.id) }, '谷歌验证器已解绑'));
+  } catch (error) {
+    console.error('[AdminService.googleAuthUnbind] error:', error);
+    return res.send(ApiResult.exception(error, 'AdminService.googleAuthUnbind'));
+  }
 }
 
 async function list(req, res) {
@@ -325,4 +442,4 @@ async function options(req, res) {
   }
 }
 
-export default { list, detail, create, update, remove, options };
+export default { list, detail, create, update, remove, options, googleAuthSetup, googleAuthBind, googleAuthUnbind };

@@ -3,8 +3,22 @@ import ManageAuth from '../../Util/ManageAuth.js';
 import ManagePermission from '../../Util/ManagePermission.js';
 import Helper from '../../Util/Helper.js';
 import ApiResult from '../../Util/ApiResult.js';
+import Config from '../../Util/Config.js';
+import { verifyGoogleAuthenticatorCode } from '../../Util/GoogleAuthenticator.js';
 
 const TABLE_NAME = 'admin';
+
+function googleAuthenticationEnabled() {
+  return ['1', 'true', 'yes', 'on'].includes(
+    String(Config.OPEN_GOOGLE_AUTHENTICATION || '').trim().toLowerCase()
+  );
+}
+
+async function loginConfig(req, res) {
+  return res.send(ApiResult.success({
+    google_authentication_enabled: googleAuthenticationEnabled()
+  }, '获取登录配置成功'));
+}
 
 function buildAdminPayload(admin) {
   return {
@@ -41,6 +55,19 @@ async function login(req, res) {
     const ok = await Helper.password_verify(password, admin.password);
     if (!ok) {
       return res.send(ApiResult.error(401, '用户名或密码错误'));
+    }
+
+    if (googleAuthenticationEnabled()) {
+      if (!String(admin.google_secret || '').trim()) {
+        return res.send(ApiResult.error(403, '账号未绑定谷歌验证器，请联系管理员'));
+      }
+      const googleCode = String(req.body?.google_code || '').trim();
+      if (!googleCode) {
+        return res.send(ApiResult.error(400, '谷歌验证码不能为空'));
+      }
+      if (!verifyGoogleAuthenticatorCode(admin.google_secret, googleCode)) {
+        return res.send(ApiResult.error(401, '谷歌验证码错误或已失效'));
+      }
     }
 
     const payload = buildAdminPayload(admin);
@@ -102,4 +129,4 @@ async function logout(req, res) {
   }
 }
 
-export default { login, info, logout };
+export default { loginConfig, login, info, logout };

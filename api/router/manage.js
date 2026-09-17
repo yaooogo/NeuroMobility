@@ -8,6 +8,8 @@ import OperationLogService from '../services/Manage/OperationLogService.js';
 import AssetTokenService from '../services/Manage/AssetTokenService.js';
 import AssetLogService from '../services/Manage/AssetLogService.js';
 import SystemConfigService from '../services/Manage/SystemConfigService.js';
+import WalletService from '../services/Manage/WalletService.js';
+import AnnouncementService from '../services/Manage/AnnouncementService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -33,6 +35,7 @@ function singleImage(fieldName) {
 }
 
 
+router.route('/login-config').post(AuthService.loginConfig)
 router.route('/login').post(AuthService.login)
 
 //以下为需要鉴权部分API
@@ -49,6 +52,15 @@ router.route('/admin/create').post(AdminService.create)
 router.route('/admin/update').post(AdminService.update)
 router.route('/admin/delete').post(AdminService.remove)
 router.route('/admin/options').post(AdminTypeService.all)
+router.route('/admin/google-auth/setup').post(AdminService.googleAuthSetup)
+router.route('/admin/google-auth/bind').post(AdminService.googleAuthBind)
+router.route('/admin/google-auth/unbind').post(AdminService.googleAuthUnbind)
+
+// 公告管理
+router.route('/announcement/list').post(AnnouncementService.list)
+router.route('/announcement/create').post(AnnouncementService.create)
+router.route('/announcement/update').post(AnnouncementService.update)
+router.route('/announcement/delete').post(AnnouncementService.remove)
 
 // 管理员类型
 router.route('/admin-type/list').post(AdminTypeService.list)
@@ -68,6 +80,13 @@ router.route('/asset-token/list').post(AssetTokenService.list)
 router.route('/asset-token/update').post(AssetTokenService.update)
 router.route('/user-asset-log/list').post(AssetLogService.list)
 router.route('/user-frozen-asset-log/list').post(AssetLogService.frozenList)
+
+// 钱包与钱包资产
+router.route('/wallet/list').post(WalletService.walletList)
+router.route('/wallet/create').post(WalletService.walletCreate)
+router.route('/wallet/update').post(WalletService.walletUpdate)
+router.route('/wallet-asset/list').post(WalletService.walletAssetList)
+router.route('/wallet-asset/change').post(WalletService.walletAssetChange)
 
 // 参数配置 - 等级配置
 router.route('/system-config/wallet-level').post(SystemConfigService.walletLevelDetail)

@@ -3,6 +3,9 @@ export function can(user, key) {
 }
 
 export function firstPage(user) {
+  if (can(user, 'wallets')) return '/wallets';
+  if (can(user, 'wallet-assets')) return '/wallet-assets';
+  if (can(user, 'announcements')) return '/announcements';
   if (can(user, 'admins')) return '/admins';
   if (can(user, 'admin-types')) return '/admin-types';
   if (can(user, 'admin-operation-logs')) return '/operation-logs';

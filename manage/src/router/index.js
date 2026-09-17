@@ -10,6 +10,9 @@ import AssetTokensPage from '../views/AssetTokensPage.vue';
 import AssetLogsPage from '../views/AssetLogsPage.vue';
 import LevelConfigPage from '../views/LevelConfigPage.vue';
 import NoPermissionPage from '../views/NoPermissionPage.vue';
+import WalletsPage from '../views/WalletsPage.vue';
+import WalletAssetsPage from '../views/WalletAssetsPage.vue';
+import AnnouncementsPage from '../views/AnnouncementsPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -20,6 +23,9 @@ const router = createRouter({
     { path: '/admin-types', component: AdminTypesPage, meta: { permission: 'admin-types' } },
     { path: '/operation-logs', component: OperationLogsPage, meta: { permission: 'admin-operation-logs' } },
     { path: '/asset-tokens', component: AssetTokensPage, meta: { permission: 'asset-tokens' } },
+    { path: '/wallets', component: WalletsPage, meta: { permission: 'wallets' } },
+    { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
+    { path: '/announcements', component: AnnouncementsPage, meta: { permission: 'announcements' } },
     { path: '/asset-logs', component: AssetLogsPage, props: { frozen: false }, meta: { permission: 'user-asset-logs' } },
     { path: '/frozen-asset-logs', component: AssetLogsPage, props: { frozen: true }, meta: { permission: 'user-frozen-asset-logs' } },
     { path: '/parameter-config/levels', component: LevelConfigPage, meta: { permission: 'parameter-config' } },
