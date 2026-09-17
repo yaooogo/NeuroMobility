@@ -5,7 +5,6 @@ import AuthService from '../services/Manage/AuthService.js';
 import AdminService from '../services/Manage/AdminService.js';
 import AdminTypeService from '../services/Manage/AdminTypeService.js';
 import OperationLogService from '../services/Manage/OperationLogService.js';
-import UserService from '../services/Manage/UserService.js';
 import AssetTokenService from '../services/Manage/AssetTokenService.js';
 import AssetLogService from '../services/Manage/AssetLogService.js';
 import SystemConfigService from '../services/Manage/SystemConfigService.js';
@@ -73,12 +72,8 @@ router.route('/user-frozen-asset-log/list').post(AssetLogService.frozenList)
 // 参数配置 - 等级配置
 router.route('/system-config/wallet-level').post(SystemConfigService.walletLevelDetail)
 router.route('/system-config/wallet-level/update').post(SystemConfigService.walletLevelUpdate)
+router.route('/system-config/investment').post(SystemConfigService.investmentDetail)
+router.route('/system-config/investment/update').post(SystemConfigService.investmentUpdate)
 
-// 用户
-router.route('/user/list').post(UserService.list)
-router.route('/user/detail').post(UserService.detail)
-router.route('/user/create').post(UserService.create)
-router.route('/user/update').post(UserService.update)
-router.route('/user/delete').post(UserService.remove)
 
 export default router;

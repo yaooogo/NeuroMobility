@@ -851,12 +851,12 @@ const User = {
         }
 
         try {
-            const exists = await DB.query().table("user_assets").where("wallet", wallet).count();
+            const exists = await DB.query().table("wallet_assets").where("wallet", wallet).count();
             if (exists > 0) {
                 return ApiResult.success([], "Operation successful");
             }
 
-            let nextId = await DB.query().table("user_assets").max("id");
+            let nextId = await DB.query().table("wallet_assets").max("id");
             nextId = Helper.parseInt(nextId, 0);
 
             const now = Helper.dateFormat("YYYY-mm-dd HH:MM:SS", new Date());
@@ -870,7 +870,7 @@ const User = {
             }));
 
             if (rows.length > 0) {
-                await DB.query().table("user_assets").insert(rows);
+                await DB.query().table("wallet_assets").insert(rows);
             }
 
             return ApiResult.success(rows, "Operation successful");

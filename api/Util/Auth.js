@@ -3,7 +3,7 @@ import Config from "./Config.js";
 import { RedisCache } from "./Cache.js";
 import ApiResult from "./ApiResult.js";
 import crypto from "crypto";
-import User from "./User.js";
+import Wallet from "./Wallet.js";
 
 function getCacheKey(token) {
   return `auth_token:${Helper.md5(token)}`;
@@ -79,7 +79,7 @@ const Auth = {
 
     const authAddress = String(payload?.address || "").trim();
     if (authAddress) {
-      const wallet = await User.getWalletByAddress(authAddress);
+      const wallet = await Wallet.getWalletByAddress(authAddress);
       if (!wallet) {
         await RedisCache.delete(cacheKey);
         return res.send(ApiResult.error(401, "Authentication failed"));

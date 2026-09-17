@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS `n_assets_tokens` (
   PRIMARY KEY (`id`), UNIQUE KEY `uk_symbol` (`symbol`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资产类型';
 
-CREATE TABLE IF NOT EXISTS `n_user_assets_logs` (
+CREATE TABLE IF NOT EXISTS `n_wallet_assets_logs` (
   `id` int NOT NULL AUTO_INCREMENT,
   `biz_id` varchar(100) DEFAULT NULL,
   `wallet` varchar(100) DEFAULT NULL COMMENT '钱包地址',
@@ -35,5 +35,5 @@ CREATE TABLE IF NOT EXISTS `n_user_assets_logs` (
   KEY `idx_token_type_time` (`token`,`type`,`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资产变更记录';
 
-CREATE TABLE IF NOT EXISTS `n_user_frozen_assets_logs` LIKE `n_user_assets_logs`;
-ALTER TABLE `n_user_frozen_assets_logs` COMMENT='冻结资产变更记录';
+CREATE TABLE IF NOT EXISTS `n_wallet_frozen_assets_logs` LIKE `n_wallet_assets_logs`;
+ALTER TABLE `n_wallet_frozen_assets_logs` COMMENT='冻结资产变更记录';

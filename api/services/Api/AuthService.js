@@ -4,7 +4,7 @@ import { RedisCache } from "../../Util/Cache.js";
 import Config from "../../Util/Config.js";
 import Helper from "../../Util/Helper.js";
 import EthereumUtils from "../../Util/EthereumUtils.js";
-import User from "../../Util/User.js";
+import Wallet from "../../Util/Wallet.js";
 
 const signMessage = `
 Welcome to ${Config.APP_NAME}
@@ -27,7 +27,7 @@ export default {
         return res.send(ApiResult.error(404, "Please connect wallet"));
       }
 
-      const userinfo = await User.getWalletByAddress(address);
+      const userinfo = await Wallet.getWalletByAddress(address);
 
       const nonce = Helper.randomNo(32);
       const signStr = Helper.sprintf(signMessage, address, nonce);
@@ -52,7 +52,7 @@ export default {
         return res.send(ApiResult.error(400, "source_member_empty"));
       }
 
-      const inviter = await User.resolveInviterByRefCode(refCode);
+      const inviter = await Wallet.resolveInviterByRefCode(refCode);
       if (!inviter) {
         return res.send(ApiResult.error(404, "source_member_error"));
       }
@@ -89,21 +89,21 @@ export default {
         return res.send(ApiResult.error(404, "Signature verification failed"));
       }
 
-      let authResult = await User.auth(address);
+      let authResult = await Wallet.auth(address);
 
       if (authResult.code !== 0) {
-        const registerResult = await User.register(address, refCode);
+        const registerResult = await Wallet.register(address, refCode);
         if (registerResult.code !== 0) {
           return res.send(registerResult);
         }
 
-        authResult = await User.auth(address);
+        authResult = await Wallet.auth(address);
         if (authResult.code !== 0) {
           return res.send(authResult);
         }
       }
 
-      const initAssetResult = await User.initUserAssets(address);
+      const initAssetResult = await Wallet.initUserAssets(address);
       if (initAssetResult.code !== 0) {
         return res.send(initAssetResult);
       }

@@ -6,14 +6,25 @@ import { post } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
 
 const user = getUser();
+const activeTab = ref('level');
 const rules = ref([]);
+const investment = ref({
+  waiting_period_days: '0',
+  min_percent: '0',
+  max_percent: '100',
+  dividend_multiple: '1',
+  dividend_min_percent: '0',
+  dividend_max_percent: '100',
+  exit_multiple: '1'
+});
+const investmentLoaded = ref(false);
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
 const success = ref('');
 const canUpdate = computed(() => can(user, 'parameter-config-update'));
 
-async function load() {
+async function loadLevels() {
   loading.value = true; error.value = '';
   try {
     const data = await post('/system-config/wallet-level');
@@ -22,7 +33,30 @@ async function load() {
   finally { loading.value = false; }
 }
 
-function validate() {
+async function loadInvestment() {
+  loading.value = true; error.value = '';
+  try {
+    const data = await post('/system-config/investment');
+    investment.value = {
+      waiting_period_days: String(data.waiting_period_days),
+      min_percent: String(data.min_percent),
+      max_percent: String(data.max_percent),
+      dividend_multiple: String(data.dividend_multiple),
+      dividend_min_percent: String(data.dividend_min_percent),
+      dividend_max_percent: String(data.dividend_max_percent),
+      exit_multiple: String(data.exit_multiple)
+    };
+    investmentLoaded.value = true;
+  } catch (err) { error.value = err.message || '加载投资配置失败'; }
+  finally { loading.value = false; }
+}
+
+async function selectTab(tab) {
+  activeTab.value = tab; error.value = ''; success.value = '';
+  if (tab === 'investment' && !investmentLoaded.value) await loadInvestment();
+}
+
+function validateLevels() {
   const normalized = rules.value.map(item => ({ level: Number(item.level), amount: Number(item.amount) }));
   if (normalized.length !== 3 || normalized.some((item, index) => item.level !== 3 - index)) return '等级配置固定为 1、2、3 级';
   if (normalized.some(item => !Number.isFinite(item.amount) || item.amount < 0)) return '金额必须为非负数';
@@ -32,36 +66,76 @@ function validate() {
   return '';
 }
 
+function validateInvestment() {
+  if (Object.values(investment.value).some(value => String(value).trim() === '')) return '投资配置项不能为空';
+  const waitingPeriodDays = Number(investment.value.waiting_period_days);
+  const minPercent = Number(investment.value.min_percent);
+  const maxPercent = Number(investment.value.max_percent);
+  const dividendMultiple = Number(investment.value.dividend_multiple);
+  const dividendMinPercent = Number(investment.value.dividend_min_percent);
+  const dividendMaxPercent = Number(investment.value.dividend_max_percent);
+  const exitMultiple = Number(investment.value.exit_multiple);
+  if (!Number.isInteger(waitingPeriodDays) || waitingPeriodDays < 0) return '等待期必须为非负整数';
+  if (!Number.isFinite(minPercent) || !Number.isFinite(maxPercent) || minPercent < 0 || minPercent > 100 || maxPercent < 0 || maxPercent > 100) return '分红百分比必须在 0% 到 100% 之间';
+  if (minPercent > maxPercent) return '分红百分比起始值不能大于结束值';
+  if (!Number.isFinite(dividendMultiple) || dividendMultiple <= 0) return '分红倍数必须大于 0';
+  if (!Number.isFinite(dividendMinPercent) || !Number.isFinite(dividendMaxPercent) || dividendMinPercent < 0 || dividendMinPercent > 100 || dividendMaxPercent < 0 || dividendMaxPercent > 100) return '分红百分比区间必须在 0% 到 100% 之间';
+  if (dividendMinPercent > dividendMaxPercent) return '分红百分比区间起始值不能大于结束值';
+  if (!Number.isFinite(exitMultiple) || exitMultiple <= 0) return '出局倍数必须大于 0';
+  return '';
+}
+
 async function save() {
-  const message = validate();
+  const message = activeTab.value === 'level' ? validateLevels() : validateInvestment();
   if (message) { error.value = message; return; }
   saving.value = true; error.value = ''; success.value = '';
   try {
-    const data = await post('/system-config/wallet-level/update', { rules: rules.value });
-    rules.value = (data.rules || []).map(item => ({ level: String(item.level), amount: String(item.amount) }));
-    success.value = '等级配置已保存';
-  } catch (err) { error.value = err.message || '保存等级配置失败'; }
+    if (activeTab.value === 'level') {
+      const data = await post('/system-config/wallet-level/update', { rules: rules.value });
+      rules.value = (data.rules || []).map(item => ({ level: String(item.level), amount: String(item.amount) }));
+      success.value = '等级配置已保存';
+    } else {
+      const data = await post('/system-config/investment/update', investment.value);
+      investment.value = {
+        waiting_period_days: String(data.waiting_period_days),
+        min_percent: String(data.min_percent),
+        max_percent: String(data.max_percent),
+        dividend_multiple: String(data.dividend_multiple),
+        dividend_min_percent: String(data.dividend_min_percent),
+        dividend_max_percent: String(data.dividend_max_percent),
+        exit_multiple: String(data.exit_multiple)
+      };
+      success.value = '投资配置已保存';
+    }
+  } catch (err) { error.value = err.message || '保存配置失败'; }
   finally { saving.value = false; }
 }
 
-onMounted(load);
+onMounted(loadLevels);
 </script>
 
 <template>
   <ManageLayout title="参数配置" description="通过顶部页签切换配置模块，保存后立即写入系统配置。">
     <section class="panel-card parameter-panel">
       <div class="parameter-tabs">
-        <button class="parameter-tab parameter-tab--active" type="button">等级配置</button>
+        <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'level' }" type="button" @click="selectTab('level')">等级配置</button>
+        <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'investment' }" type="button" @click="selectTab('investment')">投资配置</button>
       </div>
-      <div class="parameter-section-head">
+      <div v-if="activeTab === 'level'" class="parameter-section-head">
         <div>
           <h2>等级配置</h2>
           <p>配置各等级对应的金额阈值，达到对应金额后自动进入该等级。</p>
         </div>
       </div>
+      <div v-else class="parameter-section-head">
+        <div>
+          <h2>投资配置</h2>
+          <p>配置投资等待期、百分比区间及达到出局条件的倍数。</p>
+        </div>
+      </div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
-      <div class="table-wrap level-config-wrap">
+      <div v-if="activeTab === 'level'" class="table-wrap level-config-wrap">
         <table class="data-table level-config-table">
           <thead><tr><th>等级</th><th>金额</th></tr></thead>
           <tbody>
@@ -73,7 +147,43 @@ onMounted(load);
           </tbody>
         </table>
       </div>
-      <div v-if="canUpdate" class="level-config-actions"><button class="submit-button" type="button" :disabled="saving || loading" @click="save">{{ saving ? '保存中...' : '保存配置' }}</button></div>
+      <template v-else>
+        <div v-if="loading" class="investment-loading">正在加载...</div>
+        <div v-else class="investment-form">
+          <label class="investment-field">
+            <span>等待期</span>
+            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.waiting_period_days" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ investment.waiting_period_days }}</strong><em>天</em></div>
+          </label>
+          <label class="investment-field">
+            <span>分红百分比</span>
+            <div class="range-inputs">
+              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.min_percent }}</strong><em>%</em></div>
+              <span class="range-separator">~</span>
+              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.max_percent }}</strong><em>%</em></div>
+            </div>
+          </label>
+          <label class="investment-field">
+            <span>出局倍数</span>
+            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.exit_multiple }}</strong><em>倍</em></div>
+          </label>
+          <div class="investment-field investment-field--dividend">
+            <span>分红规则</span>
+            <div class="dividend-config">
+              <div class="dividend-threshold">
+                <span>当分红达到</span>
+                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.dividend_multiple }}</strong><em>倍</em></div>
+              </div>
+              <span class="dividend-percent-label">，分红百分比</span>
+              <div class="range-inputs">
+                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.dividend_min_percent }}</strong><em>%</em></div>
+                <span class="range-separator">~</span>
+                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.dividend_max_percent }}</strong><em>%</em></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <div v-if="canUpdate" class="level-config-actions"><button class="submit-button" type="button" :disabled="saving || loading || (activeTab === 'investment' && !investmentLoaded)" @click="save">{{ saving ? '保存中...' : '保存配置' }}</button></div>
     </section>
   </ManageLayout>
 </template>
@@ -89,10 +199,30 @@ onMounted(load);
 .level-config-wrap { margin: 0 24px; width: auto; }
 .level-config-table { min-width: 620px; }
 .level-config-table th:nth-child(1), .level-config-table td:nth-child(1) { width: 28%; }
+.investment-form { display: grid; gap: 20px; margin: 0 24px 26px; max-width: 720px; }
+.investment-field { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 18px; }
+.investment-field > span { font-weight: 600; }
+.input-with-unit { display: flex; align-items: center; min-height: 42px; }
+.input-with-unit .text-input { flex: 1; min-width: 0; }
+.input-with-unit strong { flex: 1; }
+.input-with-unit em { min-width: 42px; color: var(--muted); font-style: normal; text-align: center; }
+.range-inputs { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.range-separator { color: var(--muted); }
+.dividend-config { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.dividend-threshold { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.dividend-threshold .input-with-unit { flex: 1; }
+.dividend-percent-label { white-space: nowrap; }
+.dividend-config > .range-inputs { flex: 1 1 240px; }
+.investment-loading { padding: 0 24px 26px; color: var(--muted); }
 .level-config-actions { display: flex; margin-top: auto; padding-top: 26px; border-top: 1px solid var(--line); }
 .level-config-actions .submit-button { width: 100%; min-height: 42px; border-radius: 0 0 24px 24px; font-size: 16px; }
 @media (max-width: 640px) {
   .parameter-section-head { align-items: stretch; flex-direction: column; }
   .level-config-wrap { margin: 0 14px; }
+  .investment-form { margin: 0 14px 20px; }
+  .investment-field { grid-template-columns: 1fr; gap: 8px; }
+  .dividend-config { align-items: stretch; flex-direction: column; }
+  .dividend-config > .range-inputs { flex-basis: auto; }
+  .dividend-percent-label { margin-left: -4px; }
 }
 </style>

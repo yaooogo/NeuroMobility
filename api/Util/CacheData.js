@@ -5,6 +5,11 @@ import {
     getDefaultWalletLevelRules,
     normalizeWalletLevelRules
 } from "../config/walletLevel.js"
+import {
+    INVESTMENT_SYS_CONFIG_NAME,
+    getDefaultInvestmentConfig,
+    normalizeInvestmentConfig
+} from "../config/investmentConfig.js"
 
 export default {
 
@@ -168,5 +173,15 @@ export default {
         )
 
         return normalizeWalletLevelRules(rules)
+    },
+
+    async getInvestmentConfig() {
+        const config = await this.getSysConfig(
+            INVESTMENT_SYS_CONFIG_NAME,
+            'json',
+            getDefaultInvestmentConfig()
+        )
+
+        return normalizeInvestmentConfig(config)
     },
 }

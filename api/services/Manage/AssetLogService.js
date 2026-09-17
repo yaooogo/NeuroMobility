@@ -3,8 +3,8 @@ import AssetToken from '../../Util/AssetToken.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
 
-const ASSET_TABLE = 'user_assets_logs';
-const FROZEN_TABLE = 'user_frozen_assets_logs';
+const ASSET_TABLE = 'wallet_assets_logs';
+const FROZEN_TABLE = 'wallet_frozen_assets_logs';
 
 function filters(req) {
   return {
