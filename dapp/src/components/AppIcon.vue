@@ -20,5 +20,18 @@ defineProps({ name: { type: String, required: true } });
     <template v-else-if="name === 'arrow'"><path d="M5 12h13m-5-5 5 5-5 5"/></template>
     <template v-else-if="name === 'globe'"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 4 6 4 9s-1 6-4 9c-3-3-4-6-4-9s1-6 4-9"/></template>
     <template v-else-if="name === 'shield'"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/><path d="m9 12 2 2 4-4"/></template>
+    <template v-else-if="name === 'copy'"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></template>
+    <template v-else-if="name === 'badge'"><circle cx="12" cy="8" r="4"/><path d="M8.6 11.4 7 21l5-3 5 3-1.6-9.6"/></template>
+    <template v-else-if="name === 'add-user'"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0m4-9v6m-3-3h6"/></template>
+    <template v-else-if="name === 'team'"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2"/><path d="M3 20a6 6 0 0 1 12 0m1-6a5 5 0 0 1 5 5"/></template>
+    <template v-else-if="name === 'help'"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.6 2.6 0 1 1 4.4 1.9c-1.2 1-2 1.3-2 3.1m0 3.2v.1"/></template>
+    <template v-else-if="name === 'info'"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></template>
+    <template v-else-if="name === 'logout'"><path d="M10 5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h5m4-4 4-4-4-4m4 4H8"/></template>
+    <template v-else-if="name === 'chevron'"><path d="m9 18 6-6-6-6"/></template>
+    <template v-else-if="name === 'calendar'"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4m8-4v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 17h.01M12 17h.01M16 17h.01"/></template>
+    <template v-else-if="name === 'hourglass'"><path d="M6 3h12M6 21h12M8 3c0 4 1 5 4 7-3 2-4 3-4 7v4m8-18c0 4-1 5-4 7 3 2 4 3 4 7v4"/></template>
+    <template v-else-if="name === 'card'"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-14 5h4"/></template>
+    <template v-else-if="name === 'withdraw'"><path d="M4 7h12v10H4zM7 11h6m5-8v12m-3-3 3 3 3-3"/></template>
+    <template v-else-if="name === 'file'"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6"/></template>
   </svg>
 </template>

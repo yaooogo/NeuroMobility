@@ -4,13 +4,15 @@ import { useAppKitAccount, useAppKitProvider } from "@reown/appkit/vue";
 import { disconnect as disconnectWagmi, getAccount, watchAccount } from "@wagmi/core";
 import { createWalletClient, custom, getAddress } from "viem";
 import { getAddresses, signMessage } from "viem/actions";
+import { useRoute, useRouter } from "vue-router";
 import AppBottomNav from "./components/AppBottomNav.vue";
-import AppHeader from "./components/AppHeader.vue";
 import AppIcon from "./components/AppIcon.vue";
 import { useLocale } from "./composables/useLocale.js";
 import { requestLogin, requestLoginNonce, requestLogout, requestResolveInviter } from "./lib/api.js";
 import { activeNetwork, appKit, projectId, wagmiAdapter } from "./lib/reown.js";
 const { lang } = useLocale();
+const route = useRoute();
+const router = useRouter();
 
 const account = useAppKitAccount();
 const providerState = useAppKitProvider("eip155");
@@ -21,6 +23,7 @@ const pendingAddress = ref("");
 const loggingIn = ref(false);
 const notice = ref("");
 const noticeType = ref("success");
+const activeTab = computed(() => String(route.meta.navKey || "home"));
 const accountState = computed(() => unref(account) || {});
 const walletProviderState = computed(() => unref(providerState?.walletProvider) || null);
 const connectedAddress = computed(() => String(accountState.value.address || getWagmiAddress()).toLowerCase());
@@ -31,18 +34,6 @@ const walletLabel = computed(() => {
   return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : lang("连接钱包");
 });
 
-const quickActions = [
-  { key: lang("投资计划"), icon: "coin" },
-  { key: lang("车辆信息"), icon: "car" },
-  { key: lang("分红记录"), icon: "record" },
-  { key: lang("邀请好友"), icon: "mail" }
-];
-const highlights = [
-  { title: lang("真实租车业务"), sub: lang("实体资产支撑"), icon: "car" },
-  { title: lang("月度分红"), sub: lang("共享经营收益"), icon: "coins" },
-  { title: lang("资金安全透明"), sub: lang("链上可查"), icon: "share" },
-  { title: lang("合伙人体系"), sub: lang("收益多元化"), icon: "partner" }
-];
 function showNotice(message, type = "success") {
   notice.value = message;
   noticeType.value = type;
@@ -146,9 +137,71 @@ async function disconnectWallet(callApi = true) {
   try { await disconnectWagmi(wagmiAdapter.wagmiConfig); } catch { /* already disconnected */ }
 }
 
-function handleAction() {
-  if (!isConnected.value) openWallet();
-  else showNotice(lang("连接钱包后可查看投资与资产"));
+function handleHomeAction(item) {
+  if (item?.key === "invest") {
+    void router.push({ name: "invest" });
+    return;
+  }
+  if (!isConnected.value) void openWallet();
+  else showNotice(lang("功能正在建设中"));
+}
+
+function handleNavSelect(item) {
+  if (item.key !== activeTab.value) void router.push({ name: item.key });
+}
+
+function handleProtectedAction() {
+  if (!isConnected.value) {
+    void openWallet();
+    return;
+  }
+  showNotice(lang("功能正在建设中"));
+}
+
+async function copyWalletAddress() {
+  if (!connectedAddress.value) {
+    await openWallet();
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(connectedAddress.value);
+    showNotice(lang("钱包地址已复制"));
+  } catch {
+    showNotice(lang("复制失败，请手动复制"), "error");
+  }
+}
+
+async function logoutFromProfile() {
+  await disconnectWallet();
+  showNotice(lang("已安全退出"));
+}
+
+function handleProfileAction(item) {
+  if (item?.key === "invest") {
+    void router.push({ name: "invest" });
+    return;
+  }
+  if (!isConnected.value && (item?.key === "invite" || item?.key === "team")) {
+    void openWallet();
+    return;
+  }
+  showNotice(lang("功能正在建设中"));
+}
+
+function handleViewAction(item) {
+  if (route.name === "home") {
+    handleHomeAction(item);
+    return;
+  }
+  if (route.name === "mine") {
+    handleProfileAction(item);
+    return;
+  }
+  if (route.name === "assets" && item?.key === "add-investment") {
+    void router.push({ name: "invest" });
+    return;
+  }
+  handleProtectedAction(item);
 }
 
 function handleNotification() {
@@ -193,50 +246,23 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="app-shell">
-    <section class="hero">
-      <div class="hero__image" role="img" :aria-label="lang('租车投资')"></div>
-      <div class="hero__shade"></div>
-      <AppHeader
+    <RouterView v-slot="{ Component }">
+      <component
+        :is="Component"
+        :address="connectedAddress"
+        :connected="isConnected"
         :wallet-label="walletLabel"
         :loading="loggingIn"
         @wallet-click="openWallet"
         @notification-click="handleNotification"
+        @connect="openWallet"
+        @copy="copyWalletAddress"
+        @logout="logoutFromProfile"
+        @action="handleViewAction"
       />
-    </section>
+    </RouterView>
 
-    <section class="content-card">
-      <div class="quick-grid">
-        <button v-for="item in quickActions" :key="item.key" type="button" class="quick-item" @click="handleAction">
-          <span class="icon-tile"><AppIcon :name="item.icon" /></span><span>{{ item.key }}</span>
-        </button>
-      </div>
-
-      <div class="stats-grid">
-        <article><span>{{ lang('平台运营车辆') }}</span><strong>1,258 <small>{{ lang('台') }}</small></strong><i><AppIcon name="car" /></i></article>
-        <article><span>{{ lang('累计用户') }}</span><strong>56,320 <small>{{ lang('人') }}</small></strong><i><AppIcon name="users" /></i></article>
-      </div>
-
-      <button class="investment-banner" type="button" @click="handleAction">
-        <span><strong>{{ lang('租车投资 · 月度分红计划') }}</strong><small>{{ lang('真实投资运营｜稳定经营收益｜透明公开分配') }}</small></span>
-        <b>{{ lang('立即投资') }} <AppIcon name="arrow" /></b>
-      </button>
-
-      <section class="highlights">
-        <h2>{{ lang('项目亮点') }}</h2>
-        <div class="highlight-grid">
-          <article v-for="item in highlights" :key="item.title">
-            <AppIcon :name="item.icon" /><strong>{{ item.title }}</strong><small>{{ item.sub }}</small>
-          </article>
-        </div>
-      </section>
-
-      <button class="partner-banner" type="button" @click="handleAction">
-        <span class="crown">♛</span><span><strong>{{ lang('成为合伙人') }}</strong><small>{{ lang('与更多伙伴一起，建设全球出行生态') }}</small></span>
-        <b>{{ lang('立即邀请') }} <AppIcon name="arrow" /></b>
-      </button>
-    </section>
-
-    <AppBottomNav active-key="home" @select="handleAction" />
+    <AppBottomNav :active-key="activeTab" @select="handleNavSelect" />
 
     <transition name="toast"><div v-if="notice" class="toast" :class="`toast--${noticeType}`">{{ notice }}</div></transition>
 
