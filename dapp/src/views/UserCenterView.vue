@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
 
@@ -7,6 +7,7 @@ defineOptions({ inheritAttrs: false });
 const props = defineProps({
   address: { type: String, default: "" },
   connected: { type: Boolean, default: false },
+  inviteCode: { type: String, default: "" },
   currentLevel: { type: Number, default: 1 },
   nextLevel: { type: Number, default: 2 },
   currentAmount: { type: Number, default: 0 },
@@ -15,12 +16,19 @@ const props = defineProps({
 
 const emit = defineEmits(["connect", "copy", "logout", "action"]);
 const { lang } = useLocale();
+const inviteDialogVisible = ref(false);
+const copiedKey = ref("");
 
 const displayAddress = computed(() => {
   if (!props.address) return lang("连接钱包");
   return `${props.address.slice(0, 8)}...${props.address.slice(-4)}`;
 });
 const progress = computed(() => Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
+const resolvedInviteCode = computed(() => props.inviteCode || props.address || "");
+const registrationUrl = computed(() => {
+  if (!resolvedInviteCode.value) return "";
+  return `${window.location.origin}?t=${encodeURIComponent(resolvedInviteCode.value)}`;
+});
 const menuItems = computed(() => [
   { key: "invite", icon: "add-user", title: lang("邀请好友"), description: lang("分享挚友·共赢未来") },
   { key: "team", icon: "team", title: lang("我的团队"), description: lang("团队管理·共同成长") },
@@ -30,6 +38,31 @@ const menuItems = computed(() => [
 
 function formatAmount(value) {
   return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+}
+
+function handleMenuClick(item) {
+  if (item.key !== "invite") {
+    emit("action", item);
+    return;
+  }
+  if (!props.connected) {
+    emit("action", item);
+    return;
+  }
+  copiedKey.value = "";
+  inviteDialogVisible.value = true;
+}
+
+async function copyInviteValue(key, value) {
+  if (!value) return;
+  try {
+    await navigator.clipboard.writeText(value);
+    copiedKey.value = key;
+    window.clearTimeout(copyInviteValue.timer);
+    copyInviteValue.timer = window.setTimeout(() => { copiedKey.value = ""; }, 1800);
+  } catch {
+    copiedKey.value = "";
+  }
 }
 </script>
 
@@ -65,7 +98,7 @@ function formatAmount(value) {
       </section>
 
       <section class="menu-card">
-        <button v-for="item in menuItems" :key="item.key" type="button" @click="emit('action', item)">
+        <button v-for="item in menuItems" :key="item.key" type="button" @click="handleMenuClick(item)">
           <AppIcon class="menu-icon" :name="item.icon" />
           <strong>{{ item.title }}</strong>
           <span>{{ item.description }}</span>
@@ -83,6 +116,26 @@ function formatAmount(value) {
         <span><strong>{{ lang("投资共享出行未来") }}</strong><small>{{ lang("每一份收入，都是更美好的出行") }}</small></span>
       </button>
     </div>
+
+    <transition name="invite-dialog">
+      <div v-if="inviteDialogVisible" class="invite-overlay" @click.self="inviteDialogVisible = false">
+        <section class="share-dialog" role="dialog" aria-modal="true" :aria-label="lang('邀请好友')">
+          <header><h2>{{ lang("邀请好友") }}</h2><button type="button" :aria-label="lang('关闭')" @click="inviteDialogVisible = false">×</button></header>
+          <label>
+            <span>{{ lang("我的邀请码") }}</span>
+            <button type="button" @click="copyInviteValue('code', resolvedInviteCode)">
+              <b>{{ resolvedInviteCode }}</b><small>{{ copiedKey === 'code' ? lang("已复制") : lang("点击复制") }}</small>
+            </button>
+          </label>
+          <label>
+            <span>{{ lang("注册链接") }}</span>
+            <button type="button" @click="copyInviteValue('url', registrationUrl)">
+              <b>{{ registrationUrl }}</b><small>{{ copiedKey === 'url' ? lang("已复制") : lang("点击复制") }}</small>
+            </button>
+          </label>
+        </section>
+      </div>
+    </transition>
   </section>
 </template>
 
@@ -126,6 +179,20 @@ function formatAmount(value) {
 .mobility-banner > span { position: relative; z-index: 1; display: block; padding: 33px 14px; }
 .mobility-banner strong { display: block; font-size: 22px; line-height: 1.2; }
 .mobility-banner small { display: block; margin-top: 7px; font-size: 13px; }
+.invite-overlay { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(255,255,255,.62); backdrop-filter: blur(8px); }
+.share-dialog { width: min(100%, 440px); padding: 24px 14px 27px; border: 1.5px solid #9b40ee; border-radius: 20px; background: rgba(255,255,255,.98); box-shadow: 0 22px 60px rgba(83,31,127,.18); }
+.share-dialog header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+.share-dialog h2 { margin: 0; font-size: 21px; }
+.share-dialog header button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #4a464e; font-size: 35px; font-weight: 200; line-height: 1; cursor: pointer; }
+.share-dialog label { display: block; margin-top: 20px; color: #4d4851; font-size: 13px; }
+.share-dialog label > span { display: block; margin-bottom: 10px; }
+.share-dialog label > button { width: 100%; min-height: 54px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 0 13px; border: 0; border-radius: 10px; background: #f0edfb; color: #a8a3ae; text-align: left; cursor: pointer; }
+.share-dialog b { min-width: 0; overflow: hidden; font-size: 13px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.share-dialog small { color: #9140df; font-size: 10px; white-space: nowrap; }
+.invite-dialog-enter-active, .invite-dialog-leave-active { transition: opacity .2s ease; }
+.invite-dialog-enter-active .share-dialog, .invite-dialog-leave-active .share-dialog { transition: transform .2s ease; }
+.invite-dialog-enter-from, .invite-dialog-leave-to { opacity: 0; }
+.invite-dialog-enter-from .share-dialog, .invite-dialog-leave-to .share-dialog { transform: translateY(10px) scale(.98); }
 @media (max-width: 390px) {
   .profile-hero { padding-left: 21px; padding-right: 21px; }
   .identity { grid-template-columns: 80px minmax(0,1fr) 17px; gap: 11px; }

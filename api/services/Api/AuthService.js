@@ -116,7 +116,10 @@ export default {
         24 * 3600
       );
 
-      return res.send(ApiResult.success(token));
+      return res.send(ApiResult.success({
+        ...token,
+        ref_code: authResult.data.ref_code || ""
+      }));
     } catch (error) {
       return res.send(ApiResult.exception(error, "AuthService.login"));
     }

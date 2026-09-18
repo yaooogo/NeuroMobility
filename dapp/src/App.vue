@@ -20,6 +20,7 @@ const inviteVisible = ref(false);
 const inviteCode = ref(new URLSearchParams(window.location.search).get("t") || localStorage.getItem("invite_ref_code") || "");
 const inviterWallet = ref("");
 const pendingAddress = ref("");
+const ownInviteCode = ref(localStorage.getItem("auth_ref_code") || "");
 const loggingIn = ref(false);
 const notice = ref("");
 const noticeType = ref("success");
@@ -96,6 +97,8 @@ async function authenticate(address, refCode = "") {
     const session = await requestLogin(normalizedAddress, signature, refCode);
     localStorage.setItem("token", session.token);
     localStorage.setItem("auth_address", normalizedAddress);
+    ownInviteCode.value = session.ref_code || normalizedAddress;
+    localStorage.setItem("auth_ref_code", ownInviteCode.value);
     localStorage.removeItem("invite_ref_code");
     inviteVisible.value = false;
     showNotice(lang("登录成功"));
@@ -133,6 +136,8 @@ async function disconnectWallet(callApi = true) {
   }
   localStorage.removeItem("token");
   localStorage.removeItem("auth_address");
+  localStorage.removeItem("auth_ref_code");
+  ownInviteCode.value = "";
   try { await appKit.disconnect("eip155"); } catch { /* handled by wagmi fallback */ }
   try { await disconnectWagmi(wagmiAdapter.wagmiConfig); } catch { /* already disconnected */ }
 }
@@ -219,6 +224,8 @@ watch(
     if (!connected && !getWagmiAddress()) {
       localStorage.removeItem("token");
       localStorage.removeItem("auth_address");
+      localStorage.removeItem("auth_ref_code");
+      ownInviteCode.value = "";
       return;
     }
     if (address && provider) await authenticate(address);
@@ -232,6 +239,8 @@ wagmiUnwatch = watchAccount(wagmiAdapter.wagmiConfig, {
     if (!accountData?.isConnected || !address) {
       localStorage.removeItem("token");
       localStorage.removeItem("auth_address");
+      localStorage.removeItem("auth_ref_code");
+      ownInviteCode.value = "";
       return;
     }
     void authenticate(address);
@@ -251,6 +260,7 @@ onBeforeUnmount(() => {
         :is="Component"
         :address="connectedAddress"
         :connected="isConnected"
+        :invite-code="ownInviteCode"
         :wallet-label="walletLabel"
         :loading="loggingIn"
         @wallet-click="openWallet"
