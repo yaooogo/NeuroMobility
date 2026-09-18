@@ -1,32 +1,30 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, unref, watch } from "vue";
-import { useAppKitAccount, useAppKitProvider } from "@reown/appkit/vue";
-import { disconnect as disconnectWagmi, getAccount, watchAccount } from "@wagmi/core";
-import { createWalletClient, custom, getAddress } from "viem";
-import { getAddresses, signMessage } from "viem/actions";
+import { useAppKitAccount } from "@reown/appkit/vue";
+import { disconnect as disconnectWagmi, getAccount, signMessage as signMessageWagmi, watchAccount } from "@wagmi/core";
+import { getAddress } from "viem";
 import { useRoute, useRouter } from "vue-router";
 import AppBottomNav from "./components/AppBottomNav.vue";
 import AppIcon from "./components/AppIcon.vue";
 import { useLocale } from "./composables/useLocale.js";
 import { requestLogin, requestLoginNonce, requestLogout, requestResolveInviter } from "./lib/api.js";
-import { activeNetwork, appKit, projectId, wagmiAdapter } from "./lib/reown.js";
+import { appKit, projectId, wagmiAdapter } from "./lib/reown.js";
 const { lang } = useLocale();
 const route = useRoute();
 const router = useRouter();
 
 const account = useAppKitAccount();
-const providerState = useAppKitProvider("eip155");
 const inviteVisible = ref(false);
 const inviteCode = ref(new URLSearchParams(window.location.search).get("t") || localStorage.getItem("invite_ref_code") || "");
 const inviterWallet = ref("");
 const pendingAddress = ref("");
 const ownInviteCode = ref(localStorage.getItem("auth_ref_code") || "");
 const loggingIn = ref(false);
+const authSuppressedAddress = ref("");
 const notice = ref("");
 const noticeType = ref("success");
 const activeTab = computed(() => String(route.meta.navKey || "home"));
 const accountState = computed(() => unref(account) || {});
-const walletProviderState = computed(() => unref(providerState?.walletProvider) || null);
 const connectedAddress = computed(() => String(accountState.value.address || getWagmiAddress()).toLowerCase());
 const isConnected = computed(() => Boolean(connectedAddress.value && (accountState.value.isConnected || getWagmiAddress())));
 let wagmiUnwatch = null;
@@ -48,16 +46,10 @@ async function openWallet() {
     return;
   }
   if (isConnected.value && !hasAuthenticatedSession(connectedAddress.value)) {
-    await authenticate(connectedAddress.value);
+    await authenticate(connectedAddress.value, "", true);
     return;
   }
   await appKit.open({ view: isConnected.value ? "Account" : "Connect" });
-}
-
-function buildWalletClient() {
-  const provider = walletProviderState.value;
-  if (!provider) throw new Error(lang("未连接"));
-  return createWalletClient({ chain: activeNetwork, transport: custom(provider) });
 }
 
 function getWagmiAddress() {
@@ -76,10 +68,18 @@ function hasAuthenticatedSession(address) {
   );
 }
 
-async function authenticate(address, refCode = "") {
+function isUserRejectedError(error) {
+  const code = Number(error?.code ?? error?.cause?.code ?? error?.cause?.cause?.code);
+  const text = String(error?.shortMessage || error?.message || error?.cause?.message || "").toLowerCase();
+  return code === 4001 || error?.name === "UserRejectedRequestError" || text.includes("user rejected");
+}
+
+async function authenticate(address, refCode = "", force = false) {
   const normalizedAddress = String(address || "").toLowerCase();
-  if (!normalizedAddress || !walletProviderState.value || loggingIn.value) return;
+  if (!normalizedAddress || loggingIn.value) return;
   if (hasAuthenticatedSession(normalizedAddress)) return;
+  if (!force && authSuppressedAddress.value === normalizedAddress) return;
+  if (!refCode && inviteVisible.value && pendingAddress.value === normalizedAddress) return;
   loggingIn.value = true;
   try {
     const nonce = await requestLoginNonce(normalizedAddress);
@@ -89,22 +89,31 @@ async function authenticate(address, refCode = "") {
       return;
     }
     showNotice(lang("请在钱包中确认签名"));
-    const client = buildWalletClient();
-    const addresses = await getAddresses(client);
-    const signer = getAddress(addresses[0] || normalizedAddress).toLowerCase();
+    const wagmiAddress = getWagmiAddress();
+    if (!wagmiAddress) throw new Error(lang("钱包连接尚未就绪，请稍后重试"));
+    const signer = getAddress(wagmiAddress).toLowerCase();
     if (signer !== normalizedAddress) throw new Error(lang("未连接"));
-    const signature = await signMessage(client, { account: signer, message: nonce.signStr });
+    const signature = await signMessageWagmi(wagmiAdapter.wagmiConfig, {
+      account: getAddress(wagmiAddress),
+      message: nonce.signStr
+    });
     const session = await requestLogin(normalizedAddress, signature, refCode);
     localStorage.setItem("token", session.token);
     localStorage.setItem("auth_address", normalizedAddress);
     ownInviteCode.value = session.ref_code || normalizedAddress;
     localStorage.setItem("auth_ref_code", ownInviteCode.value);
     localStorage.removeItem("invite_ref_code");
+    authSuppressedAddress.value = "";
     inviteVisible.value = false;
     showNotice(lang("登录成功"));
   } catch (error) {
-    showNotice(error?.message || lang("登录失败"), "error");
-    if (!inviteVisible.value) await disconnectWallet(false);
+    if (isUserRejectedError(error)) {
+      authSuppressedAddress.value = normalizedAddress;
+      showNotice(lang("已取消签名"));
+    } else {
+      showNotice(error?.shortMessage || error?.message || lang("登录失败"), "error");
+      if (!inviteVisible.value) await disconnectWallet(false);
+    }
   } finally {
     loggingIn.value = false;
   }
@@ -127,7 +136,7 @@ async function confirmInvite() {
     return;
   }
   loggingIn.value = false;
-  await authenticate(pendingAddress.value || connectedAddress.value, code);
+  await authenticate(pendingAddress.value || connectedAddress.value, code, true);
 }
 
 async function disconnectWallet(callApi = true) {
@@ -138,6 +147,7 @@ async function disconnectWallet(callApi = true) {
   localStorage.removeItem("auth_address");
   localStorage.removeItem("auth_ref_code");
   ownInviteCode.value = "";
+  authSuppressedAddress.value = "";
   try { await appKit.disconnect("eip155"); } catch { /* handled by wagmi fallback */ }
   try { await disconnectWagmi(wagmiAdapter.wagmiConfig); } catch { /* already disconnected */ }
 }
@@ -216,19 +226,18 @@ function handleNotification() {
 watch(
   [
     () => accountState.value.isConnected,
-    () => accountState.value.address,
-    () => walletProviderState.value
+    () => accountState.value.address
   ],
-  async ([connected, appKitAddress, provider]) => {
+  ([connected, appKitAddress]) => {
     const address = String(appKitAddress || getWagmiAddress()).toLowerCase();
     if (!connected && !getWagmiAddress()) {
       localStorage.removeItem("token");
       localStorage.removeItem("auth_address");
       localStorage.removeItem("auth_ref_code");
       ownInviteCode.value = "";
+      authSuppressedAddress.value = "";
       return;
     }
-    if (address && provider) await authenticate(address);
   },
   { immediate: true }
 );
@@ -241,6 +250,7 @@ wagmiUnwatch = watchAccount(wagmiAdapter.wagmiConfig, {
       localStorage.removeItem("auth_address");
       localStorage.removeItem("auth_ref_code");
       ownInviteCode.value = "";
+      authSuppressedAddress.value = "";
       return;
     }
     void authenticate(address);
