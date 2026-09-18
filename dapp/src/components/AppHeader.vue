@@ -68,7 +68,7 @@ onBeforeUnmount(() => document.removeEventListener("click", closeLocaleMenu));
           :aria-expanded="localeOpen"
           @click="localeOpen = !localeOpen"
         >
-          {{ currentLocale?.label }} <span>⌄</span>
+          {{ currentLocale?.label }} <span> <AppIcon name="chevron" /></span>
         </button>
         <div v-if="localeOpen" class="locale__menu">
           <button
@@ -120,7 +120,7 @@ onBeforeUnmount(() => document.removeEventListener("click", closeLocaleMenu));
 .locale__trigger,
 .wallet-button,
 .bell {
-  height: 34px;
+  height: 28px;
   border: 1px solid rgba(151, 82, 222, .14);
   background: rgba(255, 255, 255, .78);
   color: #852bd9;
@@ -128,12 +128,13 @@ onBeforeUnmount(() => document.removeEventListener("click", closeLocaleMenu));
   backdrop-filter: blur(12px);
 }
 
-.locale__trigger { padding: 0 11px; border-radius: 18px; white-space: nowrap; cursor: pointer; }
-.locale__trigger span { margin-left: 2px; font-size: 16px; }
-.wallet-button { /*max-width: 112px;*/ padding: 0 12px; border-radius: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.locale__trigger { font-size: 12px; padding: 0 11px; border-radius: 18px; white-space: nowrap; cursor: pointer; }
+.locale__trigger span { margin-left: 2px; font-size: 12px; }
+.locale__trigger span svg{ width: 15px;  transform: rotate(90deg);position: relative; top: 2px; }
+.wallet-button { /*max-width: 112px;*/font-size: 12px;  padding: 0 12px; border-radius: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .wallet-button:disabled { cursor: wait; opacity: .65; }
-.bell { position: relative; width: 34px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; }
-.bell :deep(svg) { width: 18px; }
+.bell { position: relative; width: 28px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; }
+.bell :deep(svg) { width: 15px; }
 .bell small { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; display: grid; place-items: center; padding: 0 4px; border: 2px solid #fff; border-radius: 9px; background: #ef3f69; color: #fff; font-size: 9px; line-height: 1; }
 
 .locale__menu {
