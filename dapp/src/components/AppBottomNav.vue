@@ -96,8 +96,4 @@ function selectItem(item) {
   width: 26px;
   height: 26px;
 }
-
-@media (min-width: 481px) {
-  .bottom-nav { bottom: 18px; }
-}
 </style>

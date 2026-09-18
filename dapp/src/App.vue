@@ -6,6 +6,7 @@ import { getAddress } from "viem";
 import { useRoute, useRouter } from "vue-router";
 import AppBottomNav from "./components/AppBottomNav.vue";
 import AppIcon from "./components/AppIcon.vue";
+import InviteShareDialog from "./components/InviteShareDialog.vue";
 import { useLocale } from "./composables/useLocale.js";
 import { AUTH_EXPIRED_EVENT, requestLogin, requestLoginNonce, requestLogout, requestResolveInviter } from "./lib/api.js";
 import { appKit, projectId, wagmiAdapter } from "./lib/reown.js";
@@ -15,6 +16,8 @@ const router = useRouter();
 
 const account = useAppKitAccount();
 const inviteVisible = ref(false);
+const shareInviteVisible = ref(false);
+const pendingShareInvite = ref(false);
 const inviteCode = ref(new URLSearchParams(window.location.search).get("t") || localStorage.getItem("invite_ref_code") || "");
 const inviterWallet = ref("");
 const pendingAddress = ref("");
@@ -31,7 +34,7 @@ let wagmiUnwatch = null;
 let hasObservedWalletConnection = false;
 const walletLabel = computed(() => {
   const address = connectedAddress.value;
-  return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : lang("连接钱包");
+  return address ? `${address.slice(0, 5)}...${address.slice(-4)}` : lang("连接钱包");
 });
 
 function showNotice(message, type = "success") {
@@ -132,11 +135,17 @@ async function authenticate(address, refCode = "", force = false) {
     authSuppressedAddress.value = "";
     inviteVisible.value = false;
     showNotice(lang("登录成功"));
+    if (pendingShareInvite.value) {
+      pendingShareInvite.value = false;
+      shareInviteVisible.value = true;
+    }
   } catch (error) {
     if (isUserRejectedError(error)) {
+      pendingShareInvite.value = false;
       authSuppressedAddress.value = normalizedAddress;
       showNotice(lang("已取消签名"));
     } else {
+      pendingShareInvite.value = false;
       showNotice(error?.shortMessage || error?.message || lang("登录失败"), "error");
     }
   } finally {
@@ -169,6 +178,8 @@ async function disconnectWallet(callApi = true) {
     try { await requestLogout(); } catch { /* session may already be expired */ }
   }
   clearStoredAuthSession();
+  shareInviteVisible.value = false;
+  pendingShareInvite.value = false;
   authSuppressedAddress.value = "";
   try { await appKit.disconnect("eip155"); } catch { /* handled by wagmi fallback */ }
   try { await disconnectWagmi(wagmiAdapter.wagmiConfig); } catch { /* already disconnected */ }
@@ -178,6 +189,16 @@ function handleAuthExpired() {
   const address = String(getWagmiAddress() || connectedAddress.value).toLowerCase();
   if (!address || loggingIn.value) return;
   void authenticate(address, "", true);
+}
+
+async function openInviteShare() {
+  if (!isConnected.value || !hasAuthenticatedSession(connectedAddress.value)) {
+    pendingShareInvite.value = true;
+    if (!isConnected.value) await openWallet();
+    else await authenticate(connectedAddress.value, "", true);
+    return;
+  }
+  shareInviteVisible.value = true;
 }
 
 function handleHomeAction(item) {
@@ -232,10 +253,22 @@ function handleProfileAction(item) {
     void router.push({ name: "team" });
     return;
   }
+  if (item?.key === "help") {
+    void router.push({ name: "help" });
+    return;
+  }
   showNotice(lang("功能正在建设中"));
 }
 
 function handleViewAction(item) {
+  if (item?.key === "invite") {
+    void openInviteShare();
+    return;
+  }
+  if (item?.key === "announcement") {
+    showNotice(lang("公告详情正在建设中"));
+    return;
+  }
   if (route.name === "home") {
     handleHomeAction(item);
     return;
@@ -252,7 +285,7 @@ function handleViewAction(item) {
 }
 
 function handleNotification() {
-  showNotice(lang("暂无公告"));
+  void router.push({ name: "announcements" });
 }
 
 watch(
@@ -303,7 +336,6 @@ onBeforeUnmount(() => {
         :is="Component"
         :address="connectedAddress"
         :connected="isConnected"
-        :invite-code="ownInviteCode"
         :wallet-label="walletLabel"
         :loading="loggingIn"
         @wallet-click="openWallet"
@@ -317,6 +349,12 @@ onBeforeUnmount(() => {
 
     <AppBottomNav v-if="route.meta.showBottomNav !== false" :active-key="activeTab" @select="handleNavSelect" />
 
+    <InviteShareDialog
+      :visible="shareInviteVisible"
+      :invite-code="ownInviteCode || connectedAddress"
+      @close="shareInviteVisible = false"
+    />
+
     <transition name="toast"><div v-if="notice" class="toast" :class="`toast--${noticeType}`">{{ notice }}</div></transition>
 
     <div v-if="inviteVisible" class="modal-backdrop">
@@ -327,7 +365,7 @@ onBeforeUnmount(() => {
         <label><span>{{ lang('邀请码') }}</span><input v-model.trim="inviteCode" type="text" autocomplete="off" :placeholder="lang('邀请码')" @keyup.enter="confirmInvite" /></label>
         <div v-if="inviterWallet" class="inviter"><span>{{ lang('推荐人钱包') }}</span><strong>{{ inviterWallet }}</strong></div>
         <button class="primary" type="button" :disabled="loggingIn" @click="confirmInvite">{{ loggingIn ? lang('已登录') : lang('验证并登录') }}</button>
-        <button class="secondary" type="button" @click="inviteVisible = false; disconnectWallet(false)">{{ lang('取消') }}</button>
+        <button class="secondary" type="button" @click="inviteVisible = false; pendingShareInvite = false; disconnectWallet(false)">{{ lang('取消') }}</button>
       </section>
     </div>
   </main>

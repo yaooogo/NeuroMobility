@@ -103,5 +103,5 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 
 @media (min-width: 481px) {
-  .app-shell { min-height: calc(100vh - 36px); }
+  .app-shell { min-height: calc(100vh - 20px); }
 }
