@@ -281,6 +281,10 @@ function handleViewAction(item) {
     void router.push({ name: "invest" });
     return;
   }
+  if (route.name === "assets" && item?.key === "deposit-records") {
+    void router.push({ name: "transaction-records" });
+    return;
+  }
   handleProtectedAction(item);
 }
 

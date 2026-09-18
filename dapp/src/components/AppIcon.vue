@@ -33,5 +33,7 @@ defineProps({ name: { type: String, required: true } });
     <template v-else-if="name === 'card'"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18m-14 5h4"/></template>
     <template v-else-if="name === 'withdraw'"><path d="M4 7h12v10H4zM7 11h6m5-8v12m-3-3 3 3 3-3"/></template>
     <template v-else-if="name === 'file'"><path d="M6 3h8l4 4v14H6zM14 3v5h5M9 13h6m-6 4h6"/></template>
+    <template v-else-if="name === 'upload'"><path d="M12 16V4m-5 5 5-5 5 5M5 13v7h14v-7"/></template>
+    <template v-else-if="name === 'download'"><path d="M12 4v12m-5-5 5 5 5-5M5 13v7h14v-7"/></template>
   </svg>
 </template>

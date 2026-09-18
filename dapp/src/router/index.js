@@ -5,6 +5,7 @@ import HelpCenterView from "../views/HelpCenterView.vue";
 import HomeView from "../views/HomeView.vue";
 import InvestView from "../views/InvestView.vue";
 import TeamView from "../views/TeamView.vue";
+import TransactionRecordsView from "../views/TransactionRecordsView.vue";
 import UserCenterView from "../views/UserCenterView.vue";
 
 const router = createRouter({
@@ -18,6 +19,7 @@ const router = createRouter({
     { path: "/team", name: "team", component: TeamView, meta: { navKey: "mine", showBottomNav: false } },
     { path: "/help", name: "help", component: HelpCenterView, meta: { navKey: "mine", showBottomNav: false } },
     { path: "/announcements", name: "announcements", component: AnnouncementsView, meta: { navKey: "home", showBottomNav: false } },
+    { path: "/transaction-records", name: "transaction-records", component: TransactionRecordsView, meta: { navKey: "assets", showBottomNav: false } },
     { path: "/:pathMatch(.*)*", redirect: { name: "home" } }
   ],
   scrollBehavior() {
