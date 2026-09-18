@@ -26,7 +26,7 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .app-shell--subpage { padding-bottom: 0; }
 
-.hero { position: relative; height: 342px; overflow: hidden; background: linear-gradient(160deg, #d8edff, #fff1cb 52%, #95b0c7); }
+.hero { position: relative; height: 342px; overflow: visible; background: linear-gradient(160deg, #d8edff, #fff1cb 52%, #95b0c7); }
 .hero__image {
   position: absolute; inset: 0;
   background-image: url("./assets/images/mobility-hero.jpg"),

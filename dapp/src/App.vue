@@ -206,6 +206,14 @@ function handleHomeAction(item) {
     void router.push({ name: "invest" });
     return;
   }
+  if (item?.key === "cars") {
+    void router.push({ name: "vehicles" });
+    return;
+  }
+  if (item?.key === "records") {
+    void router.push({ name: "dividend-records" });
+    return;
+  }
   if (!isConnected.value) void openWallet();
   else showNotice(lang("功能正在建设中"));
 }

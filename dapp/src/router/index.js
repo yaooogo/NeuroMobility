@@ -1,12 +1,14 @@
 import { createRouter, createWebHistory } from "vue-router";
 import AnnouncementsView from "../views/AnnouncementsView.vue";
 import AssetsView from "../views/AssetsView.vue";
+import DividendRecordsView from "../views/DividendRecordsView.vue";
 import HelpCenterView from "../views/HelpCenterView.vue";
 import HomeView from "../views/HomeView.vue";
 import InvestView from "../views/InvestView.vue";
 import TeamView from "../views/TeamView.vue";
 import TransactionRecordsView from "../views/TransactionRecordsView.vue";
 import UserCenterView from "../views/UserCenterView.vue";
+import VehiclesView from "../views/VehiclesView.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,6 +22,8 @@ const router = createRouter({
     { path: "/help", name: "help", component: HelpCenterView, meta: { navKey: "mine", showBottomNav: false } },
     { path: "/announcements", name: "announcements", component: AnnouncementsView, meta: { navKey: "home", showBottomNav: false } },
     { path: "/transaction-records", name: "transaction-records", component: TransactionRecordsView, meta: { navKey: "assets", showBottomNav: false } },
+    { path: "/dividend-records", name: "dividend-records", component: DividendRecordsView, meta: { navKey: "home", showBottomNav: false } },
+    { path: "/vehicles", name: "vehicles", component: VehiclesView, meta: { navKey: "home", showBottomNav: false } },
     { path: "/:pathMatch(.*)*", redirect: { name: "home" } }
   ],
   scrollBehavior() {

@@ -130,7 +130,7 @@ onBeforeUnmount(() => document.removeEventListener("click", closeLocaleMenu));
 
 .locale__trigger { padding: 0 11px; border-radius: 18px; white-space: nowrap; cursor: pointer; }
 .locale__trigger span { margin-left: 2px; font-size: 16px; }
-.wallet-button { max-width: 112px; padding: 0 12px; border-radius: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.wallet-button { /*max-width: 112px;*/ padding: 0 12px; border-radius: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .wallet-button:disabled { cursor: wait; opacity: .65; }
 .bell { position: relative; width: 34px; display: grid; place-items: center; border-radius: 50%; cursor: pointer; }
 .bell :deep(svg) { width: 18px; }
