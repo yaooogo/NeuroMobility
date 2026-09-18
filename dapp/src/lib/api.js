@@ -1,5 +1,7 @@
 import axios from "axios";
 
+export const AUTH_EXPIRED_EVENT = "app-auth-expired";
+
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || "",
   timeout: 30000,
@@ -11,6 +13,35 @@ http.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+let authExpiredHandling = false;
+
+function handleExpiredSession(response) {
+  const requestUrl = String(response?.config?.url || "");
+  if (Number(response?.data?.code) !== 401 || requestUrl.startsWith("/login")) return;
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("auth_address");
+  localStorage.removeItem("auth_expires_at");
+
+  if (authExpiredHandling) return;
+  authExpiredHandling = true;
+  window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT, {
+    detail: { message: response?.data?.message || "Authentication failed" }
+  }));
+  window.setTimeout(() => { authExpiredHandling = false; }, 0);
+}
+
+http.interceptors.response.use(
+  (response) => {
+    handleExpiredSession(response);
+    return response;
+  },
+  (error) => {
+    handleExpiredSession(error?.response);
+    return Promise.reject(error);
+  }
+);
 
 function unwrap(response) {
   const body = response?.data;

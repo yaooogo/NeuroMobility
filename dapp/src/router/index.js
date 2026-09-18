@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from "vue-router";
 import AssetsView from "../views/AssetsView.vue";
 import HomeView from "../views/HomeView.vue";
 import InvestView from "../views/InvestView.vue";
+import TeamView from "../views/TeamView.vue";
 import UserCenterView from "../views/UserCenterView.vue";
 
 const router = createRouter({
@@ -12,6 +13,7 @@ const router = createRouter({
     { path: "/invest", name: "invest", component: InvestView, meta: { navKey: "invest" } },
     { path: "/assets", name: "assets", component: AssetsView, meta: { navKey: "assets" } },
     { path: "/mine", name: "mine", component: UserCenterView, meta: { navKey: "mine" } },
+    { path: "/team", name: "team", component: TeamView, meta: { navKey: "mine", showBottomNav: false } },
     { path: "/:pathMatch(.*)*", redirect: { name: "home" } }
   ],
   scrollBehavior() {

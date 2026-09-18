@@ -24,6 +24,7 @@ button { -webkit-tap-highlight-color: transparent; }
   box-shadow: 0 0 40px rgba(37, 31, 55, .08);
   overflow: hidden;
 }
+.app-shell--subpage { padding-bottom: 0; }
 
 .hero { position: relative; height: 342px; overflow: hidden; background: linear-gradient(160deg, #d8edff, #fff1cb 52%, #95b0c7); }
 .hero__image {

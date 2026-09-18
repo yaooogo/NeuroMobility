@@ -7,7 +7,7 @@ import { useRoute, useRouter } from "vue-router";
 import AppBottomNav from "./components/AppBottomNav.vue";
 import AppIcon from "./components/AppIcon.vue";
 import { useLocale } from "./composables/useLocale.js";
-import { requestLogin, requestLoginNonce, requestLogout, requestResolveInviter } from "./lib/api.js";
+import { AUTH_EXPIRED_EVENT, requestLogin, requestLoginNonce, requestLogout, requestResolveInviter } from "./lib/api.js";
 import { appKit, projectId, wagmiAdapter } from "./lib/reown.js";
 const { lang } = useLocale();
 const route = useRoute();
@@ -28,6 +28,7 @@ const accountState = computed(() => unref(account) || {});
 const connectedAddress = computed(() => String(accountState.value.address || getWagmiAddress()).toLowerCase());
 const isConnected = computed(() => Boolean(connectedAddress.value && (accountState.value.isConnected || getWagmiAddress())));
 let wagmiUnwatch = null;
+let hasObservedWalletConnection = false;
 const walletLabel = computed(() => {
   const address = connectedAddress.value;
   return address ? `${address.slice(0, 6)}...${address.slice(-4)}` : lang("连接钱包");
@@ -60,12 +61,36 @@ function getWagmiAddress() {
   }
 }
 
+async function waitForSigningAccount(expectedAddress, timeout = 5000) {
+  const expected = String(expectedAddress || "").toLowerCase();
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeout) {
+    const current = getAccount(wagmiAdapter.wagmiConfig);
+    const address = String(current?.address || "").toLowerCase();
+    if (current?.isConnected && address === expected && current?.connector) return current;
+    await new Promise((resolve) => window.setTimeout(resolve, 100));
+  }
+
+  throw new Error(lang("钱包连接尚未就绪，请稍后重试"));
+}
+
 function hasAuthenticatedSession(address) {
+  const expiresAt = Number(localStorage.getItem("auth_expires_at") || 0);
   return Boolean(
     address
     && localStorage.getItem("token")
     && localStorage.getItem("auth_address") === String(address).toLowerCase()
+    && (!expiresAt || expiresAt > Date.now() + 30_000)
   );
+}
+
+function clearStoredAuthSession() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("auth_address");
+  localStorage.removeItem("auth_expires_at");
+  localStorage.removeItem("auth_ref_code");
+  ownInviteCode.value = "";
 }
 
 function isUserRejectedError(error) {
@@ -89,17 +114,18 @@ async function authenticate(address, refCode = "", force = false) {
       return;
     }
     showNotice(lang("请在钱包中确认签名"));
-    const wagmiAddress = getWagmiAddress();
-    if (!wagmiAddress) throw new Error(lang("钱包连接尚未就绪，请稍后重试"));
-    const signer = getAddress(wagmiAddress).toLowerCase();
+    const signingAccount = await waitForSigningAccount(normalizedAddress);
+    const signer = getAddress(signingAccount.address).toLowerCase();
     if (signer !== normalizedAddress) throw new Error(lang("未连接"));
     const signature = await signMessageWagmi(wagmiAdapter.wagmiConfig, {
-      account: getAddress(wagmiAddress),
+      account: getAddress(signingAccount.address),
+      connector: signingAccount.connector,
       message: nonce.signStr
     });
     const session = await requestLogin(normalizedAddress, signature, refCode);
     localStorage.setItem("token", session.token);
     localStorage.setItem("auth_address", normalizedAddress);
+    localStorage.setItem("auth_expires_at", String(Date.now() + Number(session.expiresIn || 0) * 1000));
     ownInviteCode.value = session.ref_code || normalizedAddress;
     localStorage.setItem("auth_ref_code", ownInviteCode.value);
     localStorage.removeItem("invite_ref_code");
@@ -112,7 +138,6 @@ async function authenticate(address, refCode = "", force = false) {
       showNotice(lang("已取消签名"));
     } else {
       showNotice(error?.shortMessage || error?.message || lang("登录失败"), "error");
-      if (!inviteVisible.value) await disconnectWallet(false);
     }
   } finally {
     loggingIn.value = false;
@@ -143,13 +168,16 @@ async function disconnectWallet(callApi = true) {
   if (callApi && localStorage.getItem("token")) {
     try { await requestLogout(); } catch { /* session may already be expired */ }
   }
-  localStorage.removeItem("token");
-  localStorage.removeItem("auth_address");
-  localStorage.removeItem("auth_ref_code");
-  ownInviteCode.value = "";
+  clearStoredAuthSession();
   authSuppressedAddress.value = "";
   try { await appKit.disconnect("eip155"); } catch { /* handled by wagmi fallback */ }
   try { await disconnectWagmi(wagmiAdapter.wagmiConfig); } catch { /* already disconnected */ }
+}
+
+function handleAuthExpired() {
+  const address = String(getWagmiAddress() || connectedAddress.value).toLowerCase();
+  if (!address || loggingIn.value) return;
+  void authenticate(address, "", true);
 }
 
 function handleHomeAction(item) {
@@ -200,6 +228,10 @@ function handleProfileAction(item) {
     void openWallet();
     return;
   }
+  if (item?.key === "team") {
+    void router.push({ name: "team" });
+    return;
+  }
   showNotice(lang("功能正在建设中"));
 }
 
@@ -230,13 +262,8 @@ watch(
   ],
   ([connected, appKitAddress]) => {
     const address = String(appKitAddress || getWagmiAddress()).toLowerCase();
-    if (!connected && !getWagmiAddress()) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("auth_address");
-      localStorage.removeItem("auth_ref_code");
-      ownInviteCode.value = "";
-      authSuppressedAddress.value = "";
-      return;
+    if (connected && address && hasAuthenticatedSession(address)) {
+      ownInviteCode.value = localStorage.getItem("auth_ref_code") || address;
     }
   },
   { immediate: true }
@@ -245,26 +272,32 @@ watch(
 wagmiUnwatch = watchAccount(wagmiAdapter.wagmiConfig, {
   onChange(accountData) {
     const address = String(accountData?.address || "").toLowerCase();
+    // AppKit briefly reports a disconnected state while restoring a connector.
+    // Ignore that initial empty snapshot, but clear the API session after a
+    // wallet that was actually connected is explicitly disconnected.
     if (!accountData?.isConnected || !address) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("auth_address");
-      localStorage.removeItem("auth_ref_code");
-      ownInviteCode.value = "";
-      authSuppressedAddress.value = "";
+      if (hasObservedWalletConnection) {
+        hasObservedWalletConnection = false;
+        clearStoredAuthSession();
+      }
       return;
     }
+    hasObservedWalletConnection = true;
     void authenticate(address);
   }
 });
 
+window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+
 onBeforeUnmount(() => {
+  window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
   wagmiUnwatch?.();
   wagmiUnwatch = null;
 });
 </script>
 
 <template>
-  <main class="app-shell">
+  <main class="app-shell" :class="{ 'app-shell--subpage': route.meta.showBottomNav === false }">
     <RouterView v-slot="{ Component }">
       <component
         :is="Component"
@@ -282,7 +315,7 @@ onBeforeUnmount(() => {
       />
     </RouterView>
 
-    <AppBottomNav :active-key="activeTab" @select="handleNavSelect" />
+    <AppBottomNav v-if="route.meta.showBottomNav !== false" :active-key="activeTab" @select="handleNavSelect" />
 
     <transition name="toast"><div v-if="notice" class="toast" :class="`toast--${noticeType}`">{{ notice }}</div></transition>
 
