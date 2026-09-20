@@ -52,11 +52,6 @@ function translateTag(text) {
           <div class="vehicle-tags">
             <span v-for="(tag, index) in vehicle.tags" :key="tag" :class="{ popular: index === vehicle.tags.length - 1 }">{{ translateTag(tag) }}</span>
           </div>
-          <div class="vehicle-features">
-            <span><i><AppIcon name="user" /></i>{{ lang("限乘7座").replace("7", vehicle.seats) }}</span>
-            <span><i><AppIcon name="luggage" /></i>{{ lang("行李3件").replace("3", vehicle.luggage) }}</span>
-            <span v-if="vehicle.insured"><i><AppIcon name="shield" /></i>{{ lang("完全保险") }}</span>
-          </div>
         </div>
       </article>
       <p v-if="!props.vehicles.length" class="vehicles-empty">{{ lang("暂无车辆") }}</p>
@@ -71,11 +66,11 @@ function translateTag(text) {
 .vehicles-header button { width: 40px; height: 33px; display: grid; place-items: start; padding: 3px 0; border: 0; background: transparent; color: #812bd8; cursor: pointer; }
 .vehicles-header button svg { width: 27px; transform: rotate(180deg); }
 .vehicle-list { display: grid; gap: 18px; }
-.vehicle-card { min-height: 150px; display: grid; grid-template-columns: 116px minmax(0,1fr); gap: 16px; padding: 16px; border: 1px solid #f3edf7; border-radius: 18px; background: #fff; box-shadow: 0 7px 22px rgba(91,48,127,.075); }
-.vehicle-card > img { width: 116px; height: 116px; align-self: center; border-radius: 11px; object-fit: cover; }
+.vehicle-card { min-height: 130px; display: grid; grid-template-columns: 100px minmax(0,1fr); gap: 16px; padding: 16px; border: 1px solid #f3edf7; border-radius: 18px; background: #fff; box-shadow: 0 7px 22px rgba(91,48,127,.075); }
+.vehicle-card > img { width:100px; height: 100px; align-self: center; border-radius: 11px; object-fit: cover; }
 .vehicle-info { min-width: 0; align-self: center; }
-.vehicle-info h2 { margin: 0; color: #4a474b; font-size: 19px; line-height: 1.15; }
-.vehicle-info > p { margin: 9px 0 10px; font-size: 14px; line-height: 1; }
+.vehicle-info h2 { margin: 0; color: #4a474b; font-size: 17px; line-height: 1.15; }
+.vehicle-info > p { margin: 9px 0 10px; font-size: 13px; line-height: 1; }
 .vehicle-tags { display: flex; gap: 8px; overflow: hidden; }
 .vehicle-tags span { flex: 0 0 auto; padding: 5px 11px; border-radius: 13px; background: #ead7fa; color: #8c3bd2; font-size: 10px; line-height: 1; }
 .vehicle-tags .popular { background: #c9f3d0; color: #13a834; }
