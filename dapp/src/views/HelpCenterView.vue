@@ -66,17 +66,17 @@ function translateQuestion(text) {
 
 <style scoped>
 .help-view { min-height: 100vh; padding: 0 16px 36px; background: #fff; color: #454149; }
-.help-header { height: 91px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(17px, env(safe-area-inset-top)) 0 21px; }
-.help-header h1 { margin: 0; color: #151317; font-size: 20px; line-height: 31px; text-align: center; }
+.help-header { height: 70px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(17px, env(safe-area-inset-top)) 0 21px; }
+.help-header h1 { margin: 0; color: #151317; font-size: 18px; line-height: 31px; text-align: center; }
 .help-header button { width: 40px; height: 31px; display: grid; place-items: start; padding: 4px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .help-header button svg { width: 26px; transform: rotate(180deg); }
 .question-list { display: grid; gap: 11px; }
 .question-card { border: 1px solid #f3eef8; border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(99,53,138,.075); overflow: hidden; transition: box-shadow .2s ease; }
 .question-card > button { width: 100%; min-height: 72px; display: grid; grid-template-columns: 54px minmax(0,1fr) 24px; align-items: center; gap: 7px; padding: 10px 15px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.question-number { color: #9a43e7; font-size: 29px; line-height: 1; letter-spacing: -.8px; }
+.question-number { color: #9a43e7; font-size: 25px; line-height: 1; letter-spacing: -.8px; }
 .question-copy { min-width: 0; display: block; }
 .question-copy b, .question-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.question-copy b { color: #48434b; font-size: 16px; line-height: 23px; }
+.question-copy b { color: #48434b; font-size: 15px; line-height: 23px; }
 .question-copy small { margin-top: 1px; color: #514c54; font-size: 13px; line-height: 20px; }
 .question-arrow { width: 25px; color: #7d25d8; transition: transform .2s ease; }
 .question-card--open { box-shadow: 0 8px 24px rgba(126,49,190,.11); }

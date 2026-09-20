@@ -92,8 +92,8 @@ function submit() {
 
 <style scoped>
 .invest-view { min-height: calc(100vh - 78px); padding: 0 16px 29px; background: #fff; color: #363239; }
-.invest-header { height:60px; display: flex; justify-content: center; align-items: center; padding: max(18px, env(safe-area-inset-top)) 0 18px; }
-.invest-header h1 { display: flex; justify-content: center; margin: 0; text-align: center; color: #151317; font-size: 16px; line-height: 32px; }
+.invest-header { height:70px; display: flex; justify-content: center; align-items: center; padding: max(18px, env(safe-area-inset-top)) 0 18px; }
+.invest-header h1 { display: flex; justify-content: center; margin: 0; text-align: center; color: #151317; font-size: 18px; line-height: 32px; }
 .invest-header button { width: 40px; height: 32px; display: grid; place-items: start; padding: 5px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .invest-header button svg { width: 25px; transform: rotate(180deg); }
 .plan-banner { position: relative; height: 110px; display: flex; align-items: center; padding: 0 16px; border-radius: 12px; background: #246af4 url("../assets/images/invest-plan-hero.jpg") center/cover no-repeat; color: #fff; overflow: hidden; }

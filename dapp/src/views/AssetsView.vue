@@ -93,8 +93,8 @@ function amount(value, decimals = 2) {
 
 <style scoped>
 .assets-view { min-height: calc(100vh - 78px); padding: 0 15px 29px; background: #fff; color: #37333a; }
-.assets-header { height:60px; display: flex; justify-content: center; align-items: center; padding: max(18px, env(safe-area-inset-top)) 0 18px; }
-.assets-header h1 { display: flex; justify-content: center; margin: 0; text-align: center; color: #151317; font-size: 16px; line-height: 32px; }
+.assets-header { height:70px; display: flex; justify-content: center; align-items: center; padding: max(18px, env(safe-area-inset-top)) 0 18px; }
+.assets-header h1 { display: flex; justify-content: center; margin: 0; text-align: center; color: #151317; font-size: 18px; line-height: 32px; }
 .assets-header button { width: 40px; height: 31px; display: grid; place-items: start; padding: 4px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .assets-header button svg { width: 25px; transform: rotate(180deg); }
 .balance-card { min-height: 161px; padding: 17px 15px 16px; border-radius: 11px; background: linear-gradient(112deg, #8454ff, #4d2eea); color: #fff; box-shadow: 0 12px 28px rgba(76,45,227,.17); }

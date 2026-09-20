@@ -55,8 +55,8 @@ function formatAmount(value) {
 
 <style scoped>
 .records-view { min-height: 100vh; padding: 0 19px 38px; background: linear-gradient(135deg, #fff 0%, #fbf7ff 48%, #f7f1ff 100%); color: #4d4950; }
-.records-header { height: 113px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(18px, env(safe-area-inset-top)) 0 31px; }
-.records-header h1 { margin: 0; color: #111014; font-size: 24px; line-height: 32px; text-align: center; }
+.records-header { height: 70px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(18px, env(safe-area-inset-top)) 0 31px; }
+.records-header h1 { margin: 0; color: #111014; font-size: 18px; line-height: 32px; text-align: center; }
 .records-header button { width: 40px; height: 34px; display: grid; place-items: start; padding: 3px 0; border: 0; background: rgba(255,255,255,.75); color: #812bd8; cursor: pointer; }
 .records-header button svg { width: 29px; transform: rotate(180deg); }
 .records-list { display: grid; gap: 13px; }

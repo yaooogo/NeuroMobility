@@ -66,8 +66,8 @@ function timeParts(value) {
 
 <style scoped>
 .team-view { min-height: 100vh; padding: 0 16px 34px; background: #fff; color: #4c4850; }
-.team-header { height: 78px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(17px, env(safe-area-inset-top)) 0 17px; }
-.team-header h1 { align-self: end; margin: 0; color: #151317; font-size: 20px; line-height: 31px; text-align: center; }
+.team-header { height: 70px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(17px, env(safe-area-inset-top)) 0 17px; }
+.team-header h1 { align-self: end; margin: 0; color: #151317; font-size: 18px; line-height: 31px; text-align: center; }
 .team-header button { width: 40px; height: 31px; display: grid; place-items: start; padding: 4px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .team-header button svg { width: 26px; transform: rotate(180deg); }
 .team-hero { position: relative; height: 132px; display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; padding: 0 23px; border-radius: 15px; background: #9744e9 url("../assets/images/team-hero.jpg") center/cover no-repeat; color: #fff; overflow: hidden; box-shadow: 0 11px 28px rgba(132,53,218,.18); }
@@ -76,11 +76,11 @@ function timeParts(value) {
 .team-hero div { text-align: center; }
 .team-hero span, .team-hero strong { display: block; }
 .team-hero span { font-size: 13px; }
-.team-hero strong { margin-top: 7px; font-size: 27px; line-height: 1; }
+.team-hero strong { margin-top: 7px; font-size: 22px; line-height: 1; }
 .team-hero i { height: 54px; background: rgba(255,255,255,.5); }
 .records-section { margin-top: 20px; }
-.records-section > h2 { margin: 0 0 12px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 17px; line-height: 23px; }
-.records-card { min-height: 354px; padding: 19px 14px; border: 1px solid #f2edf6; border-radius: 17px; background: #fff; box-shadow: 0 7px 21px rgba(86,48,120,.07); }
+.records-section > h2 { margin: 0 0 12px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 15px; line-height: 23px; }
+.records-card { min-height: 354px; padding: 19px 14px; border: 1px solid #f2edf6; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(86,48,120,.07); }
 .record-head, .record-row { display: grid; grid-template-columns: 1.25fr 1.35fr 1fr .75fr; align-items: center; column-gap: 8px; }
 .record-head { height: 39px; border-bottom: 1px solid #eeeaf0; color: #565159; font-size: 13px; }
 .record-head span:last-child, .record-row > span:last-child { text-align: center; }

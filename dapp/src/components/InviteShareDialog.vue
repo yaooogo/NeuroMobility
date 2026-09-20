@@ -63,11 +63,11 @@ async function copyValue(key, value) {
 .invite-overlay { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(255,255,255,.62); backdrop-filter: blur(8px); }
 .share-dialog { width: min(100%, 440px); padding: 24px 14px 27px; border: 1.5px solid #9b40ee; border-radius: 20px; background: rgba(255,255,255,.98); box-shadow: 0 22px 60px rgba(83,31,127,.18); }
 .share-dialog header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
-.share-dialog h2 { margin: 0; font-size: 21px; }
+.share-dialog h2 { margin: 0; font-size: 19px; }
 .share-dialog header button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #4a464e; font-size: 35px; font-weight: 200; line-height: 1; cursor: pointer; }
 .share-dialog label { display: block; margin-top: 20px; color: #4d4851; font-size: 13px; }
 .share-dialog label > span { display: block; margin-bottom: 10px; }
-.share-dialog label > button { width: 100%; min-height: 54px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 0 13px; border: 0; border-radius: 10px; background: #f0edfb; color: #a8a3ae; text-align: left; cursor: pointer; }
+.share-dialog label > button { width: 100%; min-height: 44px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 8px; padding: 0 13px; border: 0; border-radius: 10px; background: #f0edfb; color: #a8a3ae; text-align: left; cursor: pointer; }
 .share-dialog b { min-width: 0; overflow: hidden; font-size: 13px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
 .share-dialog small { color: #9140df; font-size: 10px; white-space: nowrap; }
 .invite-dialog-enter-active, .invite-dialog-leave-active { transition: opacity .2s ease; }
