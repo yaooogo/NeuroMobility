@@ -71,7 +71,7 @@ function translateQuestion(text) {
 .help-header button { width: 40px; height: 31px; display: grid; place-items: start; padding: 4px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .help-header button svg { width: 26px; transform: rotate(180deg); }
 .question-list { display: grid; gap: 11px; }
-.question-card { border: 1px solid #f3eef8; border-radius: 16px; background: #fff; box-shadow: 0 6px 18px rgba(99,53,138,.075); overflow: hidden; transition: box-shadow .2s ease; }
+.question-card { border: 1px solid #f3eef8; border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(99,53,138,.075); overflow: hidden; transition: box-shadow .2s ease; }
 .question-card > button { width: 100%; min-height: 72px; display: grid; grid-template-columns: 54px minmax(0,1fr) 24px; align-items: center; gap: 7px; padding: 10px 15px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .question-number { color: #9a43e7; font-size: 25px; line-height: 1; letter-spacing: -.8px; }
 .question-copy { min-width: 0; display: block; }

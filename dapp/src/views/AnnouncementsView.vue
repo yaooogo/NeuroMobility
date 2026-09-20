@@ -70,10 +70,6 @@ function toggleAnnouncement(announcement) {
           class="announcement-details"
         >
           <p>{{ lang(announcement.content || defaultContent) }}</p>
-          <footer>
-            <span>{{ announcement.author || "NEURO 团队" }}</span>
-            <time>{{ announcement.date || "2026.09.12" }}</time>
-          </footer>
         </div>
       </article>
     </div>
@@ -82,22 +78,22 @@ function toggleAnnouncement(announcement) {
 
 <style scoped>
 .announcements-view { min-height: 100vh; padding: 0 20px 38px; background: #fff; color: #454149; }
-.announcements-header { height: 106px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(18px, env(safe-area-inset-top)) 0 27px; }
-.announcements-header h1 { margin: 0; color: #111014; font-size: 24px; line-height: 32px; text-align: center; }
+.announcements-header { height: 70px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(18px, env(safe-area-inset-top)) 0 27px; }
+.announcements-header h1 { margin: 0; color: #111014; font-size:18px; line-height: 32px; text-align: center; }
 .announcements-header button { width: 40px; height: 32px; display: grid; place-items: start; padding: 3px 0; border: 0; background: transparent; color: #7f27d8; cursor: pointer; }
 .announcements-header button svg { width: 29px; transform: rotate(180deg); }
 .announcement-list { display: grid; gap: 13px; }
-.announcement-card { overflow: hidden; border: 1px solid #f3edf8; border-radius: 20px; background: #fff; box-shadow: 0 7px 22px rgba(90,48,128,.075); }
-.announcement-summary { width: 100%; min-height: 113px; display: grid; grid-template-columns: 80px minmax(0,1fr) 30px; align-items: center; gap: 18px; padding: 18px 18px 18px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
-.announcement-summary img { width: 80px; height: 80px; display: block; border-radius: 14px; object-fit: cover; }
+.announcement-card { overflow: hidden; border: 1px solid #f3edf8; border-radius: 12px; background: #fff; box-shadow: 0 7px 22px rgba(90,48,128,.075); }
+.announcement-summary { width: 100%; min-height: 113px; display: grid; grid-template-columns: 55px minmax(0,1fr) 30px; align-items: center; gap: 18px; padding: 18px 18px 18px 20px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.announcement-summary img { width: 55px; height: 55px; display: block; border-radius: 14px; object-fit: cover; }
 .announcement-copy { min-width: 0; align-self: center; }
-.announcement-copy small { width: max-content; display: block; padding: 5px 14px; border-radius: 16px; background: linear-gradient(100deg, #b452f1, #8a36dc); color: #fff; font-size: 13px; line-height: 1; }
-.announcement-copy strong { display: block; margin-top: 11px; overflow: hidden; color: #4b474d; font-size: 20px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.announcement-copy small { width: max-content; display: block; padding: 3px 8px; border-radius: 16px; background: linear-gradient(100deg, #b452f1, #8a36dc); color: #fff; font-size: 9px; line-height: 1; }
+.announcement-copy strong { display: block; margin-top: 11px; overflow: hidden; color: #4b474d; font-size: 15px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .announcement-summary > svg { width: 30px; color: #7c25d5; stroke-width: 2.1; transition: transform .2s ease; }
-.announcement-card--expanded .announcement-summary { padding-bottom: 7px; }
+/* .announcement-card--expanded .announcement-summary { padding-bottom: 7px; } */
 .announcement-card--expanded .announcement-summary > svg { transform: rotate(90deg); }
-.announcement-details { padding: 4px 20px 20px; color: #1f1d22; }
-.announcement-details p { margin: 0; font-size: 16px; line-height: 1.75; text-align: justify; }
+.announcement-details { padding: 0px 20px 20px; color: #1f1d22; }
+.announcement-details p { margin: 0; font-size: 13px; line-height: 1.75; text-align: justify; }
 .announcement-details footer { display: grid; justify-items: end; gap: 3px; margin-top: 28px; font-size: 15px; line-height: 1.4; }
 @media (max-width: 390px) {
   .announcements-view { padding-left: 12px; padding-right: 12px; }
