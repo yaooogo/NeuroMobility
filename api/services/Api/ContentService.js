@@ -1,7 +1,7 @@
 import ApiResult from '../../Util/ApiResult.js';
 import DB from '../../Util/database/DB.js';
 import { normalizeContentLanguage } from '../../Util/ContentLanguage.js';
-import { ensureAnnouncementTable, ensureHelpArticleTable } from '../../Util/ContentSchema.js';
+import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTable } from '../../Util/ContentSchema.js';
 
 function normalizeAnnouncement(row) {
   return {
@@ -66,4 +66,27 @@ async function helpArticles(req, res) {
   }
 }
 
-export default { announcements, helpArticles };
+async function about(req, res) {
+  try {
+    await ensureAboutContentTable();
+    const language = normalizeContentLanguage(req.query?.language);
+    const rows = await DB.query()
+      .table('about_content')
+      .where('language', language)
+      .orderBy('id', 'desc')
+      .get();
+    return res.send(ApiResult.success({
+      items: (rows || []).map(row => ({
+        id: Number(row.id || 0),
+        language,
+        content: row.content || '',
+        created_at: row.created_at || '',
+        updated_at: row.updated_at || ''
+      }))
+    }, '获取关于我们内容成功'));
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'ContentService.about'));
+  }
+}
+
+export default { announcements, helpArticles, about };

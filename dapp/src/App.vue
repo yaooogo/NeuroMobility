@@ -265,6 +265,10 @@ function handleProfileAction(item) {
     void router.push({ name: "help" });
     return;
   }
+  if (item?.key === "about") {
+    void router.push({ name: "about" });
+    return;
+  }
   showNotice(lang("功能正在建设中"));
 }
 

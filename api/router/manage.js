@@ -11,6 +11,7 @@ import SystemConfigService from '../services/Manage/SystemConfigService.js';
 import WalletService from '../services/Manage/WalletService.js';
 import AnnouncementService from '../services/Manage/AnnouncementService.js';
 import HelpArticleService from '../services/Manage/HelpArticleService.js';
+import AboutContentService from '../services/Manage/AboutContentService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -69,6 +70,12 @@ router.route('/help-article/list').post(HelpArticleService.list)
 router.route('/help-article/create').post(HelpArticleService.create)
 router.route('/help-article/update').post(HelpArticleService.update)
 router.route('/help-article/delete').post(HelpArticleService.remove)
+
+// 关于我们
+router.route('/about/list').post(AboutContentService.list)
+router.route('/about/create').post(AboutContentService.create)
+router.route('/about/update').post(AboutContentService.update)
+router.route('/about/delete').post(AboutContentService.remove)
 
 // 管理员类型
 router.route('/admin-type/list').post(AdminTypeService.list)

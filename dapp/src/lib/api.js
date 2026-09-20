@@ -79,3 +79,8 @@ export async function requestHelpArticles(language = "zh") {
   const data = unwrap(await http.get("/content/help-articles", { params: { language } }));
   return Array.isArray(data?.items) ? data.items : [];
 }
+
+export async function requestAboutArticles(language = "zh") {
+  const data = unwrap(await http.get("/content/about", { params: { language } }));
+  return Array.isArray(data?.items) ? data.items : [];
+}

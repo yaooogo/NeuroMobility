@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.route("/content/announcements").get(ContentService.announcements);
 router.route("/content/help-articles").get(ContentService.helpArticles);
+router.route("/content/about").get(ContentService.about);
 router.route("/login/nonce").post(AuthService.loginNonce);
 router.route("/login/inviter").post(AuthService.resolveInviter);
 router.route("/login").post(AuthService.login);

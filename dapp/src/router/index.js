@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import AnnouncementsView from "../views/AnnouncementsView.vue";
+import AboutView from "../views/AboutView.vue";
 import AssetsView from "../views/AssetsView.vue";
 import DividendRecordsView from "../views/DividendRecordsView.vue";
 import HelpCenterView from "../views/HelpCenterView.vue";
@@ -20,6 +21,7 @@ const router = createRouter({
     { path: "/mine", name: "mine", component: UserCenterView, meta: { navKey: "mine" } },
     { path: "/team", name: "team", component: TeamView, meta: { navKey: "mine", showBottomNav: false } },
     { path: "/help", name: "help", component: HelpCenterView, meta: { navKey: "mine", showBottomNav: false } },
+    { path: "/about", name: "about", component: AboutView, meta: { navKey: "mine", showBottomNav: false } },
     { path: "/announcements", name: "announcements", component: AnnouncementsView, meta: { navKey: "home", showBottomNav: false } },
     { path: "/transaction-records", name: "transaction-records", component: TransactionRecordsView, meta: { navKey: "assets", showBottomNav: false } },
     { path: "/dividend-records", name: "dividend-records", component: DividendRecordsView, meta: { navKey: "home", showBottomNav: false } },
