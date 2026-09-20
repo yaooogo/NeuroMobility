@@ -109,13 +109,12 @@ function handleMenuClick(item) {
 .rank-pill svg { width: 15px; }
 .profile-content { position: relative; z-index: 3; margin-top: -50px; padding: 0 16px 26px; }
 .level-card, .menu-card { border: 1px solid rgba(133,80,190,.05); background: rgba(255,255,255,.96); box-shadow: 0 6px 22px rgba(88,47,129,.08); }
-.level-card { position: relative; min-height: 174px; margin-top: -1px; padding: 21px 20px 17px; border-radius: 19px; overflow: hidden; }
-.level-card::before { content: "♕"; position: absolute; left: 50%; top: 34px; color: rgba(163,91,222,.055); font-size: 104px; transform: translateX(-50%); }
+.level-card { position: relative; min-height: 174px; margin-top: -1px; padding: 21px 20px 17px; border-radius: 19px; overflow: hidden; background: url("../assets/images/level-card-bg.jpg") #fff no-repeat center -20px; background-size: auto 120%; }
 .level-head, .level-values, .level-percent, .level-amount { position: relative; display: flex; justify-content: space-between; }
 .level-head { color: #404040 ; font-size: 13px; }
 .level-values { align-items: center; margin-top: 11px; color: #9d43e9; }
 .level-values strong { font-size: 25px; line-height: 1; color: transparent; background-clip: text;background-image: linear-gradient(90deg, #A95CF8 0%, #7428C6 100%);}
-.level-arrow { width: 21px; height: 21px; display: grid; place-items: center; border: 2px solid #9d43e9; border-radius: 50%; }
+.level-arrow { width: 16px; height: 16px; display: grid; place-items: center; border: 2px solid #9d43e9; border-radius: 50%; }
 .level-arrow svg { width: 13px; }
 .level-percent { margin-top: 16px; color: #4f4b55; font-size: 13px; }
 .level-track { position: relative; height: 14px; margin-top: 6px; border-radius: 7px; background: #eee9f7; overflow: hidden; }

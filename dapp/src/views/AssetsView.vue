@@ -107,18 +107,18 @@ function amount(value, decimals = 2) {
 .asset-shortcuts button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: #3f3a42; font-size: 13px; cursor: pointer; }
 .asset-shortcuts svg { width: 30px; height: 30px; padding: 4px; border-radius: 8px; background: linear-gradient(145deg, #b752f1, #8c3bec); color: #fff; stroke-width: 2; }
 .orders-section { margin-top: 17px; }
-.orders-section > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 16px; line-height: 23px; }
-.order-card { padding: 20px; border: 1px solid #f1edf5; border-radius: 17px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
-.order-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px; border-radius: 10px; background: #f0ecfb; }
+.orders-section > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 15px; line-height: 23px; }
+.order-card { padding: 20px; border: 1px solid #f1edf5; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
+.order-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px; border-radius: 12px; background: #f0ecfb; }
 .order-summary span { min-width: 0; color: #5a555e; font-size: 12px; white-space: nowrap; }
-.order-summary b { display: block; margin-top: 5px; color: #8d37e1; font-size: 18px; }
-.order-card dl { margin: 16px 0 19px; }
+.order-summary b { display: block; margin-top: 5px; color: #8d37e1; font-size: 17px; }
+.order-card dl { margin: 16px 0 19px 10px; }
 .order-card dl > div { min-height: 37px; display: grid; grid-template-columns: 92px minmax(0, 1fr); align-items: center; border-bottom: 1px solid #eeeaf0; font-size: 13px; }
 .order-card dl > div:last-child { border-bottom: 0; }
 .order-card dt { font-weight: 600; }
 .order-card dd { min-width: 0; margin: 0; overflow: hidden; color: #5e5961; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .order-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.order-actions button { height: 53px; border: 1px solid #9e40eb; border-radius: 10px; background: #fff; color: #a443ec; font-size: 16px; cursor: pointer; }
+.order-actions button { height: 44px; border: 1px solid #9e40eb; border-radius: 8px; background: #fff; color: #a443ec; font-size: 15px; cursor: pointer; }
 .order-actions button:last-child { border: 0; background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; }
 @media (max-width: 390px) {
   .assets-view { padding-left: 10px; padding-right: 10px; }

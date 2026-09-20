@@ -61,7 +61,7 @@ async function copyValue(key, value) {
 
 <style scoped>
 .invite-overlay { position: fixed; z-index: 70; inset: 0; display: grid; place-items: center; padding: 24px; background: rgba(255,255,255,.62); backdrop-filter: blur(8px); }
-.share-dialog { width: min(100%, 440px); padding: 24px 14px 27px; border: 1.5px solid #9b40ee; border-radius: 20px; background: rgba(255,255,255,.98); box-shadow: 0 22px 60px rgba(83,31,127,.18); }
+.share-dialog { width: min(100%, 440px); padding: 24px 14px 27px; border: 1.5px solid #9b40ee; border-radius: 16px; background: rgba(255,255,255,.98); box-shadow: 0 22px 60px rgba(83,31,127,.18); }
 .share-dialog header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
 .share-dialog h2 { margin: 0; font-size: 19px; }
 .share-dialog header button { width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #4a464e; font-size: 35px; font-weight: 200; line-height: 1; cursor: pointer; }
