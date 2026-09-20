@@ -47,9 +47,7 @@ function amount(value, decimals = 2) {
 <template>
   <section class="assets-view">
     <header class="assets-header">
-      <button type="button" :aria-label="lang('返回首页')" @click="router.push({ name: 'home' })"><AppIcon name="chevron" /></button>
       <h1>{{ lang("资产") }}</h1>
-      <span></span>
     </header>
 
     <section class="balance-card">
@@ -95,8 +93,8 @@ function amount(value, decimals = 2) {
 
 <style scoped>
 .assets-view { min-height: calc(100vh - 78px); padding: 0 15px 29px; background: #fff; color: #37333a; }
-.assets-header { height: 98px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(18px, env(safe-area-inset-top)) 0 23px; }
-.assets-header h1 { align-self: end; margin: 0; color: #151317; font-size: 20px; line-height: 31px; text-align: center; }
+.assets-header { height:60px; display: flex; justify-content: center; align-items: center; padding: max(18px, env(safe-area-inset-top)) 0 18px; }
+.assets-header h1 { display: flex; justify-content: center; margin: 0; text-align: center; color: #151317; font-size: 16px; line-height: 32px; }
 .assets-header button { width: 40px; height: 31px; display: grid; place-items: start; padding: 4px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .assets-header button svg { width: 25px; transform: rotate(180deg); }
 .balance-card { min-height: 161px; padding: 17px 15px 16px; border-radius: 11px; background: linear-gradient(112deg, #8454ff, #4d2eea); color: #fff; box-shadow: 0 12px 28px rgba(76,45,227,.17); }

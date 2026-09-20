@@ -84,7 +84,7 @@ onBeforeUnmount(() => document.removeEventListener("click", closeLocaleMenu));
       </div>
 
       <button class="wallet-button" type="button" :disabled="loading" @click="emit('wallet-click')">
-        {{ loading ? lang('登录中') : walletLabel || lang('连接钱包') }}
+        {{ loading ? lang('登录') : walletLabel || lang('连接钱包') }}
       </button>
 
       <button

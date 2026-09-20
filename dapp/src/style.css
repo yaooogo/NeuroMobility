@@ -26,7 +26,7 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .app-shell--subpage { padding-bottom: 0; }
 
-.hero { position: relative; height: 342px; overflow: visible; background: linear-gradient(160deg, #d8edff, #fff1cb 52%, #95b0c7); }
+.hero { position: relative; height: 342px; overflow: visible;  }
 .hero__image {
   position: absolute; inset: 0;
   background-image: url("./assets/images/mobility-hero.jpg"),
@@ -34,40 +34,43 @@ button { -webkit-tap-highlight-color: transparent; }
     linear-gradient(150deg, #8fc7fa 0%, #e8f5ff 46%, #b2c7dc 100%);
   background-position: center;
   background-size: cover;
+  border-radius: 0 0 40px 40px;
 }
-.hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 50%, rgba(22,26,44,.12)); }
-.content-card { position: relative; z-index: 3; margin-top: -32px; padding: 15px 15px 28px; border-radius: 25px 25px 0 0; background: #fff; }
-.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 0 1px 14px; border-radius: 18px; box-shadow: 0 6px 14px rgba(91,63,121,.08); }
-.quick-item { min-width: 0; padding: 0 2px; border: 0; background: none; color: #34313e; font-size: 13px; cursor: pointer; }
+.hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255,255,255,.06), transparent 50%, rgba(22,26,44,.12));   border-radius: 0 0 40px 40px;}
+.content-card { position: relative; z-index: 3; margin: 0 15px; margin-top: -35px;  border-radius: 12px 12px 0 0; }
+.quick-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 15px; border-radius: 12px; box-shadow: 0 6px 14px rgba(91,63,121,.08); background: #fff; }
+.quick-item { min-width: 0; padding: 0 2px; border: 0; background: none; color: #34313e; font-size: 12px; cursor: pointer; }
 .quick-item > span:last-child { display: block; white-space: nowrap; }
 .icon-tile { width: 47px; height: 47px; display: grid; place-items: center; margin: 0 auto 8px; border-radius: 11px; background: linear-gradient(145deg, #eee5ff, #e7dcff); color: var(--purple); }
-.icon-tile svg { width: 29px; height: 29px; }
+.icon-tile img { width: 26px; height: 26px; }
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 17px; }
 .stats-grid article { position: relative; min-width: 0; height: 69px; padding: 10px 49px 9px 14px; border-radius: 10px; background: #f1edfc; overflow: hidden; }
 .stats-grid span { display: block; color: #625d69; font-size: 13px; white-space: nowrap; }
 .stats-grid strong { display: block; margin-top: 3px; color: #8d36dc; font-size: 21px; line-height: 1.1; white-space: nowrap; }
 .stats-grid small { font-size: 13px; font-weight: 600; }
 .stats-grid i { position: absolute; top: 11px; right: 10px; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; background: #e8ddff; color: #a247ed; }
-.stats-grid svg { width: 25px; }
+.stats-grid img { width: 26px; }
 .investment-banner, .partner-banner { width: 100%; border: 0; cursor: pointer; }
-.investment-banner { position: relative; min-height: 82px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 17px; padding: 14px 13px; border-radius: 10px; color: #fff; text-align: left; overflow: hidden; background: linear-gradient(112deg, #286cf3, #337df4 50%, #1a4ebc); }
-.investment-banner::before { content: ""; position: absolute; width: 180px; height: 180px; right: 80px; top: -100px; border: 1px solid rgba(255,255,255,.28); border-radius: 50%; box-shadow: 0 0 0 18px rgba(255,255,255,.06), 0 0 0 42px rgba(255,255,255,.04); }
+.investment-banner { position: relative; min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 17px; padding: 14px 13px; border-radius: 10px; color: #fff; text-align: left; overflow: hidden; background: url("./assets/images/invest-plan-hero.jpg") no-repeat 0 center; background-size: 100% auto }
 .investment-banner > span, .investment-banner b { position: relative; z-index: 1; }
-.investment-banner strong, .partner-banner strong { display: block; font-size: 16px; line-height: 1.3; }
+.investment-banner strong, .partner-banner strong { display: block; font-size: 13px; line-height: 1.3; }
 .investment-banner small, .partner-banner small { display: block; margin-top: 4px; font-size: 11px; opacity: .9; }
-.investment-banner b, .partner-banner b { flex: 0 0 auto; min-width: 108px; height: 38px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border-radius: 20px; background: linear-gradient(90deg, #aa53f6, #7525d4); font-size: 13px; font-weight: 500; }
+.investment-banner b, .partner-banner b { flex: 0 0 auto; min-width: 100px; height:30px; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 12px; border-radius: 20px; background: linear-gradient(90deg, #aa53f6, #7525d4); font-size: 12px; font-weight: 500; }
 .investment-banner b svg, .partner-banner b svg { width: 16px; }
 .highlights { margin-top: 18px; }
-.highlights h2 { margin: 0 0 14px; padding-left: 13px; border-left: 4px solid #9a3fe8; color: #403b45; font-size: 17px; }
+.highlights h2 { margin: 0 0 14px; padding-left: 13px; border-left: 4px solid #9a3fe8; color: #403b45; font-size: 15px; }
 .highlight-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
 .highlight-grid article { min-width: 0; padding: 5px 5px 2px; text-align: center; border-right: 1px solid #eeeaf2; }
 .highlight-grid article:last-child { border-right: 0; }
-.highlight-grid svg { width: 31px; height: 31px; margin-bottom: 8px; color: #a745ee; }
-.highlight-grid strong { display: block; font-size: 12px; line-height: 1.3; }
-.highlight-grid small { display: block; margin-top: 3px; color: #77717c; font-size: 10px; line-height: 1.25; }
+.highlight-grid img { width: 26px; height: 26px; margin-bottom: 8px; color: #a745ee; }
+.highlight-grid strong { display: block; font-size: 11px; line-height: 1.3; }
+.highlight-grid small { display: block; margin-top: 3px; color: #77717c; font-size: 11px; line-height: 1.25; }
 .partner-banner { min-height: 82px; display: grid; grid-template-columns: 39px minmax(0,1fr) auto; align-items: center; gap: 8px; margin-top: 22px; padding: 12px 12px; border-radius: 11px; background: linear-gradient(105deg, #f6f2ff, #e9ddff); color: #7030c6; text-align: left; }
-.partner-banner .crown { color: #ffbd00; font-size: 32px; transform: rotate(-8deg); }
-.partner-banner small { color: #6e6878; }
+.partner-banner .crown {display: block; width: 44px;}
+.partner-banner .crown img{
+  width: 44px;
+}
+.partner-banner small { color: #4c4c4c; }
 .partner-banner b { min-width: 105px; color: #fff; }
 
 .toast { position: fixed; z-index: 80; left: 50%; bottom: calc(94px + env(safe-area-inset-bottom)); max-width: min(88vw, 390px); padding: 11px 16px; border-radius: 12px; background: #302d36; color: #fff; font-size: 13px; text-align: center; box-shadow: 0 12px 32px rgba(0,0,0,.2); transform: translateX(-50%); }
@@ -93,8 +96,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .invite-modal .secondary { margin-top: 8px; border: 0; background: #f5f2f8; color: #6f6877; }
 
 @media (max-width: 390px) {
-  .content-card { padding-left: 10px; padding-right: 10px; }
-  .quick-item { font-size: 11px; }
+  .hero{height: 295px;}
   .stats-grid strong { font-size: 18px; }
   .investment-banner strong, .partner-banner strong { font-size: 13px; }
   .investment-banner b, .partner-banner b { min-width: 86px; padding: 0 9px; font-size: 11px; }
