@@ -1,36 +1,47 @@
 <script setup>
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestHelpArticles } from "../lib/api.js";
 
 defineOptions({ inheritAttrs: false });
-const props = defineProps({
-  questions: {
-    type: Array,
-    default: () => Array.from({ length: 8 }, () => ({
-      title: "最低投资金额是多少？",
-      summary: "最低投资金额是多少？",
-      answer: "最低参与金额为 1,000 USDT，您也可以选择页面提供的其他参与金额。"
-    }))
-  }
-});
 
 const router = useRouter();
-const { lang } = useLocale();
-const openIndex = ref(-1);
+const { lang, locale } = useLocale();
+const articles = ref([]);
+const openId = ref(null);
+const loading = ref(true);
+const errorMessage = ref("");
+let requestId = 0;
 
-function toggleQuestion(index) {
-  openIndex.value = openIndex.value === index ? -1 : index;
+function summary(content) {
+  const text = String(content || "").replace(/\s+/gu, " ").trim();
+  return text.length > 54 ? `${text.slice(0, 54)}...` : text;
 }
 
-function translateQuestion(text) {
-  if (text === "最低投资金额是多少？") return lang("最低投资金额是多少？");
-  if (text === "最低参与金额为 1,000 USDT，您也可以选择页面提供的其他参与金额。") {
-    return lang("最低参与金额为 1,000 USDT，您也可以选择页面提供的其他参与金额。");
+async function loadArticles() {
+  const currentRequestId = ++requestId;
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const items = await requestHelpArticles(locale.value);
+    if (currentRequestId !== requestId) return;
+    articles.value = items;
+    openId.value = null;
+  } catch (error) {
+    if (currentRequestId !== requestId) return;
+    errorMessage.value = error?.message || lang("加载失败，请稍后重试");
+  } finally {
+    if (currentRequestId === requestId) loading.value = false;
   }
-  return lang(text);
 }
+
+function toggleArticle(id) {
+  openId.value = openId.value === id ? null : id;
+}
+
+watch(locale, loadArticles, { immediate: true });
 </script>
 
 <template>
@@ -43,22 +54,29 @@ function translateQuestion(text) {
       <span></span>
     </header>
 
-    <div class="question-list">
+    <div v-if="loading" class="content-state">{{ lang("正在加载...") }}</div>
+    <div v-else-if="errorMessage" class="content-state content-state--error">
+      <span>{{ errorMessage }}</span>
+      <button type="button" @click="loadArticles">{{ lang("重新加载") }}</button>
+    </div>
+    <div v-else-if="!articles.length" class="content-state">{{ lang("暂无帮助内容") }}</div>
+
+    <div v-else class="question-list">
       <article
-        v-for="(question, index) in props.questions"
-        :key="`${question.title}-${index}`"
+        v-for="(article, index) in articles"
+        :key="article.id"
         class="question-card"
-        :class="{ 'question-card--open': openIndex === index }"
+        :class="{ 'question-card--open': openId === article.id }"
       >
-        <button type="button" :aria-expanded="openIndex === index" @click="toggleQuestion(index)">
+        <button type="button" :aria-expanded="openId === article.id" @click="toggleArticle(article.id)">
           <strong class="question-number">{{ String(index + 1).padStart(2, "0") }}.</strong>
           <span class="question-copy">
-            <b>{{ translateQuestion(question.title) }}</b>
-            <small>{{ translateQuestion(question.summary) }}</small>
+            <b>{{ article.title }}</b>
+            <small>{{ summary(article.content) }}</small>
           </span>
           <AppIcon class="question-arrow" name="chevron" />
         </button>
-        <p v-if="openIndex === index">{{ translateQuestion(question.answer) }}</p>
+        <p v-if="openId === article.id">{{ article.content }}</p>
       </article>
     </div>
   </section>
@@ -70,6 +88,9 @@ function translateQuestion(text) {
 .help-header h1 { margin: 0; color: #151317; font-size: 18px; line-height: 31px; text-align: center; }
 .help-header button { width: 40px; height: 31px; display: grid; place-items: start; padding: 4px 0; border: 0; background: transparent; color: #8431dc; cursor: pointer; }
 .help-header button svg { width: 26px; transform: rotate(180deg); }
+.content-state { min-height: 180px; display: grid; place-content: center; justify-items: center; gap: 12px; color: #8b8490; font-size: 14px; text-align: center; }
+.content-state--error { color: #b14558; }
+.content-state button { padding: 8px 18px; border: 0; border-radius: 18px; background: #8731dc; color: #fff; cursor: pointer; }
 .question-list { display: grid; gap: 11px; }
 .question-card { border: 1px solid #f3eef8; border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(99,53,138,.075); overflow: hidden; transition: box-shadow .2s ease; }
 .question-card > button { width: 100%; min-height: 72px; display: grid; grid-template-columns: 54px minmax(0,1fr) 24px; align-items: center; gap: 7px; padding: 10px 15px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
@@ -81,7 +102,7 @@ function translateQuestion(text) {
 .question-arrow { width: 25px; color: #7d25d8; transition: transform .2s ease; }
 .question-card--open { box-shadow: 0 8px 24px rgba(126,49,190,.11); }
 .question-card--open .question-arrow { transform: rotate(90deg); }
-.question-card > p { margin: -2px 19px 15px 76px; padding-top: 11px; border-top: 1px solid #f1edf5; color: #716b75; font-size: 13px; line-height: 1.7; }
+.question-card > p { margin: -2px 19px 15px 76px; padding-top: 11px; border-top: 1px solid #f1edf5; color: #716b75; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.7; }
 @media (max-width: 390px) {
   .help-view { padding-left: 10px; padding-right: 10px; }
   .question-card > button { grid-template-columns: 49px minmax(0,1fr) 22px; padding-left: 13px; padding-right: 13px; }

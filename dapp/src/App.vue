@@ -274,7 +274,7 @@ function handleViewAction(item) {
     return;
   }
   if (item?.key === "announcement") {
-    showNotice(lang("公告详情正在建设中"));
+    void router.push({ name: "announcements" });
     return;
   }
   if (route.name === "home") {

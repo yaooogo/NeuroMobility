@@ -69,3 +69,13 @@ export async function requestLogin(address, signature, refCode = "") {
 export async function requestLogout() {
   return unwrap(await http.post("/logout", {}));
 }
+
+export async function requestAnnouncements(language = "zh") {
+  const data = unwrap(await http.get("/content/announcements", { params: { language } }));
+  return Array.isArray(data?.items) ? data.items : [];
+}
+
+export async function requestHelpArticles(language = "zh") {
+  const data = unwrap(await http.get("/content/help-articles", { params: { language } }));
+  return Array.isArray(data?.items) ? data.items : [];
+}

@@ -1,34 +1,15 @@
 import ApiResult from '../../Util/ApiResult.js';
-import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { normalizeContentLanguage } from '../../Util/ContentLanguage.js';
+import { ensureHelpArticleTable } from '../../Util/ContentSchema.js';
 
 const TABLE_NAME = 'help_article';
-let tableReady = false;
-
-async function ensureTable() {
-  if (tableReady) return;
-  const prefix = Database.prefix('default') || '';
-  await DB.query().exec(
-    `CREATE TABLE IF NOT EXISTS ${prefix}help_article (
-      id INT NOT NULL AUTO_INCREMENT,
-      title VARCHAR(255) NOT NULL,
-      content MEDIUMTEXT NOT NULL,
-      sort INT NOT NULL DEFAULT 0,
-      status TINYINT(1) NOT NULL DEFAULT 1,
-      created_at DATETIME DEFAULT NULL,
-      updated_at DATETIME DEFAULT NULL,
-      PRIMARY KEY (id),
-      KEY idx_help_article_status_sort (status, sort),
-      KEY idx_help_article_created_at (created_at)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='帮助文章'`
-  );
-  tableReady = true;
-}
 
 function normalize(row) {
   return {
     id: Number(row.id || 0),
+    language: normalizeContentLanguage(row.language),
     title: row.title || '',
     content: row.content || '',
     sort: Number(row.sort || 0),
@@ -44,6 +25,7 @@ function parseArticle(body) {
   if (!title) throw new Error('帮助文章标题不能为空');
   if (!content) throw new Error('帮助文章内容不能为空');
   return {
+    language: normalizeContentLanguage(body?.language),
     title,
     content,
     sort: Math.max(0, Helper.parseInt(body?.sort, 0)),
@@ -53,11 +35,12 @@ function parseArticle(body) {
 
 async function list(req, res) {
   try {
-    await ensureTable();
+    await ensureHelpArticleTable();
     const page = Helper.parseInt(req.body?.page, 1);
     const pageSize = Helper.parseInt(req.body?.page_size, 20);
     const keyword = Helper.safeString(req.body?.keyword, 255).trim();
     const status = req.body?.status;
+    const language = String(req.body?.language || '').trim();
     const query = DB.query().table(TABLE_NAME);
     if (keyword) {
       query.where(builder => builder
@@ -65,6 +48,7 @@ async function list(req, res) {
         .orWhere('content', 'like', `%${keyword}%`));
     }
     if (status !== '' && status !== null && typeof status !== 'undefined') query.where('status', Number(status));
+    if (language) query.where('language', normalizeContentLanguage(language));
     query.orderBy('sort', 'asc').orderBy('id', 'desc');
     const result = await query.paginate(page, pageSize);
     return res.send(ApiResult.success({
@@ -81,7 +65,7 @@ async function list(req, res) {
 
 async function create(req, res) {
   try {
-    await ensureTable();
+    await ensureHelpArticleTable();
     const article = parseArticle(req.body);
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
     const result = { insertId: 0 };
@@ -97,7 +81,7 @@ async function create(req, res) {
 
 async function update(req, res) {
   try {
-    await ensureTable();
+    await ensureHelpArticleTable();
     const id = Helper.parseInt(req.body?.id, 0);
     if (!id) return res.send(ApiResult.error(400, '帮助文章ID不能为空'));
     const row = await DB.query().table(TABLE_NAME).where('id', id).first();
@@ -118,7 +102,7 @@ async function update(req, res) {
 
 async function remove(req, res) {
   try {
-    await ensureTable();
+    await ensureHelpArticleTable();
     const id = Helper.parseInt(req.body?.id, 0);
     if (!id) return res.send(ApiResult.error(400, '帮助文章ID不能为空'));
     const row = await DB.query().table(TABLE_NAME).where('id', id).first();
