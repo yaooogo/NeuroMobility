@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
@@ -22,10 +23,10 @@ const displayAddress = computed(() => {
 });
 const progress = computed(() => Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
 const menuItems = computed(() => [
-  { key: "invite", icon: "add-user", title: lang("邀请好友"), description: lang("分享挚友·共赢未来") },
-  { key: "team", icon: "team", title: lang("我的团队"), description: lang("团队管理·共同成长") },
-  { key: "help", icon: "help", title: lang("帮助中心"), description: lang("常见问题解答") },
-  { key: "about", icon: "info", title: lang("关于我们"), description: lang("了解Neuro") }
+  { key: "invite", icon: requireAsset("@assets/images/icons/invite.png"), title: lang("邀请好友"), description: lang("分享挚友·共赢未来") },
+  { key: "team", icon: requireAsset("@assets/images/icons/team.png"), title: lang("我的团队"), description: lang("团队管理·共同成长") },
+  { key: "help", icon: requireAsset("@assets/images/icons/help.png"), title: lang("帮助中心"), description: lang("常见问题解答") },
+  { key: "about", icon: requireAsset("@assets/images/icons/invite.png"), title: lang("关于我们"), description: lang("了解Neuro") }
 ]);
 
 function formatAmount(value) {
@@ -42,14 +43,14 @@ function handleMenuClick(item) {
     <header class="profile-hero">
       <div class="profile-hero__shade"></div>
       <button class="identity" type="button" @click="emit('connect')">
-        <span class="avatar"><span class="avatar__mark">N</span></span>
+        <span class="avatar"><span class="avatar__mark"><img :src="requireAsset('@assets/images/min-logo.png')" /></span></span>
         <span class="identity__text">
-          <strong>NEURO</strong>
-          <span>{{ lang("ID") }}: {{ displayAddress }}</span>
+          <strong v-if="props.address">NEURO</strong>
+          <strong v-else>{{ lang('点击登录') }}</strong>
+          <span v-if="props.address">{{ displayAddress }}  <img  :src="requireAsset('@assets/images/icons/copy.png')" class="copy-icon" name="copy" @click.stop="emit('copy')" /> </span>
+          <div v-if="props.address" class="rank-pill"><AppIcon name="badge" />{{ lang("县级合伙人") }}</div>
         </span>
-        <AppIcon v-if="props.address" class="copy-icon" name="copy" @click.stop="emit('copy')" />
       </button>
-      <div class="rank-pill"><AppIcon name="badge" />{{ lang("县级合伙人") }}</div>
     </header>
 
     <div class="profile-content">
@@ -70,12 +71,12 @@ function handleMenuClick(item) {
 
       <section class="menu-card">
         <button v-for="item in menuItems" :key="item.key" type="button" @click="handleMenuClick(item)">
-          <AppIcon class="menu-icon" :name="item.icon" />
+          <img class="menu-icon" :src="item.icon" />
           <strong>{{ item.title }}</strong>
           <span>{{ item.description }}</span>
           <AppIcon class="chevron" name="chevron" />
         </button>
-        <button class="logout" type="button" @click="connected ? emit('logout') : emit('connect')">
+        <button class="logout" type="button" @click="connected ? emit('logout') : emit('connect')" v-if="props.address">
           <AppIcon class="menu-icon" name="logout" />
           <strong>{{ connected ? lang("退出登录") : lang("连接钱包") }}</strong>
           <span>{{ connected ? lang("安全退出当前账户") : lang("连接后查看账户信息") }}</span>
@@ -93,25 +94,27 @@ function handleMenuClick(item) {
 
 <style scoped>
 .profile-page { min-height: calc(100vh - 78px); background: #fbfaff; }
-.profile-hero { position: relative; height: 218px; padding: max(76px, calc(env(safe-area-inset-top) + 54px)) 30px 0; color: #fff; background: #7024d8 url("../assets/images/profile-hero.jpg") center/cover no-repeat; overflow: hidden; }
-.profile-hero__shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(95,25,202,.72), rgba(125,37,220,.3) 58%, rgba(87,21,178,.18)), linear-gradient(180deg, rgba(87,14,178,.2), transparent 65%, rgba(102,35,177,.22)); }
-.identity { position: relative; z-index: 1; display: grid; grid-template-columns: 92px minmax(0,1fr) 19px; align-items: center; gap: 15px; padding: 0; border: 0; background: transparent; color: #fff; text-align: left; cursor: pointer; }
-.avatar { width: 92px; height: 92px; display: grid; place-items: center; border: 8px solid rgba(255,255,255,.95); border-radius: 50%; background: #fff; box-shadow: 0 9px 28px rgba(49,0,105,.2); }
-.avatar__mark { width: 48px; height: 42px; display: grid; place-items: center; border-radius: 4px 13px 4px 13px; background: linear-gradient(140deg, #a94eff, #7730dd); color: #fff; font-size: 31px; font-weight: 900; font-style: italic; line-height: 1; }
-.identity__text { min-width: 0; }
-.identity__text strong { display: block; margin-bottom: 5px; font-size: 25px; letter-spacing: .2px; }
-.identity__text span { display: block; max-width: 170px; overflow: hidden; color: rgba(255,255,255,.9); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.copy-icon { width: 17px; }
-.rank-pill { position: absolute; z-index: 2; left: 135px; bottom: 17px; height: 25px; display: flex; align-items: center; gap: 5px; padding: 0 12px; border-radius: 14px; background: #ffd68c; color: #d37208; font-size: 12px; }
+.profile-hero { position: relative; height: 260px; padding: max(76px, calc(env(safe-area-inset-top) + 54px)) 30px 0; color: #fff; background: #7024d8 url("../assets/images/profile-hero.jpg")  center top no-repeat; background-size: auto 84%; overflow: hidden; }
+.profile-hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(116, 40, 198, 0.6) 70%, #FFFFFF 100%);
+ }
+.identity {margin-top: 30px;  position: relative; z-index: 1; display: grid; grid-template-columns: 92px minmax(0,1fr) 19px; align-items: center; gap: 15px; padding: 0; border: 0; background: transparent; color: #fff; text-align: left; cursor: pointer; }
+.avatar { width: 80px; height: 80px; display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 9px 28px rgba(49,0,105,.2); }
+.avatar__mark { width: 42px;  display: grid; place-items: center; }
+.avatar__mark img{ width: 100%;}
+.identity__text { display: flex; flex-direction: column; gap: 3px;}
+.identity__text strong { display: block;  font-size: 20px; letter-spacing: .2px; }
+.identity__text span { display: flex; gap: 8px; display: flex; align-items: center; color: rgba(255,255,255,.9); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.copy-icon { width:14px; }
+.rank-pill { height: 25px; display: flex; align-items: center; gap: 5px; padding: 0 12px; border-radius: 14px; background: #ffd68c; color: #d37208; font-size: 12px; }
 .rank-pill svg { width: 15px; }
-.profile-content { position: relative; z-index: 3; margin-top: -1px; padding: 0 16px 26px; }
+.profile-content { position: relative; z-index: 3; margin-top: -50px; padding: 0 16px 26px; }
 .level-card, .menu-card { border: 1px solid rgba(133,80,190,.05); background: rgba(255,255,255,.96); box-shadow: 0 6px 22px rgba(88,47,129,.08); }
 .level-card { position: relative; min-height: 174px; margin-top: -1px; padding: 21px 20px 17px; border-radius: 19px; overflow: hidden; }
 .level-card::before { content: "♕"; position: absolute; left: 50%; top: 34px; color: rgba(163,91,222,.055); font-size: 104px; transform: translateX(-50%); }
 .level-head, .level-values, .level-percent, .level-amount { position: relative; display: flex; justify-content: space-between; }
-.level-head { color: #4b4750; font-size: 14px; }
+.level-head { color: #404040 ; font-size: 13px; }
 .level-values { align-items: center; margin-top: 11px; color: #9d43e9; }
-.level-values strong { font-size: 28px; line-height: 1; }
+.level-values strong { font-size: 25px; line-height: 1; color: transparent; background-clip: text;background-image: linear-gradient(90deg, #A95CF8 0%, #7428C6 100%);}
 .level-arrow { width: 21px; height: 21px; display: grid; place-items: center; border: 2px solid #9d43e9; border-radius: 50%; }
 .level-arrow svg { width: 13px; }
 .level-percent { margin-top: 16px; color: #4f4b55; font-size: 13px; }
@@ -121,8 +124,8 @@ function handleMenuClick(item) {
 .menu-card { margin-top: 18px; padding: 18px 19px; border-radius: 19px; }
 .menu-card button { width: 100%; height: 51px; display: grid; grid-template-columns: 25px minmax(90px,1fr) auto 17px; align-items: center; gap: 9px; padding: 0; border: 0; border-bottom: 1px solid #eeeaf1; background: transparent; color: #3c3940; text-align: left; cursor: pointer; }
 .menu-card button:last-child { border-bottom: 0; }
-.menu-icon { width: 23px; color: #aa49f4; }
-.menu-card strong { font-size: 14px; white-space: nowrap; }
+.menu-icon { width: 18px; color: #aa49f4; }
+.menu-card strong { font-size: 13px; white-space: nowrap; }
 .menu-card button > span { color: #65616a; font-size: 13px; white-space: nowrap; }
 .menu-card .chevron { width: 18px; color: #1f1e22; }
 .menu-card .logout .menu-icon, .menu-card .logout strong { color: #ff541f; }
