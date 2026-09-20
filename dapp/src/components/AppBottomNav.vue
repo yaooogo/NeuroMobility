@@ -81,7 +81,7 @@ function getMenuIcon(item, index) {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   padding: 8px 13px env(safe-area-inset-bottom);
   border-top: 1px solid #efedf2;
-  border-radius: 17px 17px 0 0;
+  border-radius: 12px 12px 0 0;
   background: rgba(255, 255, 255, .95);
   box-shadow: 0 -7px 22px rgba(62, 45, 82, .06);
   transform: translateX(-50%);

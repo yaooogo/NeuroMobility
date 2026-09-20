@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
@@ -30,10 +31,10 @@ const emit = defineEmits(["connect", "action"]);
 const { lang } = useLocale();
 const router = useRouter();
 const shortcuts = computed(() => [
-  { key: "deposit", icon: "card", label: lang("充值") },
-  { key: "withdraw", icon: "withdraw", label: lang("提现") },
-  { key: "deposit-records", icon: "file", label: lang("充提记录") },
-  { key: "invite", icon: "mail", label: lang("邀请好友") }
+  { key: "deposit", icon: requireAsset("@assets/images/icons/card.png"), label: lang("充值") },
+  { key: "withdraw", icon: requireAsset("@assets/images/icons/withdraw.png"), label: lang("提现") },
+  { key: "deposit-records", icon: requireAsset("@assets/images/icons/file.png"), label: lang("充提记录") },
+  { key: "invite", icon: requireAsset("@assets/images/icons/mail1.png"), label: lang("邀请好友") }
 ]);
 
 function amount(value, decimals = 2) {
@@ -62,7 +63,7 @@ function amount(value, decimals = 2) {
 
     <section class="asset-shortcuts">
       <button v-for="item in shortcuts" :key="item.key" type="button" @click="emit('action', item)">
-        <AppIcon :name="item.icon" />
+        <img :src="item.icon" />
         <span>{{ item.label }}</span>
       </button>
     </section>
@@ -105,7 +106,7 @@ function amount(value, decimals = 2) {
 .balance-breakdown b { display: block; margin-top: 7px; font-size: 17px; }
 .asset-shortcuts { height: 105px; display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 20px; padding: 18px 4px 13px; border: 1px solid #f0ebf6; border-radius: 17px; background: #fff; box-shadow: 0 7px 19px rgba(84,49,120,.08); }
 .asset-shortcuts button { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 0; border: 0; background: transparent; color: #3f3a42; font-size: 13px; cursor: pointer; }
-.asset-shortcuts svg { width: 30px; height: 30px; padding: 4px; border-radius: 8px; background: linear-gradient(145deg, #b752f1, #8c3bec); color: #fff; stroke-width: 2; }
+.asset-shortcuts img { width: 26px; height: 26px;  }
 .orders-section { margin-top: 17px; }
 .orders-section > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 15px; line-height: 23px; }
 .order-card { padding: 20px; border: 1px solid #f1edf5; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
