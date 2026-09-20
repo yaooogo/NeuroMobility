@@ -1,7 +1,16 @@
 import ApiResult from '../../Util/ApiResult.js';
 import DB from '../../Util/database/DB.js';
 import { normalizeContentLanguage } from '../../Util/ContentLanguage.js';
-import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTable } from '../../Util/ContentSchema.js';
+import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTable, ensureVehicleTable } from '../../Util/ContentSchema.js';
+
+function normalizeVehicleTags(value) {
+  try {
+    const tags = typeof value === 'string' ? JSON.parse(value) : value;
+    return Array.isArray(tags) ? tags : [];
+  } catch {
+    return [];
+  }
+}
 
 function normalizeAnnouncement(row) {
   return {
@@ -89,4 +98,30 @@ async function about(req, res) {
   }
 }
 
-export default { announcements, helpArticles, about };
+async function vehicles(req, res) {
+  try {
+    await ensureVehicleTable();
+    const language = normalizeContentLanguage(req.query?.language);
+    const rows = await DB.query()
+      .table('vehicle')
+      .where('language', language)
+      .where('status', 1)
+      .orderBy('sort', 'asc')
+      .orderBy('id', 'desc')
+      .get();
+    return res.send(ApiResult.success({
+      items: (rows || []).map(row => ({
+        id: Number(row.id || 0),
+        language,
+        name: row.name || '',
+        model: row.model || '',
+        image: row.image || '',
+        tags: normalizeVehicleTags(row.tags)
+      }))
+    }, '获取车辆列表成功'));
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'ContentService.vehicles'));
+  }
+}
+
+export default { announcements, helpArticles, about, vehicles };

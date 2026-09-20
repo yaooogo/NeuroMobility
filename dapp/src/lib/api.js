@@ -84,3 +84,8 @@ export async function requestAboutArticles(language = "zh") {
   const data = unwrap(await http.get("/content/about", { params: { language } }));
   return Array.isArray(data?.items) ? data.items : [];
 }
+
+export async function requestVehicles(language = "zh") {
+  const data = unwrap(await http.get("/content/vehicles", { params: { language } }));
+  return Array.isArray(data?.items) ? data.items : [];
+}

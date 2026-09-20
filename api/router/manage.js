@@ -12,6 +12,7 @@ import WalletService from '../services/Manage/WalletService.js';
 import AnnouncementService from '../services/Manage/AnnouncementService.js';
 import HelpArticleService from '../services/Manage/HelpArticleService.js';
 import AboutContentService from '../services/Manage/AboutContentService.js';
+import VehicleService from '../services/Manage/VehicleService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -76,6 +77,13 @@ router.route('/about/list').post(AboutContentService.list)
 router.route('/about/create').post(AboutContentService.create)
 router.route('/about/update').post(AboutContentService.update)
 router.route('/about/delete').post(AboutContentService.remove)
+
+// 车辆详情
+router.route('/vehicle/list').post(VehicleService.list)
+router.route('/vehicle/create').post(VehicleService.create)
+router.route('/vehicle/update').post(VehicleService.update)
+router.route('/vehicle/delete').post(VehicleService.remove)
+router.route('/vehicle/upload-image').post(singleImage('image'), VehicleService.uploadImage)
 
 // 管理员类型
 router.route('/admin-type/list').post(AdminTypeService.list)

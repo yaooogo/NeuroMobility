@@ -8,6 +8,7 @@ export function firstPage(user) {
   if (can(user, 'help-articles')) return '/help-articles';
   if (can(user, 'announcements')) return '/announcements';
   if (can(user, 'about')) return '/about';
+  if (can(user, 'vehicles')) return '/vehicles';
   if (can(user, 'admins')) return '/admins';
   if (can(user, 'admin-types')) return '/admin-types';
   if (can(user, 'admin-operation-logs')) return '/operation-logs';

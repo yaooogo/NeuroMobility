@@ -4,7 +4,8 @@ import DB from './database/DB.js';
 const ready = {
   announcement: false,
   helpArticle: false,
-  about: false
+  about: false,
+  vehicle: false
 };
 
 async function getColumnNames(tableName) {
@@ -118,4 +119,28 @@ export async function ensureAboutContentTable() {
     }
   }
   ready.about = true;
+}
+
+export async function ensureVehicleTable() {
+  if (ready.vehicle) return;
+  const prefix = Database.prefix('default') || '';
+  const tableName = `${prefix}vehicle`;
+  await DB.query().exec(
+    `CREATE TABLE IF NOT EXISTS ${tableName} (
+      id INT NOT NULL AUTO_INCREMENT,
+      \`language\` VARCHAR(10) NOT NULL DEFAULT 'zh',
+      name VARCHAR(255) NOT NULL,
+      model VARCHAR(255) DEFAULT NULL,
+      image VARCHAR(500) DEFAULT NULL,
+      tags MEDIUMTEXT DEFAULT NULL,
+      sort INT NOT NULL DEFAULT 0,
+      status TINYINT(1) NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT NULL,
+      updated_at DATETIME DEFAULT NULL,
+      PRIMARY KEY (id),
+      KEY idx_vehicle_language_status_sort (\`language\`, status, sort),
+      KEY idx_vehicle_created_at (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='车辆详情'`
+  );
+  ready.vehicle = true;
 }

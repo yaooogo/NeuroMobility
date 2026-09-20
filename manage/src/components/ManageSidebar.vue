@@ -20,6 +20,7 @@ const user = getUser();
       <router-link v-if="can(user, 'help-articles')" class="menu-item" active-class="menu-item--active" to="/help-articles">帮助中心</router-link>
       <router-link v-if="can(user, 'announcements')" class="menu-item" active-class="menu-item--active" to="/announcements">公告管理</router-link>
       <router-link v-if="can(user, 'about')" class="menu-item" active-class="menu-item--active" to="/about">关于我们</router-link>
+      <router-link v-if="can(user, 'vehicles')" class="menu-item" active-class="menu-item--active" to="/vehicles">车辆详情</router-link>
       <router-link v-if="can(user, 'admins')" class="menu-item" active-class="menu-item--active" to="/admins">管理员</router-link>
       <router-link v-if="can(user, 'admin-types')" class="menu-item" active-class="menu-item--active" to="/admin-types">管理员类型</router-link>
       <router-link v-if="can(user, 'admin-operation-logs')" class="menu-item" active-class="menu-item--active" to="/operation-logs">操作日志</router-link>
