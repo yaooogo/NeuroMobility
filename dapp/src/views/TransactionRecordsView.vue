@@ -60,13 +60,13 @@ function formatAmount(value) {
 .records-header button { width: 40px; height: 34px; display: grid; place-items: start; padding: 3px 0; border: 0; background: rgba(255,255,255,.75); color: #812bd8; cursor: pointer; }
 .records-header button svg { width: 29px; transform: rotate(180deg); }
 .records-list { display: grid; gap: 13px; }
-.transaction-record { min-height: 92px; display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; gap: 18px; padding: 17px 19px; border: 1px solid rgba(232,221,241,.68); border-radius: 19px; background: rgba(255,255,255,.96); box-shadow: 0 8px 23px rgba(100,55,137,.07); }
-.transaction-icon { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 50%; }
-.transaction-icon svg { width: 27px; height: 27px; stroke-width: 2.5; }
+.transaction-record { min-height: 92px; display: grid; grid-template-columns: 35px minmax(0,1fr) auto; align-items: center; gap: 18px; padding: 17px 19px; border: 1px solid rgba(232,221,241,.68); border-radius: 12px; background: rgba(255,255,255,.96); box-shadow: 0 8px 23px rgba(100,55,137,.07); }
+.transaction-icon { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 50%; }
+.transaction-icon svg { width: 18px; height: 18px; stroke-width: 1.8; }
 .transaction-icon--withdraw { background: #ffe0d2; color: #ff5815; }
 .transaction-icon--deposit { background: #cdf7d5; color: #00cb26; }
-.transaction-record time { font-size: 17px; white-space: nowrap; }
-.transaction-amount { font-size: 18px; white-space: nowrap; }
+.transaction-record time { font-size: 14px; white-space: nowrap; }
+.transaction-amount { font-size: 15px; white-space: nowrap; }
 .transaction-amount--withdraw { color: #ff4d08; }
 .transaction-amount--deposit { color: #00c924; }
 .records-empty { margin: 80px 0 0; color: #a39ca8; font-size: 14px; text-align: center; }

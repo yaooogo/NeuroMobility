@@ -94,7 +94,7 @@ function handleMenuClick(item) {
 
 <style scoped>
 .profile-page { min-height: calc(100vh - 78px); background: #fbfaff; }
-.profile-hero { position: relative; height: 260px; padding: max(76px, calc(env(safe-area-inset-top) + 54px)) 30px 0; color: #fff; background: #7024d8 url("../assets/images/profile-hero.jpg")  center top no-repeat; background-size: auto 84%; overflow: hidden; }
+.profile-hero { position: relative; height: 230px; padding: max(0px, calc(env(safe-area-inset-top) + 40px)) 30px 0; color: #fff; background: #7024d8 url("../assets/images/profile-hero.jpg")  center -30px no-repeat; background-size: auto 96%; overflow: hidden; }
 .profile-hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(116, 40, 198, 0.6) 70%, #FFFFFF 100%);
  }
 .identity {margin-top: 30px;  position: relative; z-index: 1; display: grid; grid-template-columns: 92px minmax(0,1fr) 19px; align-items: center; gap: 15px; padding: 0; border: 0; background: transparent; color: #fff; text-align: left; cursor: pointer; }
