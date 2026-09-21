@@ -72,8 +72,8 @@ watch(locale, loadVehicles, { immediate: true });
 
 <style scoped>
 .vehicles-view { min-height: 100vh; padding: 0 16px 30px; background: #fff; color: #4a474c; }
-.vehicles-header { height: 94px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(17px, env(safe-area-inset-top)) 0 23px; }
-.vehicles-header h1 { margin: 0; color: #111014; font-size: 21px; line-height: 31px; text-align: center; }
+.vehicles-header { height: 70px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(17px, env(safe-area-inset-top)) 0 23px; }
+.vehicles-header h1 { margin: 0; color: #111014; font-size: 18px; line-height: 31px; text-align: center; }
 .vehicles-header button { width: 40px; height: 33px; display: grid; place-items: start; padding: 3px 0; border: 0; background: transparent; color: #812bd8; cursor: pointer; }
 .vehicles-header button svg { width: 27px; transform: rotate(180deg); }
 .content-state { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 12px; color: #8b8490; font-size: 14px; text-align: center; }
