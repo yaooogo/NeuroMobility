@@ -40,15 +40,34 @@ const canSubmit = computed(() => {
   if (!customAmount.value) return true;
   return Number.isInteger(amount / minimum);
 });
+
+function formatMessage(message, params) {
+  return String(message || "").replace(/\$\{\s*([^}]+?)\s*\}/g, (placeholder, name) => (
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : placeholder
+  ));
+}
+
 const instructions = computed(() => {
   const waitingDays = Number(investmentConfig.value.waiting_period_days);
   const dividendCycleDays = Number(investmentConfig.value.dividend_cycle_days);
   const minPercent = Number(investmentConfig.value.min_percent);
   const maxPercent = Number(investmentConfig.value.max_percent);
   return [
-    { icon: requireAsset("@assets/images/icons/calendar.png"), title: lang(`${waitingDays}天等待期`), description: lang(`投资成功后${waitingDays}天为等待期`) },
-    { icon: requireAsset("@assets/images/icons/hourglass.png"), title: lang(`第${waitingDays + 1}天开始计算`), description: lang(`之后${dividendCycleDays}天为一个分红周期`) },
-    { icon: requireAsset("@assets/images/icons/data1.png"), title: lang(`月度分红 ${minPercent}%-${maxPercent}%`), description: lang("根据项目经营情况按区间发放") }
+    {
+      icon: requireAsset("@assets/images/icons/calendar.png"),
+      title: formatMessage(lang("${waitingDays}天等待期"), { waitingDays }),
+      description: formatMessage(lang("投资成功后${waitingDays}天为等待期"), { waitingDays })
+    },
+    {
+      icon: requireAsset("@assets/images/icons/hourglass.png"),
+      title: formatMessage(lang("第${waitingDays + 1}天开始计算"), { "waitingDays + 1": waitingDays + 1 }),
+      description: formatMessage(lang("之后${dividendCycleDays}天为一个分红周期"), { dividendCycleDays })
+    },
+    {
+      icon: requireAsset("@assets/images/icons/data1.png"),
+      title: formatMessage(lang("月度分红 ${minPercent}%-${maxPercent}%"), { minPercent, maxPercent }),
+      description: lang("根据项目经营情况按区间发放")
+    }
   ];
 });
 
