@@ -210,7 +210,6 @@ function normalizeWalletAsset(row, tokenMap) {
     id: Number(row.id || 0),
     wallet: row.wallet || '',
     token,
-    token_type: row.tokne_type || '',
     decimals,
     balance: formatAssetAmount(row.balance || '0', decimals),
     frozen_balance: formatAssetAmount(row.frozen_balance || '0', decimals),

@@ -89,3 +89,23 @@ export async function requestVehicles(language = "zh") {
   const data = unwrap(await http.get("/content/vehicles", { params: { language } }));
   return Array.isArray(data?.items) ? data.items : [];
 }
+
+export async function requestAssetOverview() {
+  return unwrap(await http.get("/asset/overview"));
+}
+
+export async function requestPrepareWithdrawal(amount, address) {
+  return unwrap(await http.post("/asset/withdraw/prepare", { amount, address }));
+}
+
+export async function requestWithdrawalSubmitted(orderId, txHash) {
+  return unwrap(await http.post("/asset/withdraw/submitted", {
+    order_id: orderId,
+    tx_hash: txHash
+  }));
+}
+
+export async function requestAssetRecords() {
+  const data = unwrap(await http.get("/asset/records"));
+  return Array.isArray(data?.items) ? data.items : [];
+}

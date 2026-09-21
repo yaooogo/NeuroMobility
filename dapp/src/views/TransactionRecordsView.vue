@@ -1,24 +1,20 @@
 <script setup>
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestAssetRecords } from "../lib/api.js";
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
-  records: {
-    type: Array,
-    default: () => Array.from({ length: 6 }, (_, index) => ({
-      id: index + 1,
-      type: index % 2 === 0 ? "withdraw" : "deposit",
-      time: "2026.09.01 15:24:23",
-      amount: 325,
-      token: "USDT"
-    }))
-  }
+  connected: { type: Boolean, default: false }
 });
+const emit = defineEmits(["connect", "notice"]);
 
 const router = useRouter();
 const { lang } = useLocale();
+const records = ref([]);
+const loading = ref(false);
 
 function formatAmount(value) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -26,6 +22,31 @@ function formatAmount(value) {
     maximumFractionDigits: 2
   });
 }
+
+function statusText(status) {
+  if (Number(status) === 2) return lang("已完成");
+  if (Number(status) === 3) return lang("已过期并退回");
+  if (Number(status) === 1) return lang("链上确认中");
+  return lang("待处理");
+}
+
+async function loadRecords() {
+  if (!props.connected) return;
+  if (!localStorage.getItem("token")) return;
+  loading.value = true;
+  try {
+    records.value = await requestAssetRecords();
+  } catch (error) {
+    if (Number(error?.code) !== 401) emit("notice", { message: error?.message || lang("加载失败"), type: "error" });
+  } finally {
+    loading.value = false;
+  }
+}
+
+watch(() => props.connected, (connected) => {
+  if (connected) void loadRecords();
+  else records.value = [];
+}, { immediate: true });
 </script>
 
 <template>
@@ -39,16 +60,19 @@ function formatAmount(value) {
     </header>
 
     <div class="records-list">
-      <article v-for="record in props.records" :key="record.id" class="transaction-record">
+      <article v-for="record in records" :key="record.id" class="transaction-record">
         <i :class="`transaction-icon transaction-icon--${record.type}`">
           <AppIcon :name="record.type === 'deposit' ? 'download' : 'upload'" />
         </i>
-        <time>{{ record.time }}</time>
+        <div class="transaction-meta"><time>{{ record.time }}</time><small>{{ statusText(record.status) }}</small></div>
         <strong :class="`transaction-amount transaction-amount--${record.type}`">
           {{ record.type === "deposit" ? "+" : "-" }} {{ formatAmount(record.amount) }} {{ record.token }}
         </strong>
       </article>
-      <p v-if="!props.records.length" class="records-empty">{{ lang("暂无充提记录") }}</p>
+      <p v-if="loading" class="records-empty">{{ lang("加载中") }}</p>
+      <p v-else-if="!records.length" class="records-empty">
+        {{ connected ? lang("暂无充提记录") : lang("请先连接钱包") }}
+      </p>
     </div>
   </section>
 </template>
@@ -66,6 +90,8 @@ function formatAmount(value) {
 .transaction-icon--withdraw { background: #ffe0d2; color: #ff5815; }
 .transaction-icon--deposit { background: #cdf7d5; color: #00cb26; }
 .transaction-record time { font-size: 14px; white-space: nowrap; }
+.transaction-meta { min-width: 0; display: grid; gap: 6px; }
+.transaction-meta small { color: #9b94a0; font-size: 11px; }
 .transaction-amount { font-size: 15px; white-space: nowrap; }
 .transaction-amount--withdraw { color: #ff4d08; }
 .transaction-amount--deposit { color: #00c924; }

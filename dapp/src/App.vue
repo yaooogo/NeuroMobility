@@ -30,6 +30,7 @@ const activeTab = computed(() => String(route.meta.navKey || "home"));
 const accountState = computed(() => unref(account) || {});
 const connectedAddress = computed(() => String(accountState.value.address || getWagmiAddress()).toLowerCase());
 const isConnected = computed(() => Boolean(connectedAddress.value && (accountState.value.isConnected || getWagmiAddress())));
+const isAuthenticated = computed(() => Boolean(ownInviteCode.value && hasAuthenticatedSession(connectedAddress.value)));
 let wagmiUnwatch = null;
 let hasObservedWalletConnection = false;
 const walletLabel = computed(() => {
@@ -42,6 +43,11 @@ function showNotice(message, type = "success") {
   noticeType.value = type;
   window.clearTimeout(showNotice.timer);
   showNotice.timer = window.setTimeout(() => { notice.value = ""; }, 3200);
+}
+
+function handleChildNotice(payload) {
+  if (typeof payload === "string") showNotice(payload);
+  else showNotice(payload?.message || lang("操作完成"), payload?.type || "success");
 }
 
 async function openWallet() {
@@ -351,6 +357,7 @@ onBeforeUnmount(() => {
       <component
         :is="Component"
         :address="connectedAddress"
+        :authenticated="isAuthenticated"
         :connected="isConnected"
         :wallet-label="walletLabel"
         :loading="loggingIn"
@@ -360,6 +367,7 @@ onBeforeUnmount(() => {
         @copy="copyWalletAddress"
         @logout="logoutFromProfile"
         @action="handleViewAction"
+        @notice="handleChildNotice"
       />
     </RouterView>
 

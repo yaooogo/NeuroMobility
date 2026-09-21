@@ -8,6 +8,7 @@ import DB from '../../Util/database/DB.js';
 import Database from '../../Util/Database.js';
 import { RedisCache } from '../../Util/Cache.js';
 import BigNumber from 'bignumber.js';
+import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
 
 const TokenReceiverIface = new ethers.Interface(TokenReceiverAbi.abi);
 const TokenReceiverEvent = ethers.id(ChainConfig.getContractEvent('TokenReceiver', 'PaymentReceived'));
@@ -44,6 +45,7 @@ function toRawBigInt(value) {
 export default {
     async TokenReceiver(log) {
         try {
+            await ensureAssetTransferTables();
             if (!log?.topics?.length || log.topics[0] !== TokenReceiverEvent) {
                 return false;
             }
@@ -79,7 +81,9 @@ export default {
                     order_id: orderId,
                     contract: tokenAddress,
                     wallet: payer,
+                    token: tokenSymbol,
                     amount,
+                    tx_hash: String(log.transactionHash || '').trim(),
                     block_number: Number(log.blockNumber || 0),
                     "`index`": logIndex,
                     created_at: createdAt,
@@ -91,17 +95,13 @@ export default {
                 }
 
                 const assetRows = await DB.query(config, connection).exec(
-                    `SELECT * FROM ${prefix}user_assets WHERE wallet=? AND token=? LIMIT 1 FOR UPDATE`,
+                    `SELECT * FROM ${prefix}wallet_assets WHERE wallet=? AND token=? LIMIT 1 FOR UPDATE`,
                     [payer, tokenSymbol]
                 );
                 let asset = Array.isArray(assetRows) ? assetRows[0] : null;
 
                 if (!asset) {
-                    let nextAssetId = await DB.query(config, connection).table('user_assets').max('id');
-                    nextAssetId = Helper.parseInt(nextAssetId, 0);
-
-                    await DB.query(config, connection).table('user_assets').insert({
-                        id: nextAssetId + 1,
+                    await DB.query(config, connection).table('wallet_assets').insert({
                         wallet: payer,
                         token: tokenSymbol,
                         balance: '0',
@@ -119,15 +119,11 @@ export default {
                 const afterBalance = beforeBalance + rechargeAmount;
 
                 await DB.query(config, connection).exec(
-                    `UPDATE ${prefix}user_assets SET balance=?, updated_at=? WHERE wallet=? AND token=?`,
+                    `UPDATE ${prefix}wallet_assets SET balance=?, updated_at=? WHERE wallet=? AND token=?`,
                     [afterBalance.toString(), now, payer, tokenSymbol]
                 );
 
-                let nextLogId = await DB.query(config, connection).table('user_assets_logs').max('id');
-                nextLogId = Helper.parseInt(nextLogId, 0);
-
-                await DB.query(config, connection).table('user_assets_logs').insert({
-                    id: nextLogId + 1,
+                await DB.query(config, connection).table('wallet_assets_logs').insert({
                     biz_id: orderId,
                     wallet: payer,
                     token: tokenSymbol,
@@ -152,6 +148,7 @@ export default {
     },
     async TokenWithdrawal(log) {
         try {
+            await ensureAssetTransferTables();
             if (!log?.topics?.length || log.topics[0] !== TokenWithdrawalEvent) {
                 return false;
             }
@@ -199,6 +196,10 @@ export default {
                     throw new Error(`withdrawal order not found: ${orderId}`);
                 }
 
+                if (Number(order.status || 0) === 2) {
+                    return false;
+                }
+
                 if (String(order.wallet || '').toLowerCase() !== user) {
                     throw new Error(`withdrawal wallet mismatch: ${orderId}`);
                 }
@@ -214,6 +215,36 @@ export default {
                 if (toRawBigInt(order.service_amount) !== toRawBigInt(serviceAmount)) {
                     throw new Error(`withdrawal service amount mismatch: ${orderId}`);
                 }
+
+                const debitAmount = toRawBigInt(order.debit_amount || 0) || (toRawBigInt(claimAmount) + toRawBigInt(serviceAmount));
+                const assetRows = await DB.query(config, connection).exec(
+                    `SELECT * FROM ${prefix}wallet_assets WHERE wallet=? AND token=? LIMIT 1 FOR UPDATE`,
+                    [user, tokenSymbol]
+                );
+                const asset = Array.isArray(assetRows) ? assetRows[0] : null;
+                const frozenBefore = toRawBigInt(asset?.frozen_balance || 0);
+                if (!asset || frozenBefore < debitAmount) {
+                    throw new Error(`withdrawal frozen balance mismatch: ${orderId}`);
+                }
+                const frozenAfter = frozenBefore - debitAmount;
+
+                await DB.query(config, connection).exec(
+                    `UPDATE ${prefix}wallet_assets SET frozen_balance=?, updated_at=? WHERE id=?`,
+                    [frozenAfter.toString(), now, asset.id]
+                );
+                await DB.query(config, connection).table('wallet_frozen_assets_logs').insert({
+                    biz_id: orderId,
+                    wallet: user,
+                    token: tokenSymbol,
+                    balance: debitAmount.toString(),
+                    before_balance: frozenBefore.toString(),
+                    after_balance: frozenAfter.toString(),
+                    scene: 'token_withdrawal',
+                    reason: `${tokenSymbol} withdrawal completed`,
+                    type: 'out',
+                    created_at: createdAt,
+                    updated_at: now
+                });
 
                 await DB.query(config, connection).exec(
                     `UPDATE ${prefix}withdrawal_order

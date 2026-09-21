@@ -1,14 +1,17 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
+import AssetTransferDialog from "../components/AssetTransferDialog.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestAssetOverview } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   connected: { type: Boolean, default: false },
-  totalAssets: { type: Number, default: 12580 },
+  authenticated: { type: Boolean, default: false },
+  address: { type: String, default: "" },
   principal: { type: Number, default: 10000 },
   totalDividend: { type: Number, default: 15820 },
   monthlyDividend: { type: Number, default: 325 },
@@ -27,9 +30,16 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(["connect", "action"]);
+const emit = defineEmits(["connect", "action", "notice"]);
 const { lang } = useLocale();
 const router = useRouter();
+const transferVisible = ref(false);
+const transferMode = ref("deposit");
+const overview = ref({ balance: "0", frozen_balance: "0", token: {} });
+const totalAssetBalance = computed(() => addDecimalAmounts(
+  overview.value?.balance,
+  overview.value?.frozen_balance
+));
 const shortcuts = computed(() => [
   { key: "deposit", icon: requireAsset("@assets/images/icons/card.png"), label: lang("充值") },
   { key: "withdraw", icon: requireAsset("@assets/images/icons/withdraw.png"), label: lang("提现") },
@@ -43,6 +53,64 @@ function amount(value, decimals = 2) {
     maximumFractionDigits: decimals
   });
 }
+
+function addDecimalAmounts(...values) {
+  const normalized = values.map((value) => {
+    const text = String(value ?? "0").trim();
+    return /^\d+(?:\.\d+)?$/u.test(text) ? text : "0";
+  });
+  const precision = Math.max(0, ...normalized.map((value) => (value.split(".")[1] || "").length));
+  const total = normalized.reduce((sum, value) => {
+    const [integer, fraction = ""] = value.split(".");
+    return sum + BigInt(`${integer}${fraction.padEnd(precision, "0")}`);
+  }, 0n);
+  if (!precision) return total.toString();
+  const digits = total.toString().padStart(precision + 1, "0");
+  const fraction = digits.slice(-precision).replace(/0+$/u, "");
+  return fraction ? `${digits.slice(0, -precision)}.${fraction}` : digits.slice(0, -precision);
+}
+
+async function loadOverview(showError = false) {
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+    overview.value = { balance: "0", frozen_balance: "0", token: {} };
+    return;
+  }
+  if (overview.value?.wallet && String(overview.value.wallet).toLowerCase() !== props.address.toLowerCase()) {
+    overview.value = { balance: "0", frozen_balance: "0", token: {} };
+  }
+  try {
+    overview.value = await requestAssetOverview();
+  } catch (error) {
+    if (showError && Number(error?.code) !== 401) emit("notice", { message: error?.message || lang("加载失败"), type: "error" });
+  }
+}
+
+async function handleShortcut(item) {
+  if (item.key !== "deposit" && item.key !== "withdraw") {
+    emit("action", item);
+    return;
+  }
+  if (!props.connected) {
+    emit("connect");
+    return;
+  }
+  if (!localStorage.getItem("token")) {
+    emit("connect");
+    return;
+  }
+  await loadOverview(true);
+  if (!overview.value?.token?.contract) return;
+  transferMode.value = item.key;
+  transferVisible.value = true;
+}
+
+function handleTransferSuccess(result) {
+  transferVisible.value = false;
+  emit("notice", { message: result.type === "deposit" ? lang("充值交易已确认，余额将在区块同步后更新") : lang("提现成功"), type: "success" });
+  void loadOverview();
+}
+
+watch(() => [props.connected, props.authenticated, props.address], () => void loadOverview(), { immediate: true });
 </script>
 
 <template>
@@ -53,7 +121,7 @@ function amount(value, decimals = 2) {
 
     <section class="balance-card">
       <span>{{ lang("总资产 (USDT)") }}</span>
-      <strong>{{ amount(totalAssets) }}</strong>
+      <strong>{{ amount(totalAssetBalance) }}</strong>
       <div class="balance-breakdown">
         <span>{{ lang("参与本金") }}<b>{{ amount(principal) }}</b></span>
         <span>{{ lang("累计分红") }}<b>{{ amount(totalDividend) }}</b></span>
@@ -62,7 +130,7 @@ function amount(value, decimals = 2) {
     </section>
 
     <section class="asset-shortcuts">
-      <button v-for="item in shortcuts" :key="item.key" type="button" @click="emit('action', item)">
+      <button v-for="item in shortcuts" :key="item.key" type="button" @click="handleShortcut(item)">
         <img :src="item.icon" />
         <span>{{ item.label }}</span>
       </button>
@@ -89,6 +157,16 @@ function amount(value, decimals = 2) {
         </div>
       </article>
     </section>
+
+    <AssetTransferDialog
+      :visible="transferVisible"
+      :mode="transferMode"
+      :address="address"
+      :overview="overview"
+      @close="transferVisible = false"
+      @success="handleTransferSuccess"
+      @notice="emit('notice', $event)"
+    />
   </section>
 </template>
 

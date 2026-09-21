@@ -69,11 +69,11 @@ onMounted(load);
       </div><button v-if="can(user, 'wallet-assets-update')" class="primary-button" @click="openChange">变更资产</button></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
-      <div class="table-wrap"><table class="data-table" style="min-width: 1000px">
-        <thead><tr><th>ID</th><th>钱包地址</th><th>资产</th><th>资产类型</th><th>可用余额</th><th>冻结余额</th><th>更新时间</th></tr></thead>
+      <div class="table-wrap"><table class="data-table" style="min-width: 900px">
+        <thead><tr><th>ID</th><th>钱包地址</th><th>资产</th><th>可用余额</th><th>冻结余额</th><th>更新时间</th></tr></thead>
         <tbody>
-          <tr v-if="loading || !list.length"><td colspan="7" class="empty-cell">{{ loading ? '正在加载...' : '暂无钱包资产' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.wallet || '-' }}</td><td><strong>{{ row.token || '-' }}</strong></td><td>{{ row.token_type || '-' }}</td><td class="mono-cell">{{ row.balance }}</td><td class="mono-cell">{{ row.frozen_balance }}</td><td>{{ row.updated_at || '-' }}</td></tr>
+          <tr v-if="loading || !list.length"><td colspan="6" class="empty-cell">{{ loading ? '正在加载...' : '暂无钱包资产' }}</td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.wallet || '-' }}</td><td><strong>{{ row.token || '-' }}</strong></td><td class="mono-cell">{{ row.balance }}</td><td class="mono-cell">{{ row.frozen_balance }}</td><td>{{ row.updated_at || '-' }}</td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
