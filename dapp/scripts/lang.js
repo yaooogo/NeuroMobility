@@ -8,6 +8,10 @@ const localesDir = path.join(srcDir, "i18n", "locales");
 // These keys are resolved dynamically by the Launchpad pages, so the regular
 // lang("...") scanner cannot discover all of them by itself.
 const preservedTexts = [
+  "首页",
+  "投资",
+  "资产",
+  "我的",
   "普通会员",
   "区域合伙人",
   "城市合伙人",
