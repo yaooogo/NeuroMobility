@@ -16,18 +16,24 @@ import AnnouncementsPage from '../views/AnnouncementsPage.vue';
 import HelpArticlesPage from '../views/HelpArticlesPage.vue';
 import AboutPage from '../views/AboutPage.vue';
 import VehiclesPage from '../views/VehiclesPage.vue';
+import DepositOrdersPage from '../views/DepositOrdersPage.vue';
+import WithdrawalOrdersPage from '../views/WithdrawalOrdersPage.vue';
+import OverviewPage from '../views/OverviewPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', redirect: () => firstPage(getUser()) },
     { path: '/login', name: 'login', component: LoginPage },
+    { path: '/overview', component: OverviewPage, meta: { permission: 'overview' } },
     { path: '/admins', component: AdminsPage, meta: { permission: 'admins' } },
     { path: '/admin-types', component: AdminTypesPage, meta: { permission: 'admin-types' } },
     { path: '/operation-logs', component: OperationLogsPage, meta: { permission: 'admin-operation-logs' } },
     { path: '/asset-tokens', component: AssetTokensPage, meta: { permission: 'asset-tokens' } },
     { path: '/wallets', component: WalletsPage, meta: { permission: 'wallets' } },
     { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
+    { path: '/deposit-orders', component: DepositOrdersPage, meta: { permission: 'deposit-orders' } },
+    { path: '/withdrawal-orders', component: WithdrawalOrdersPage, meta: { permission: 'withdrawal-orders' } },
     { path: '/announcements', component: AnnouncementsPage, meta: { permission: 'announcements' } },
     { path: '/help-articles', component: HelpArticlesPage, meta: { permission: 'help-articles' } },
     { path: '/about', component: AboutPage, meta: { permission: 'about' } },

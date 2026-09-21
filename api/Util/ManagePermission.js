@@ -3,10 +3,15 @@ import DB from "./database/DB.js";
 
 // 当前后台已实现的功能权限项
 const MANAGE_MENU_PERMISSIONS = [
+  { key: "overview", label: "首页总览" },
   { key: "asset-tokens", label: "资产类型" },
   { key: "asset-tokens-update", label: "资产类型-编辑" },
   { key: "user-asset-logs", label: "资产变更记录" },
   { key: "user-frozen-asset-logs", label: "冻结资产变更记录" },
+  { key: "deposit-orders", label: "充值订单" },
+  { key: "withdrawal-orders", label: "提现订单" },
+  { key: "withdrawal-orders-export", label: "提现订单-导出" },
+  { key: "withdrawal-orders-cancel", label: "提现订单-取消" },
   { key: "wallets", label: "钱包管理" },
   { key: "wallets-create", label: "钱包管理-新增" },
   { key: "wallets-update", label: "钱包管理-编辑" },
@@ -49,6 +54,7 @@ const PERMISSION_KEYS = new Set(MANAGE_MENU_PERMISSIONS.map((item) => item.key))
 const PERMISSION_LABEL_MAP = new Map(MANAGE_MENU_PERMISSIONS.map((item) => [item.key, item.label]));
 const PUBLIC_PATHS = new Set(["/user/info", "/logout"]);
 const ROUTE_PERMISSION_RULES = [
+  { path: "/overview", permissions: ["overview"] },
   { path: "/admin/create", permissions: ["admins-create"], exact: true },
   { path: "/admin/update", permissions: ["admins-update"], exact: true },
   { path: "/admin/delete", permissions: ["admins-delete"], exact: true },
@@ -84,6 +90,10 @@ const ROUTE_PERMISSION_RULES = [
   { path: "/asset-token", permissions: ["asset-tokens"] },
   { path: "/user-asset-log", permissions: ["user-asset-logs"] },
   { path: "/user-frozen-asset-log", permissions: ["user-frozen-asset-logs"] },
+  { path: "/deposit-order", permissions: ["deposit-orders"] },
+  { path: "/withdrawal-order/export", permissions: ["withdrawal-orders-export"], exact: true },
+  { path: "/withdrawal-order/cancel", permissions: ["withdrawal-orders-cancel"], exact: true },
+  { path: "/withdrawal-order", permissions: ["withdrawal-orders"] },
   { path: "/wallet/update", permissions: ["wallets-update"], exact: true },
   { path: "/wallet/create", permissions: ["wallets-create"], exact: true },
   { path: "/wallet-asset/change", permissions: ["wallet-assets-update"], exact: true },

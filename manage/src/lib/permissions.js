@@ -3,8 +3,11 @@ export function can(user, key) {
 }
 
 export function firstPage(user) {
+  if (can(user, 'overview')) return '/overview';
   if (can(user, 'wallets')) return '/wallets';
   if (can(user, 'wallet-assets')) return '/wallet-assets';
+  if (can(user, 'deposit-orders')) return '/deposit-orders';
+  if (can(user, 'withdrawal-orders')) return '/withdrawal-orders';
   if (can(user, 'help-articles')) return '/help-articles';
   if (can(user, 'announcements')) return '/announcements';
   if (can(user, 'about')) return '/about';

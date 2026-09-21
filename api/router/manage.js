@@ -13,6 +13,8 @@ import AnnouncementService from '../services/Manage/AnnouncementService.js';
 import HelpArticleService from '../services/Manage/HelpArticleService.js';
 import AboutContentService from '../services/Manage/AboutContentService.js';
 import VehicleService from '../services/Manage/VehicleService.js';
+import TransferOrderService from '../services/Manage/TransferOrderService.js';
+import OverviewService from '../services/Manage/OverviewService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -47,6 +49,10 @@ router.route('*').all(ManageOperationLog.capture)
 router.route('/user/info').post(AuthService.info)
 router.route('/logout').post(AuthService.logout)
 router.route('*').all(ManageAuth.verifyPermission)
+
+// 首页总览
+router.route('/overview').post(OverviewService.overview)
+router.route('/overview/withdrawal-contract-balance').post(OverviewService.withdrawalContractBalance)
 
 // 管理员
 router.route('/admin/list').post(AdminService.list)
@@ -103,6 +109,12 @@ router.route('/asset-token/list').post(AssetTokenService.list)
 router.route('/asset-token/update').post(AssetTokenService.update)
 router.route('/user-asset-log/list').post(AssetLogService.list)
 router.route('/user-frozen-asset-log/list').post(AssetLogService.frozenList)
+
+// 充值与提现订单
+router.route('/deposit-order/list').post(TransferOrderService.depositList)
+router.route('/withdrawal-order/list').post(TransferOrderService.withdrawalList)
+router.route('/withdrawal-order/export').post(TransferOrderService.withdrawalExport)
+router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCancel)
 
 // 钱包与钱包资产
 router.route('/wallet/list').post(WalletService.walletList)
