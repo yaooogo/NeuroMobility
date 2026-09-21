@@ -16,7 +16,7 @@ export default {
   "24adec44": "Đã xác nhận giao dịch nạp tiền, số dư sẽ được cập nhật sau khi đồng bộ hóa khối",
   "24d4d83c": "Vui lòng kết nối ví trước",
   "251c1d67": "Tính năng đang được xây dựng",
-  "26fc21a9": "Đăng xuất an toàn khỏi tài khoản hiện tại của bạn",
+  "26fc21a9": "Đăng xuất an toàn",
   "2712fc51": "đơn vị",
   "27836886": "Chia sẻ tài sản thực · Chia sẻ thu nhập ổn định",
   "287f8e5b": "Cổ tức tiếp theo trong",
