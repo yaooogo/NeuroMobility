@@ -12,9 +12,9 @@ function normalizeWallet(row) {
   return {
     id: Number(row.id || 0),
     wallet: row.wallet || '',
-    prices: String(row.prices ?? '0'),
-    community_prices: String(row.community_prices ?? '0'),
-    sub_prices: String(row.sub_prices ?? '0'),
+    invests: String(row.invests ?? '0'),
+    community_invests: String(row.community_invests ?? '0'),
+    community_users: Number(row.community_users || 0),
     inviter: row.inviter || '',
     ref_code: row.ref_code || '',
     lv: Number(row.lv || 0),
@@ -90,9 +90,9 @@ async function walletCreate(req, res) {
       const result = { insertId: 0 };
       await DB.query(config, connection).table(WALLET_TABLE).insert({
         wallet,
-        prices: '0',
-        community_prices: '0',
-        sub_prices: '0',
+        invests: '0',
+        community_invests: '0',
+        community_users: 0,
         inviter: inviter?.wallet || null,
         ref_code: refCode,
         lv: inviter ? Number(inviter.lv || 0) + 1 : 0,
@@ -110,14 +110,14 @@ async function walletCreate(req, res) {
           .orderBy('lv', 'asc')
           .get();
         const relationRows = [{
-          wallet, wallet_prices: '0', inviter: inviter.wallet, inviter_prices: String(inviter.prices ?? '0'),
+          wallet, wallet_invests: '0', inviter: inviter.wallet, inviter_invests: String(inviter.invests ?? '0'),
           lv: 1, created_at: now, updated_at: now
         }];
         for (const ancestor of ancestors || []) {
           if (!ancestor.inviter) continue;
           relationRows.push({
-            wallet, wallet_prices: '0', inviter: ancestor.inviter,
-            inviter_prices: String(ancestor.inviter_prices ?? '0'),
+            wallet, wallet_invests: '0', inviter: ancestor.inviter,
+            inviter_invests: String(ancestor.inviter_invests ?? '0'),
             lv: Number(ancestor.lv || 0) + 1, created_at: now, updated_at: now
           });
         }
@@ -151,14 +151,27 @@ async function walletList(req, res) {
     const page = Helper.parseInt(req.body?.page, 1);
     const pageSize = Helper.parseInt(req.body?.page_size, 20);
     const keyword = String(req.body?.keyword || '').trim();
+    const searchTeam = Helper.parseInt(req.body?.search_team, 0) === 1;
     const status = req.body?.status;
     const level = req.body?.level;
     const query = DB.query().table(WALLET_TABLE);
     if (keyword) {
-      query.where(builder => builder
-        .where('wallet', 'like', `%${keyword}%`)
-        .orWhere('inviter', 'like', `%${keyword}%`)
-        .orWhere('ref_code', 'like', `%${keyword}%`));
+      if (searchTeam) {
+        const prefix = Database.prefix('default') || '';
+        query.whereRaw(
+          `LOWER(wallet) IN (
+             SELECT LOWER(wallet)
+             FROM ${prefix}wallet_relation
+             WHERE inviter LIKE ?
+           )`,
+          [`%${keyword}%`]
+        );
+      } else {
+        query.where(builder => builder
+          .where('wallet', 'like', `%${keyword}%`)
+          .orWhere('inviter', 'like', `%${keyword}%`)
+          .orWhere('ref_code', 'like', `%${keyword}%`));
+      }
     }
     if (status !== '' && status !== null && typeof status !== 'undefined') query.where('status', Number(status));
     if (level !== '' && level !== null && typeof level !== 'undefined') query.where('level', Number(level));
@@ -173,6 +186,92 @@ async function walletList(req, res) {
     }, '获取钱包列表成功'));
   } catch (error) {
     return res.send(ApiResult.exception(error, 'WalletService.walletList'));
+  }
+}
+
+function normalizeTreeKey(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function walletTreeCounts(prefix, rows) {
+  const wallets = [...new Set((rows || []).map(row => normalizeTreeKey(row.wallet)).filter(Boolean))];
+  if (!wallets.length) return { direct: new Map(), team: new Map() };
+  const placeholders = wallets.map(() => '?').join(',');
+  const [directRows, teamRows] = await Promise.all([
+    DB.query().exec(
+      `SELECT LOWER(inviter) AS wallet, COUNT(*) AS count
+       FROM ${prefix}wallet
+       WHERE LOWER(inviter) IN (${placeholders})
+       GROUP BY LOWER(inviter)`,
+      wallets
+    ),
+    DB.query().exec(
+      `SELECT LOWER(inviter) AS wallet, COUNT(DISTINCT LOWER(wallet)) AS count
+       FROM ${prefix}wallet_relation
+       WHERE LOWER(inviter) IN (${placeholders})
+       GROUP BY LOWER(inviter)`,
+      wallets
+    )
+  ]);
+  return {
+    direct: new Map((directRows || []).map(row => [normalizeTreeKey(row.wallet), Number(row.count || 0)])),
+    team: new Map((teamRows || []).map(row => [normalizeTreeKey(row.wallet), Number(row.count || 0)]))
+  };
+}
+
+function normalizeWalletTreeNode(row, counts) {
+  const key = normalizeTreeKey(row.wallet);
+  const directCount = counts.direct.get(key) || 0;
+  return {
+    ...normalizeWallet(row),
+    effective_level: Number(row.is_manual_level || 0) === 1 ? Number(row.manual_level || 0) : Number(row.level || 0),
+    direct_count: directCount,
+    team_count: counts.team.get(key) || 0,
+    has_children: directCount > 0
+  };
+}
+
+async function walletTree(req, res) {
+  try {
+    const parentWallet = String(req.body?.wallet || '').trim();
+    const keyword = String(req.body?.keyword || '').trim();
+    const page = Math.max(Helper.parseInt(req.body?.page, 1), 1);
+    const pageSize = Math.min(Math.max(Helper.parseInt(req.body?.page_size ?? req.body?.pageSize, 20), 1), 100);
+    const offset = (page - 1) * pageSize;
+    const prefix = Database.prefix('default') || '';
+    const bindings = [];
+    let whereSql = '';
+
+    if (parentWallet) {
+      whereSql = 'WHERE LOWER(w.inviter)=LOWER(?)';
+      bindings.push(parentWallet);
+    } else if (keyword) {
+      const like = `%${keyword}%`;
+      whereSql = `WHERE w.wallet LIKE ? OR w.ref_code LIKE ? OR w.inviter LIKE ?
+                  OR w.remark_name LIKE ? OR w.remark_community LIKE ?`;
+      bindings.push(like, like, like, like, like);
+    } else {
+      whereSql = `WHERE w.inviter IS NULL OR w.inviter=''`;
+    }
+
+    const [rows, countRows] = await Promise.all([
+      DB.query().exec(
+        `SELECT w.* FROM ${prefix}wallet AS w ${whereSql}
+         ORDER BY w.id DESC LIMIT ? OFFSET ?`,
+        [...bindings, pageSize, offset]
+      ),
+      DB.query().exec(`SELECT COUNT(*) AS total FROM ${prefix}wallet AS w ${whereSql}`, bindings)
+    ]);
+    const counts = await walletTreeCounts(prefix, rows);
+    const total = Number(countRows?.[0]?.total || 0);
+    return res.send(ApiResult.success({
+      list: (rows || []).map(row => normalizeWalletTreeNode(row, counts)),
+      pagination: {
+        total, page, pageSize, lastPage: Math.max(Math.ceil(total / pageSize), 1)
+      }
+    }, '获取网体图成功'));
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'WalletService.walletTree'));
   }
 }
 
@@ -319,4 +418,4 @@ async function walletAssetChange(req, res) {
   }
 }
 
-export default { walletList, walletCreate, walletUpdate, walletAssetList, walletAssetChange };
+export default { walletList, walletTree, walletCreate, walletUpdate, walletAssetList, walletAssetChange };

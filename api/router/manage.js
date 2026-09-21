@@ -118,6 +118,7 @@ router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCan
 
 // 钱包与钱包资产
 router.route('/wallet/list').post(WalletService.walletList)
+router.route('/wallet/tree').post(WalletService.walletTree)
 router.route('/wallet/create').post(WalletService.walletCreate)
 router.route('/wallet/update').post(WalletService.walletUpdate)
 router.route('/wallet-asset/list').post(WalletService.walletAssetList)

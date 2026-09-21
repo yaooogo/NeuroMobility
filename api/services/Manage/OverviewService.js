@@ -23,8 +23,8 @@ async function userStats(prefix) {
   const [newRows, totalRows, activeRows] = await Promise.all([
     DB.query().exec(`SELECT COUNT(*) AS count FROM ${prefix}wallet WHERE created_at>=?`, [since]),
     DB.query().exec(`SELECT COUNT(*) AS count FROM ${prefix}wallet`),
-    // prices is the wallet's own activated/invested amount; status only means enabled/disabled.
-    DB.query().exec(`SELECT COUNT(*) AS count FROM ${prefix}wallet WHERE COALESCE(prices, 0)>0`)
+    // invests is the wallet's own activated/invested amount; status only means enabled/disabled.
+    DB.query().exec(`SELECT COUNT(*) AS count FROM ${prefix}wallet WHERE COALESCE(invests, 0)>0`)
   ]);
   return {
     new_24h: countValue(newRows),

@@ -7,7 +7,7 @@ import { post } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
 
 const user = getUser();
-const query = reactive({ keyword: '', status: '', level: '', page: 1, page_size: 20 });
+const query = reactive({ keyword: '', search_team: 0, status: '', level: '', page: 1, page_size: 20 });
 const list = ref([]);
 const total = ref(0);
 const lastPage = ref(1);
@@ -72,7 +72,8 @@ onMounted(load);
   <ManageLayout title="钱包管理" description="查看钱包关系、等级与状态，并控制提现和人工等级。">
     <section class="panel-card">
       <div class="toolbar"><div class="toolbar-group">
-        <input v-model.trim="query.keyword" class="text-input text-input--inline" placeholder="钱包地址、邀请人或邀请码" @keyup.enter="search" />
+        <input v-model.trim="query.keyword" class="text-input text-input--inline" :placeholder="query.search_team ? '上级钱包地址（搜索全部团队）' : '钱包地址、邀请人或邀请码'" @keyup.enter="search" />
+        <label class="inline-check"><input v-model.number="query.search_team" type="checkbox" :true-value="1" :false-value="0" /><span>搜索团队</span></label>
         <select v-model="query.level" class="text-input text-input--inline"><option value="">全部等级</option><option v-for="level in [0, 1, 2, 3]" :key="level" :value="level">等级 {{ level }}</option></select>
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="1">启用</option><option value="0">禁用</option></select>
         <button class="primary-button" @click="search">查询</button>
@@ -80,10 +81,10 @@ onMounted(load);
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="table-wrap"><table class="data-table" style="min-width: 1750px">
-        <thead><tr><th>ID</th><th>钱包地址</th><th>邀请人</th><th>邀请码</th><th>价格</th><th>社区价格</th><th>下级价格</th><th>层级</th><th>等级</th><th>等级模式</th><th>提现</th><th>USDT提现</th><th>状态</th><th>系统备注</th><th>名称备注</th><th>社区备注</th><th>创建时间</th><th v-if="can(user, 'wallets-update')">操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>钱包地址</th><th>邀请人</th><th>邀请码</th><th>投资</th><th>社区投资</th><th>社区用户数</th><th>层级</th><th>等级</th><th>等级模式</th><th>提现</th><th>USDT提现</th><th>状态</th><th>系统备注</th><th>名称备注</th><th>社区备注</th><th>创建时间</th><th v-if="can(user, 'wallets-update')">操作</th></tr></thead>
         <tbody>
           <tr v-if="loading || !list.length"><td :colspan="can(user, 'wallets-update') ? 18 : 17" class="empty-cell">{{ loading ? '正在加载...' : '暂无钱包' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.wallet || '-' }}</td><td class="mono-cell">{{ row.inviter || '-' }}</td><td>{{ row.ref_code || '-' }}</td><td>{{ row.prices }}</td><td>{{ row.community_prices }}</td><td>{{ row.sub_prices }}</td><td>{{ row.lv }}</td><td>{{ row.level }}</td><td>{{ row.is_manual_level === 1 ? `手动 ${row.manual_level}` : '自动' }}</td><td>{{ row.withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td>{{ row.usdt_withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td>{{ row.remark_system || '-' }}</td><td>{{ row.remark_name || '-' }}</td><td>{{ row.remark_community || '-' }}</td><td>{{ row.created_at || '-' }}</td><td v-if="can(user, 'wallets-update')"><button class="table-button" @click="edit(row)">编辑</button></td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.wallet || '-' }}</td><td class="mono-cell">{{ row.inviter || '-' }}</td><td>{{ row.ref_code || '-' }}</td><td>{{ row.invests }}</td><td>{{ row.community_invests }}</td><td>{{ row.community_users }}</td><td>{{ row.lv }}</td><td>{{ row.level }}</td><td>{{ row.is_manual_level === 1 ? `手动 ${row.manual_level}` : '自动' }}</td><td>{{ row.withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td>{{ row.usdt_withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td>{{ row.remark_system || '-' }}</td><td>{{ row.remark_name || '-' }}</td><td>{{ row.remark_community || '-' }}</td><td>{{ row.created_at || '-' }}</td><td v-if="can(user, 'wallets-update')"><button class="table-button" @click="edit(row)">编辑</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
@@ -113,5 +114,7 @@ onMounted(load);
 .wallet-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .wallet-form-grid__wide { grid-column: 1 / -1; }
 .wallet-address { word-break: break-all; }
+.inline-check { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(142, 168, 241, 0.16); border-radius: 14px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.inline-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }
 @media (max-width: 640px) { .wallet-form-grid { grid-template-columns: 1fr; } .wallet-form-grid__wide { grid-column: auto; } }
 </style>

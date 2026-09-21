@@ -19,6 +19,7 @@ import VehiclesPage from '../views/VehiclesPage.vue';
 import DepositOrdersPage from '../views/DepositOrdersPage.vue';
 import WithdrawalOrdersPage from '../views/WithdrawalOrdersPage.vue';
 import OverviewPage from '../views/OverviewPage.vue';
+import WalletNetworkPage from '../views/WalletNetworkPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -31,6 +32,7 @@ const router = createRouter({
     { path: '/operation-logs', component: OperationLogsPage, meta: { permission: 'admin-operation-logs' } },
     { path: '/asset-tokens', component: AssetTokensPage, meta: { permission: 'asset-tokens' } },
     { path: '/wallets', component: WalletsPage, meta: { permission: 'wallets' } },
+    { path: '/wallet-network', component: WalletNetworkPage, meta: { permission: 'wallet-network' } },
     { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
     { path: '/deposit-orders', component: DepositOrdersPage, meta: { permission: 'deposit-orders' } },
     { path: '/withdrawal-orders', component: WithdrawalOrdersPage, meta: { permission: 'withdrawal-orders' } },
