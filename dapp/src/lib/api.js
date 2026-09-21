@@ -70,6 +70,10 @@ export async function requestLogout() {
   return unwrap(await http.post("/logout", {}));
 }
 
+export async function requestProfile() {
+  return unwrap(await http.get("/profile"));
+}
+
 export async function requestAnnouncements(language = "zh") {
   const data = unwrap(await http.get("/content/announcements", { params: { language } }));
   return Array.isArray(data?.items) ? data.items : [];

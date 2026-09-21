@@ -125,6 +125,22 @@ export default {
     }
   },
 
+  async profile(req, res) {
+    try {
+      const userinfo = await Wallet.getWalletByAddress(req.auth?.address());
+      if (!userinfo) return res.send(ApiResult.error(404, "User not found"));
+
+      const level = Number(userinfo.level || 0);
+      const manualLevel = Number(userinfo.manual_level || 0);
+      const isManualLevel = Number(userinfo.is_manual_level || 0) === 1 ? 1 : 0;
+      return res.send(ApiResult.success({
+        effective_level: isManualLevel === 1 ? manualLevel : level
+      }));
+    } catch (error) {
+      return res.send(ApiResult.exception(error, "AuthService.profile"));
+    }
+  },
+
   async logout(req, res) {
     try {
       await Auth.forgetToken(req, res);

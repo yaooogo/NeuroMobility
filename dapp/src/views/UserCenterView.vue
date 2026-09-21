@@ -1,27 +1,47 @@
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestProfile } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   address: { type: String, default: "" },
   connected: { type: Boolean, default: false },
-  currentLevel: { type: Number, default: 1 },
-  nextLevel: { type: Number, default: 2 },
+  authenticated: { type: Boolean, default: false },
+  currentLevel: { type: Number, default: 0 },
+  nextLevel: { type: Number, default: 1 },
   currentAmount: { type: Number, default: 0 },
   targetAmount: { type: Number, default: 20000 }
 });
 
 const emit = defineEmits(["connect", "copy", "logout", "action"]);
 const { lang } = useLocale();
+const profileLevel = ref(null);
 
 const displayAddress = computed(() => {
   if (!props.address) return lang("连接钱包");
   return `${props.address.slice(0, 5)}...${props.address.slice(-4)}`;
 });
 const progress = computed(() => Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
+const levelMap = {
+  0: { label: "普通会员", icon: "" },
+  1: { label: "区域合伙人", icon: requireAsset("@assets/images/level/1.png") },
+  2: { label: "城市合伙人", icon: requireAsset("@assets/images/level/2.png") },
+  3: { label: "战略合伙人", icon: requireAsset("@assets/images/level/3.png") }
+};
+function getLevelInfo(level) {
+  const numericLevel = Number(level);
+  const normalizedLevel = Math.min(3, Math.max(0, Number.isFinite(numericLevel) ? Math.trunc(numericLevel) : 0));
+  return { level: normalizedLevel, ...levelMap[normalizedLevel] };
+}
+const displayedCurrentLevel = computed(() => profileLevel.value ?? props.currentLevel);
+const displayedNextLevel = computed(() => profileLevel.value === null
+  ? props.nextLevel
+  : Math.min(3, displayedCurrentLevel.value + 1));
+const currentLevelInfo = computed(() => getLevelInfo(displayedCurrentLevel.value));
+const nextLevelInfo = computed(() => getLevelInfo(displayedNextLevel.value));
 const menuItems = computed(() => [
   { key: "invite", icon: requireAsset("@assets/images/icons/invite.png"), title: lang("邀请好友"), description: lang("分享挚友·共赢未来") },
   { key: "team", icon: requireAsset("@assets/images/icons/team.png"), title: lang("我的团队"), description: lang("团队管理·共同成长") },
@@ -36,6 +56,22 @@ function formatAmount(value) {
 function handleMenuClick(item) {
   emit("action", item);
 }
+
+async function loadProfile() {
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+    profileLevel.value = null;
+    return;
+  }
+  try {
+    const data = await requestProfile();
+    const level = Number(data?.effective_level);
+    profileLevel.value = Number.isFinite(level) ? level : null;
+  } catch {
+    profileLevel.value = null;
+  }
+}
+
+watch(() => [props.connected, props.authenticated, props.address], loadProfile, { immediate: true });
 </script>
 
 <template>
@@ -48,7 +84,7 @@ function handleMenuClick(item) {
           <strong v-if="props.address">NEURO</strong>
           <strong v-else>{{ lang('点击登录') }}</strong>
           <span v-if="props.address">{{ displayAddress }}  <img  :src="requireAsset('@assets/images/icons/copy.png')" class="copy-icon" name="copy" @click.stop="emit('copy')" /> </span>
-          <div v-if="props.address" class="rank-pill"><AppIcon name="badge" />{{ lang("县级合伙人") }}</div>
+          <div v-if="props.address" class="rank-pill" :class="`rank-pill--level-${currentLevelInfo.level}`"><img v-if="currentLevelInfo.icon" :src="currentLevelInfo.icon" />{{ lang(currentLevelInfo.label) }}</div>
         </span>
       </button>
     </header>
@@ -60,9 +96,9 @@ function handleMenuClick(item) {
           <span>{{ lang("下一级别") }}</span>
         </div>
         <div class="level-values">
-          <strong>L{{ currentLevel }}</strong>
+          <strong>L{{ currentLevelInfo.level }}</strong>
           <span class="level-arrow"><AppIcon name="chevron" /></span>
-          <strong>L{{ nextLevel }}</strong>
+          <strong>L{{ nextLevelInfo.level }}</strong>
         </div>
         <div class="level-percent"><span>{{ Math.round(progress) }}%</span><span>50%</span><span>100%</span></div>
         <div class="level-track"><i :style="{ width: `${Math.max(4, progress)}%` }"></i></div>
@@ -105,15 +141,20 @@ function handleMenuClick(item) {
 .identity__text strong { display: block;  font-size: 20px; letter-spacing: .2px; }
 .identity__text span { display: flex; gap: 8px; display: flex; align-items: center; color: rgba(255,255,255,.9); font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
 .copy-icon { width:14px; }
-.rank-pill { height: 25px; display: flex; align-items: center; gap: 5px; padding: 0 12px; border-radius: 14px; background: #ffd68c; color: #d37208; font-size: 12px; }
-.rank-pill svg { width: 15px; }
+.rank-pill { width: fit-content; min-height: 28px; display: flex; align-items: center; gap: 6px; margin-top: 3px; padding: 2px 13px 2px 7px; border-radius: 16px; font-size: 11px;  border: 1px solid #fff;}
+.rank-pill img { width: 20px; height: 20px; object-fit: contain; }
+.rank-pill--level-0 { padding-left: 13px; background: rgba(255,255,255,.2); color: #fff; }
+.rank-pill--level-1 { background: linear-gradient(90deg, #C7FFCA 0%, #9FFFA4 100%); color: #008710; }
+.rank-pill--level-2 { background: linear-gradient(90deg, #C7CEFF 0%, #9FA2FF 100%); color: #523CE6; }
+.rank-pill--level-3 { background: linear-gradient(90deg, #E6CDFF 0%, #CA9FFF 100%); color:#7428C6; }
 .profile-content { position: relative; z-index: 3; margin-top: -50px; padding: 0 16px 26px; }
 .level-card, .menu-card { border: 1px solid rgba(133,80,190,.05); background: rgba(255,255,255,.96); box-shadow: 0 6px 22px rgba(88,47,129,.08); }
 .level-card { position: relative; min-height: 174px; margin-top: -1px; padding: 21px 20px 17px; border-radius: 19px; overflow: hidden; background: url("../assets/images/level-card-bg.jpg") #fff no-repeat center -20px; background-size: auto 120%; }
 .level-head, .level-values, .level-percent, .level-amount { position: relative; display: flex; justify-content: space-between; }
 .level-head { color: #404040 ; font-size: 13px; }
 .level-values { align-items: center; margin-top: 11px; color: #9d43e9; }
-.level-values strong { font-size: 25px; line-height: 1; color: transparent; background-clip: text;background-image: linear-gradient(90deg, #A95CF8 0%, #7428C6 100%);}
+.level-values strong { display: flex; align-items: center; gap: 7px; font-size: 25px; line-height: 1; color: #8233d5; }
+.level-values strong img { width: 34px; height: 34px; object-fit: contain; }
 .level-arrow { width: 16px; height: 16px; display: grid; place-items: center; border: 2px solid #9d43e9; border-radius: 50%; }
 .level-arrow svg { width: 13px; }
 .level-percent { margin-top: 16px; color: #4f4b55; font-size: 13px; }

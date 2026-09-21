@@ -15,6 +15,7 @@ router.route("/login/inviter").post(AuthService.resolveInviter);
 router.route("/login").post(AuthService.login);
 
 router.route("*").all(Auth.verifyToken);
+router.route("/profile").get(AuthService.profile);
 router.route("/logout").post(AuthService.logout);
 router.route("/asset/overview").get(AssetService.overview);
 router.route("/asset/withdraw/prepare").post(AssetService.prepareWithdrawal);
