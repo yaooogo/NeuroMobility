@@ -1,8 +1,9 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestInvestmentConfig } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
@@ -11,16 +12,44 @@ const emit = defineEmits(["connect", "action"]);
 const { lang } = useLocale();
 const router = useRouter();
 
-const amountOptions = [1000, 2000, 5000, 10000, 20000, 50000];
+const investmentConfig = ref({
+  minimum_investment_amount: 1000,
+  whole_vehicle_tier: 50000,
+  waiting_period_days: 15,
+  dividend_cycle_days: 30,
+  min_percent: 3,
+  max_percent: 10
+});
 const selectedAmount = ref(1000);
 const customAmount = ref("");
+const amountOptions = computed(() => {
+  const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
+  const wholeVehicle = Number(investmentConfig.value.whole_vehicle_tier) || 50000;
+  return [1, 2, 5, 10, 20].map((multiple) => ({
+    key: `multiple-${multiple}`,
+    amount: minimum * multiple,
+    wholeVehicle: false
+  })).concat({ key: "whole-vehicle", amount: wholeVehicle, wholeVehicle: true });
+});
 const finalAmount = computed(() => Number(customAmount.value) || selectedAmount.value);
-const canSubmit = computed(() => finalAmount.value >= 1000);
-const instructions = computed(() => [
-  { icon: requireAsset("@assets/images/icons/calendar.png"), title: lang("15天等待期"), description: lang("投资成功后15天为等待期") },
-  { icon: requireAsset("@assets/images/icons/hourglass.png"), title: lang("第16天开始计算"), description: lang("之后30天为一个分红周期") },
-  { icon: requireAsset("@assets/images/icons/data1.png"), title: lang("月度分红 3%-10%"), description: lang("根据项目经营情况按区间发放") }
-]);
+const canSubmit = computed(() => {
+  const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
+  const amount = finalAmount.value;
+  if (!Number.isFinite(amount) || amount < minimum) return false;
+  if (!customAmount.value) return true;
+  return Number.isInteger(amount / minimum);
+});
+const instructions = computed(() => {
+  const waitingDays = Number(investmentConfig.value.waiting_period_days);
+  const dividendCycleDays = Number(investmentConfig.value.dividend_cycle_days);
+  const minPercent = Number(investmentConfig.value.min_percent);
+  const maxPercent = Number(investmentConfig.value.max_percent);
+  return [
+    { icon: requireAsset("@assets/images/icons/calendar.png"), title: lang(`${waitingDays}天等待期`), description: lang(`投资成功后${waitingDays}天为等待期`) },
+    { icon: requireAsset("@assets/images/icons/hourglass.png"), title: lang(`第${waitingDays + 1}天开始计算`), description: lang(`之后${dividendCycleDays}天为一个分红周期`) },
+    { icon: requireAsset("@assets/images/icons/data1.png"), title: lang(`月度分红 ${minPercent}%-${maxPercent}%`), description: lang("根据项目经营情况按区间发放") }
+  ];
+});
 
 function selectAmount(amount) {
   selectedAmount.value = amount;
@@ -36,6 +65,27 @@ function submit() {
   if (!canSubmit.value) return;
   emit("action", { key: "participate", amount: finalAmount.value });
 }
+
+onMounted(async () => {
+  try {
+    const data = await requestInvestmentConfig();
+    const minimum = Number(data?.minimum_investment_amount);
+    const wholeVehicle = Number(data?.whole_vehicle_tier);
+    const waitingDays = Number(data?.waiting_period_days);
+    const dividendCycleDays = Number(data?.dividend_cycle_days);
+    const minPercent = Number(data?.min_percent);
+    const maxPercent = Number(data?.max_percent);
+    if (Number.isInteger(minimum) && minimum > 0) investmentConfig.value.minimum_investment_amount = minimum;
+    if (Number.isFinite(wholeVehicle) && wholeVehicle > 0) investmentConfig.value.whole_vehicle_tier = wholeVehicle;
+    if (Number.isInteger(waitingDays) && waitingDays >= 0) investmentConfig.value.waiting_period_days = waitingDays;
+    if (Number.isInteger(dividendCycleDays) && dividendCycleDays > 0) investmentConfig.value.dividend_cycle_days = dividendCycleDays;
+    if (Number.isFinite(minPercent) && minPercent >= 0 && minPercent <= 100) investmentConfig.value.min_percent = minPercent;
+    if (Number.isFinite(maxPercent) && maxPercent >= 0 && maxPercent <= 100) investmentConfig.value.max_percent = maxPercent;
+    if (!customAmount.value) selectedAmount.value = investmentConfig.value.minimum_investment_amount;
+  } catch {
+    // Keep safe defaults when the public configuration endpoint is unavailable.
+  }
+});
 </script>
 
 <template>
@@ -52,17 +102,17 @@ function submit() {
     </section>
 
     <section class="amount-section">
-      <h2>{{ lang("参与金额") }} <small>({{ lang("最低 1,000 U") }})</small></h2>
+      <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ investmentConfig.minimum_investment_amount.toLocaleString() }} U)</small></h2>
       <div class="amount-grid">
         <button
-          v-for="amount in amountOptions"
-          :key="amount"
+          v-for="option in amountOptions"
+          :key="option.key"
           type="button"
-          :class="{ active: selectedAmount === amount && !customAmount }"
-          @click="selectAmount(amount)"
+          :class="{ active: selectedAmount === option.amount && !customAmount }"
+          @click="selectAmount(option.amount)"
         >
-          {{ amount.toLocaleString() }}
-          <em v-if="amount === 50000">{{ lang("整车参与") }}</em>
+          {{ option.amount.toLocaleString() }}
+          <em v-if="option.wholeVehicle">{{ lang("整车参与") }}</em>
         </button>
       </div>
       <label class="custom-amount" :class="{ active: customAmount }">

@@ -90,6 +90,10 @@ export async function requestVehicles(language = "zh") {
   return Array.isArray(data?.items) ? data.items : [];
 }
 
+export async function requestInvestmentConfig() {
+  return unwrap(await http.get("/content/investment-config"));
+}
+
 export async function requestAssetOverview() {
   return unwrap(await http.get("/asset/overview"));
 }

@@ -9,6 +9,7 @@ router.route("/content/announcements").get(ContentService.announcements);
 router.route("/content/help-articles").get(ContentService.helpArticles);
 router.route("/content/about").get(ContentService.about);
 router.route("/content/vehicles").get(ContentService.vehicles);
+router.route("/content/investment-config").get(ContentService.investmentConfig);
 router.route("/login/nonce").post(AuthService.loginNonce);
 router.route("/login/inviter").post(AuthService.resolveInviter);
 router.route("/login").post(AuthService.login);

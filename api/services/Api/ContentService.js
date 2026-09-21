@@ -2,6 +2,7 @@ import ApiResult from '../../Util/ApiResult.js';
 import DB from '../../Util/database/DB.js';
 import { normalizeContentLanguage } from '../../Util/ContentLanguage.js';
 import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTable, ensureVehicleTable } from '../../Util/ContentSchema.js';
+import CacheData from '../../Util/CacheData.js';
 
 function normalizeVehicleTags(value) {
   try {
@@ -124,4 +125,12 @@ async function vehicles(req, res) {
   }
 }
 
-export default { announcements, helpArticles, about, vehicles };
+async function investmentConfig(req, res) {
+  try {
+    return res.send(ApiResult.success(await CacheData.getInvestmentConfig(), '获取投资配置成功'));
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'ContentService.investmentConfig'));
+  }
+}
+
+export default { announcements, helpArticles, about, vehicles, investmentConfig };
