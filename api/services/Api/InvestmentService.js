@@ -37,7 +37,12 @@ function publicOrder(row) {
     cycle_days: Number(row.cycle_days || 0),
     min_percent: Number(row.min_percent || 0),
     max_percent: Number(row.max_percent || 0),
+    dividend_multiple: Number(row.dividend_multiple || 0),
+    dividend_min_percent: Number(row.dividend_min_percent || 0),
+    dividend_max_percent: Number(row.dividend_max_percent || 0),
+    exit_multiple: Number(row.exit_multiple || 0),
     guaranteed_percent: Number(row.guaranteed_percent || 0),
+    guaranteed_eligible: Number(row.guaranteed_eligible || 0),
     whole_vehicle: Number(row.whole_vehicle || 0),
     status: Number(row.status || 0),
     waiting_until: row.waiting_until || '',
@@ -85,6 +90,7 @@ async function updateInvestmentTotals(configName, connection, prefix, wallet, am
       level_isupdate: 1
     });
   }
+  return investsAfter;
 }
 
 async function create(req, res) {
@@ -127,18 +133,28 @@ async function create(req, res) {
         before_balance: before.toString(), after_balance: after.toString(), scene: 'investment',
         reason: `Investment order ${newOrderId}`, type: 'out', created_at: now, updated_at: now
       });
+      const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw);
+      if (investsAfter >= wholeRaw) {
+        await DB.query(configName, connection).table('investment_order')
+          .whereRaw('LOWER(wallet)=?', [wallet]).whereIn('status', [0, 1])
+          .update({ guaranteed_eligible: 1, updated_at: now });
+      }
       const result = { insertId: 0 };
       await DB.query(configName, connection).table('investment_order').insert({
         order_id: newOrderId, wallet, token: TOKEN, amount: amountRaw.toString(),
         waiting_days: investmentConfig.waiting_period_days, cycle_days: investmentConfig.dividend_cycle_days,
         min_percent: investmentConfig.min_percent, max_percent: investmentConfig.max_percent,
+        dividend_multiple: investmentConfig.dividend_multiple,
+        dividend_min_percent: investmentConfig.dividend_min_percent,
+        dividend_max_percent: investmentConfig.dividend_max_percent,
+        exit_multiple: investmentConfig.exit_multiple,
         guaranteed_percent: investmentConfig.guaranteed_dividend_percent,
-        whole_vehicle: amountRaw === wholeRaw ? 1 : 0,
+        guaranteed_eligible: investsAfter >= wholeRaw ? 1 : 0,
+        whole_vehicle: amountRaw >= wholeRaw ? 1 : 0,
         status: Number(investmentConfig.waiting_period_days) > 0 ? 0 : 1,
         waiting_until: waitingUntil, next_dividend_at: nextDividendAt, created_at: now, updated_at: now
       }, result);
       createdId = result.insertId;
-      await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw);
     });
 
     const row = await DB.query().table('investment_order').where('id', createdId).first();
@@ -160,11 +176,21 @@ async function list(req, res) {
     const principal = (rows || []).filter(row => Number(row.status || 0) !== 2)
       .reduce((sum, row) => sum + BigInt(String(row.amount || 0)), 0n);
     const distributed = (rows || []).reduce((sum, row) => sum + BigInt(String(row.distributed_amount || 0)), 0n);
+    const now = new Date();
+    const monthStart = Helper.dateFormat('YYYY-mm-01 00:00:00', now);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const monthEnd = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nextMonth);
+    const monthlyRows = await DB.query().exec(
+      `SELECT COALESCE(SUM(amount), 0) AS amount FROM ${Database.prefix('default') || ''}investment_dividend
+       WHERE LOWER(wallet)=? AND created_at>=? AND created_at<?`,
+      [wallet, monthStart, monthEnd]
+    );
+    const monthlyDividend = String(monthlyRows?.[0]?.amount || '0');
     return res.send(ApiResult.success({
       items,
       principal: formatAssetAmount(principal.toString(), INVESTMENT_DECIMALS),
       total_dividend: formatAssetAmount(distributed.toString(), INVESTMENT_DECIMALS),
-      monthly_dividend: '0'
+      monthly_dividend: formatAssetAmount(monthlyDividend, INVESTMENT_DECIMALS)
     }, '获取投资订单成功'));
   } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentService.list')); }
 }

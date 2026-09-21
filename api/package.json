@@ -26,6 +26,8 @@
     "xss": "^1.0.15"
   },
   "scripts": {
+    "start": "node ApiServer.js",
+    "cron": "node Cron.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

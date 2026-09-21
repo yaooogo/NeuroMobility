@@ -12,7 +12,12 @@ function normalize(row) {
     total_dividend: formatAssetAmount(row.total_dividend || '0', 18),
     waiting_days: Number(row.waiting_days || 0), cycle_days: Number(row.cycle_days || 0),
     min_percent: Number(row.min_percent || 0), max_percent: Number(row.max_percent || 0),
-    guaranteed_percent: Number(row.guaranteed_percent || 0), whole_vehicle: Number(row.whole_vehicle || 0),
+    dividend_multiple: Number(row.dividend_multiple || 0),
+    dividend_min_percent: Number(row.dividend_min_percent || 0),
+    dividend_max_percent: Number(row.dividend_max_percent || 0),
+    exit_multiple: Number(row.exit_multiple || 0),
+    guaranteed_percent: Number(row.guaranteed_percent || 0),
+    guaranteed_eligible: Number(row.guaranteed_eligible || 0), whole_vehicle: Number(row.whole_vehicle || 0),
     status: Number(row.status || 0), waiting_until: row.waiting_until || '', next_dividend_at: row.next_dividend_at || '',
     created_at: row.created_at || '', updated_at: row.updated_at || ''
   };

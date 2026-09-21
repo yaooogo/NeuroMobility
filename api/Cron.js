@@ -1,6 +1,7 @@
 
 import Config from "./Util/Config.js";
 import parseLog from "./cron/parseLog.js";
+import investmentDividend from "./cron/investmentDividend.js";
 
 const DEFAULT_RETRY_DELAY_SECONDS = 5;
 
@@ -37,6 +38,7 @@ process.on("uncaughtException", (error) => {
 var jobs = [
    { "name": "parseLog.parseLogs", "callback": async () => parseLog.parseLogs(), "timeout": 3, "count": 1 },
    { "name": "parseLog.repair", "callback": async () => parseLog.repair(), "timeout": 10, "count": 1 },
+   { "name": "investmentDividend.distribute", "callback": async () => investmentDividend.distribute(), "timeout": 30, "count": 1 },
 ];
 
 for (var i = 0; i < jobs.length; i++) {
