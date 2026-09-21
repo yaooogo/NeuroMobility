@@ -514,6 +514,19 @@ const User = {
 
         if (relationRows.length > 0) {
             await User.getDb(config, connection).table("wallet_relation").insert(relationRows);
+
+            const ancestorWallets = [...new Set(relationRows
+                .map((row) => User.normalizeWalletKey(row.inviter))
+                .filter(Boolean))];
+            if (ancestorWallets.length > 0) {
+                const ancestorPlaceholders = ancestorWallets.map(() => "?").join(", ");
+                await User.getDb(config, connection).exec(
+                    `UPDATE ${User.getDb(config, connection).getPrefix()}wallet
+                     SET level_isupdate=1, updated_at=?
+                     WHERE LOWER(wallet) IN (${ancestorPlaceholders})`,
+                    [now, ...ancestorWallets]
+                );
+            }
         }
 
         return true;

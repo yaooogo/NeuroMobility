@@ -151,6 +151,22 @@ async function processOrder(candidate, tokenDecimals) {
           : Helper.dateFormat('YYYY-mm-dd HH:MM:SS', addDays(cycleDate, order.cycle_days)),
         updated_at: now
       });
+      if (exited) {
+        const wallet = String(order.wallet || '').toLowerCase();
+        await DB.query(configName, connection).exec(
+          `UPDATE ${prefix}wallet AS member
+           SET member.level_isupdate=1,
+               member.updated_at=?
+           WHERE LOWER(member.wallet)=?
+              OR EXISTS (
+                SELECT 1
+                FROM ${prefix}wallet_relation AS relation
+                WHERE LOWER(relation.wallet)=?
+                  AND LOWER(relation.inviter)=LOWER(member.wallet)
+              )`,
+          [now, wallet, wallet]
+        );
+      }
       paid = true;
     });
   } catch (error) {
