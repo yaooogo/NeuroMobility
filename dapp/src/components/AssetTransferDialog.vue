@@ -175,7 +175,7 @@ async function submit() {
 
 <style scoped>
 .transfer-mask { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(25,15,35,.38); backdrop-filter: blur(7px); }
-.transfer-dialog { width: min(100%, 520px); padding: 28px 20px 24px; border: 1.5px solid #a845f1; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(80,31,120,.2); color: #454047; }
+.transfer-dialog { width: min(100%, 440px); padding: 28px 20px 24px; border: 1.5px solid #a845f1; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(80,31,120,.2); color: #454047; }
 .transfer-dialog header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
 .transfer-dialog h2 { margin: 0; font-size:19px; }
 .transfer-dialog header button { width: 38px; height: 38px; padding: 0; border: 0; background: transparent; color: #454047; font-size: 38px; font-weight: 300; line-height: 34px; cursor: pointer; }
