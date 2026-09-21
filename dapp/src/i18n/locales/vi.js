@@ -138,7 +138,7 @@ export default {
   "e2f86ce4": "Vui lòng xác nhận giao dịch nạp tiền",
   "e5a6c9b3": "Tài sản hiện tại không được hỗ trợ rút tiền",
   "e5d4289f": "Đầu tư thành công",
-  "e6b183ca": "Chia sẻ bạn bè của bạn · Tương lai đôi bên cùng có lợi",
+  "e6b183ca": "Chia sẻ bạn bè của bạn",
   "e9915981": "${waitingDays} ngày sau khi đầu tư thành công là thời gian chờ đợi",
   "ea145c5b": "Đầu tư không thành công",
   "ec320581": "Thông tin chi tiết về xe",
@@ -154,7 +154,7 @@ export default {
   "fc1391c9": "Đang xử lý",
   "fd4e3ce3": "Tải không thành công",
   "fdad2056": "Đã sao chép địa chỉ ví",
-  "fdc7a199": "Quản lý nhóm · Cùng nhau phát triển",
+  "fdc7a199": "Quản lý nhóm",
   "fe02d4af": "Xác nhận nạp tiền",
   "fe4b9a2c": "Liên kết đăng ký"
 };

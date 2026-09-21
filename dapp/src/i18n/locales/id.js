@@ -138,7 +138,7 @@ export default {
   "e2f86ce4": "Harap konfirmasikan transaksi isi ulang",
   "e5a6c9b3": "Penarikan tidak didukung untuk aset saat ini",
   "e5d4289f": "Investasi berhasil",
-  "e6b183ca": "Bagikan teman Anda · Masa depan yang saling menguntungkan",
+  "e6b183ca": "Bagikan teman Anda",
   "e9915981": "${waitingDays} hari setelah investasi berhasil adalah masa tunggu",
   "ea145c5b": "Investasi gagal",
   "ec320581": "Detail kendaraan",
@@ -154,7 +154,7 @@ export default {
   "fc1391c9": "Memproses",
   "fd4e3ce3": "Gagal memuat",
   "fdad2056": "Alamat dompet disalin",
-  "fdc7a199": "Manajemen tim · Tumbuh bersama",
+  "fdc7a199": "Manajemen tim",
   "fe02d4af": "Konfirmasi pengisian ulang",
   "fe4b9a2c": "Tautan registrasi"
 };

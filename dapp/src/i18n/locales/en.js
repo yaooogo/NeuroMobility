@@ -138,7 +138,7 @@ export default {
   "e2f86ce4": "Please confirm the top-up transaction",
   "e5a6c9b3": "Withdrawals are not supported for the current asset",
   "e5d4289f": "Investment successful",
-  "e6b183ca": "Share your friends · Win-win future",
+  "e6b183ca": "Share your friends",
   "e9915981": "The waiting period is ${waitingDays} days after a successful investment",
   "ea145c5b": "Investment failed",
   "ec320581": "Vehicle details",
@@ -154,7 +154,7 @@ export default {
   "fc1391c9": "Processing",
   "fd4e3ce3": "Loading failed",
   "fdad2056": "Wallet address copied",
-  "fdc7a199": "Team management · Growing together",
+  "fdc7a199": "Team management",
   "fe02d4af": "Confirm recharge",
   "fe4b9a2c": "Registration link"
 };
