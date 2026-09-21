@@ -4,30 +4,14 @@ import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import AssetTransferDialog from "../components/AssetTransferDialog.vue";
 import { useLocale } from "../composables/useLocale.js";
-import { requestAssetOverview } from "../lib/api.js";
+import { requestAssetOverview, requestInvestmentOrders } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
   connected: { type: Boolean, default: false },
   authenticated: { type: Boolean, default: false },
-  address: { type: String, default: "" },
-  principal: { type: Number, default: 10000 },
-  totalDividend: { type: Number, default: 15820 },
-  monthlyDividend: { type: Number, default: 325 },
-  order: {
-    type: Object,
-    default: () => ({
-      distributed: 3214,
-      nextDividendDays: 14,
-      totalDividend: 63214,
-      number: "N20260916154509",
-      amount: 1000,
-      joinedAt: "2026-09-16 15:45:09",
-      waitingUntil: "2026-10-02 15:45:09",
-      cycleDays: 30
-    })
-  }
+  address: { type: String, default: "" }
 });
 
 const emit = defineEmits(["connect", "action", "notice"]);
@@ -36,6 +20,7 @@ const router = useRouter();
 const transferVisible = ref(false);
 const transferMode = ref("deposit");
 const overview = ref({ balance: "0", frozen_balance: "0", token: {} });
+const investmentData = ref({ items: [], principal: "0", total_dividend: "0", monthly_dividend: "0" });
 const totalAssetBalance = computed(() => addDecimalAmounts(
   overview.value?.balance,
   overview.value?.frozen_balance
@@ -85,6 +70,22 @@ async function loadOverview(showError = false) {
   }
 }
 
+async function loadInvestments(showError = false) {
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+    investmentData.value = { items: [], principal: "0", total_dividend: "0", monthly_dividend: "0" };
+    return;
+  }
+  try { investmentData.value = await requestInvestmentOrders(); }
+  catch (error) {
+    if (showError && Number(error?.code) !== 401) emit("notice", { message: error?.message || lang("加载失败"), type: "error" });
+  }
+}
+
+function nextDividendDays(value) {
+  const target = new Date(String(value || '').replace(' ', 'T')).getTime();
+  return Number.isFinite(target) ? Math.max(0, Math.ceil((target - Date.now()) / 86400000)) : 0;
+}
+
 async function handleShortcut(item) {
   if (item.key !== "deposit" && item.key !== "withdraw") {
     emit("action", item);
@@ -110,7 +111,9 @@ function handleTransferSuccess(result) {
   void loadOverview();
 }
 
-watch(() => [props.connected, props.authenticated, props.address], () => void loadOverview(), { immediate: true });
+watch(() => [props.connected, props.authenticated, props.address], () => {
+  void loadOverview(); void loadInvestments();
+}, { immediate: true });
 </script>
 
 <template>
@@ -123,9 +126,9 @@ watch(() => [props.connected, props.authenticated, props.address], () => void lo
       <span>{{ lang("总资产 (USDT)") }}</span>
       <strong>{{ amount(totalAssetBalance) }}</strong>
       <div class="balance-breakdown">
-        <span>{{ lang("参与本金") }}<b>{{ amount(principal) }}</b></span>
-        <span>{{ lang("累计分红") }}<b>{{ amount(totalDividend) }}</b></span>
-        <span>{{ lang("本月分红") }}<b>{{ amount(monthlyDividend) }}</b></span>
+        <span>{{ lang("参与本金") }}<b>{{ amount(investmentData.principal) }}</b></span>
+        <span>{{ lang("累计分红") }}<b>{{ amount(investmentData.total_dividend) }}</b></span>
+        <span>{{ lang("本月分红") }}<b>{{ amount(investmentData.monthly_dividend) }}</b></span>
       </div>
     </section>
 
@@ -138,21 +141,22 @@ watch(() => [props.connected, props.authenticated, props.address], () => void lo
 
     <section class="orders-section">
       <h2>{{ lang("我的订单") }}</h2>
-      <article class="order-card">
+      <div v-if="!investmentData.items.length" class="empty-orders">{{ lang('暂无投资订单') }}</div>
+      <article v-for="order in investmentData.items" :key="order.order_id" class="order-card">
         <div class="order-summary">
-          <span>{{ lang("已分红") }}<b>{{ amount(order.distributed, 0) }} U</b></span>
-          <span>{{ lang("距离下次分红") }}<b>{{ order.nextDividendDays }}{{ lang("天") }}</b></span>
-          <span>{{ lang("总分红") }}<b>{{ amount(order.totalDividend, 0) }} U</b></span>
+          <span>{{ lang("已分红") }}<b>{{ amount(order.distributed_amount, 0) }} U</b></span>
+          <span>{{ lang("距离下次分红") }}<b>{{ nextDividendDays(order.next_dividend_at) }}{{ lang("天") }}</b></span>
+          <span>{{ lang("总分红") }}<b>{{ amount(order.total_dividend, 0) }} U</b></span>
         </div>
         <dl>
-          <div><dt>{{ lang("订单编号") }}</dt><dd>{{ order.number }}</dd></div>
+          <div><dt>{{ lang("订单编号") }}</dt><dd>{{ order.order_id }}</dd></div>
           <div><dt>{{ lang("参与金额") }}</dt><dd>{{ amount(order.amount, 0) }} USDT</dd></div>
-          <div><dt>{{ lang("参与时间") }}</dt><dd>{{ order.joinedAt }}</dd></div>
-          <div><dt>{{ lang("等待期") }}</dt><dd>{{ order.waitingUntil }}</dd></div>
-          <div><dt>{{ lang("分红周期") }}</dt><dd>·{{ order.cycleDays }}{{ lang("天") }}</dd></div>
+          <div><dt>{{ lang("参与时间") }}</dt><dd>{{ order.created_at }}</dd></div>
+          <div><dt>{{ lang("等待期") }}</dt><dd>{{ order.waiting_until }}</dd></div>
+          <div><dt>{{ lang("分红周期") }}</dt><dd>{{ order.cycle_days }}{{ lang("天") }}</dd></div>
         </dl>
         <div class="order-actions">
-          <button type="button" @click="emit('action', { key: 'details', order })">{{ lang("查看详情") }}</button>
+          <!-- <button type="button" @click="router.push({ name: 'invest-success', query: { order_id: order.order_id } })">{{ lang("查看详情") }}</button> -->
           <button type="button" @click="emit('action', { key: 'add-investment', order })">{{ lang("追加投资") }}</button>
         </div>
       </article>
@@ -187,7 +191,8 @@ watch(() => [props.connected, props.authenticated, props.address], () => void lo
 .asset-shortcuts img { width: 26px; height: 26px;  }
 .orders-section { margin-top: 17px; }
 .orders-section > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 15px; line-height: 23px; }
-.order-card { padding: 20px; border: 1px solid #f1edf5; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
+.order-card { margin-top: 14px; padding: 20px; border: 1px solid #f1edf5; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
+.empty-orders { padding: 36px 15px; border: 1px solid #f1edf5; border-radius: 12px; color: #aaa3ad; text-align: center; }
 .order-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px; border-radius: 12px; background: #f0ecfb; }
 .order-summary span { min-width: 0; color: #5a555e; font-size: 12px; white-space: nowrap; }
 .order-summary b { display: block; margin-top: 5px; color: #8d37e1; font-size: 17px; }
@@ -196,8 +201,9 @@ watch(() => [props.connected, props.authenticated, props.address], () => void lo
 .order-card dl > div:last-child { border-bottom: 0; }
 .order-card dt { font-weight: 600; }
 .order-card dd { min-width: 0; margin: 0; overflow: hidden; color: #5e5961; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
-.order-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.order-actions button { height: 44px; border: 1px solid #9e40eb; border-radius: 8px; background: #fff; color: #a443ec; font-size: 15px; cursor: pointer; }
+/* .order-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } */
+.order-actions { display: block; }
+.order-actions button {width: 100%; height: 44px; border: 1px solid #9e40eb; border-radius: 8px; background: #fff; color: #a443ec; font-size: 15px; cursor: pointer; }
 .order-actions button:last-child { border: 0; background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; }
 @media (max-width: 390px) {
   .assets-view { padding-left: 10px; padding-right: 10px; }

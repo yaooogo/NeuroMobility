@@ -20,6 +20,7 @@ import DepositOrdersPage from '../views/DepositOrdersPage.vue';
 import WithdrawalOrdersPage from '../views/WithdrawalOrdersPage.vue';
 import OverviewPage from '../views/OverviewPage.vue';
 import WalletNetworkPage from '../views/WalletNetworkPage.vue';
+import InvestmentOrdersPage from '../views/InvestmentOrdersPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -36,6 +37,7 @@ const router = createRouter({
     { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
     { path: '/deposit-orders', component: DepositOrdersPage, meta: { permission: 'deposit-orders' } },
     { path: '/withdrawal-orders', component: WithdrawalOrdersPage, meta: { permission: 'withdrawal-orders' } },
+    { path: '/investment-orders', component: InvestmentOrdersPage, meta: { permission: 'investment-orders' } },
     { path: '/announcements', component: AnnouncementsPage, meta: { permission: 'announcements' } },
     { path: '/help-articles', component: HelpArticlesPage, meta: { permission: 'help-articles' } },
     { path: '/about', component: AboutPage, meta: { permission: 'about' } },

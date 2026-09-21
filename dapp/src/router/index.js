@@ -6,6 +6,7 @@ import DividendRecordsView from "../views/DividendRecordsView.vue";
 import HelpCenterView from "../views/HelpCenterView.vue";
 import HomeView from "../views/HomeView.vue";
 import InvestView from "../views/InvestView.vue";
+import InvestSuccessView from "../views/InvestSuccessView.vue";
 import TeamView from "../views/TeamView.vue";
 import TransactionRecordsView from "../views/TransactionRecordsView.vue";
 import UserCenterView from "../views/UserCenterView.vue";
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: "/", name: "home", component: HomeView, meta: { navKey: "home" } },
     { path: "/home", redirect: { name: "home" } },
     { path: "/invest", name: "invest", component: InvestView, meta: { navKey: "invest" } },
+    { path: "/invest/success", name: "invest-success", component: InvestSuccessView, meta: { navKey: "invest", showBottomNav: false } },
     { path: "/assets", name: "assets", component: AssetsView, meta: { navKey: "assets" } },
     { path: "/mine", name: "mine", component: UserCenterView, meta: { navKey: "mine" } },
     { path: "/team", name: "team", component: TeamView, meta: { navKey: "mine", showBottomNav: false } },

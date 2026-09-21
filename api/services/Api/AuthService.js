@@ -5,6 +5,8 @@ import Config from "../../Util/Config.js";
 import Helper from "../../Util/Helper.js";
 import EthereumUtils from "../../Util/EthereumUtils.js";
 import Wallet from "../../Util/Wallet.js";
+import CacheData from "../../Util/CacheData.js";
+import { formatAssetAmount, parseAssetAmount } from "../../Util/AssetAmount.js";
 
 const signMessage = `
 Welcome to ${Config.APP_NAME}
@@ -133,8 +135,25 @@ export default {
       const level = Number(userinfo.level || 0);
       const manualLevel = Number(userinfo.manual_level || 0);
       const isManualLevel = Number(userinfo.is_manual_level || 0) === 1 ? 1 : 0;
+      const effectiveLevel = isManualLevel === 1 ? manualLevel : level;
+      const communityInvestsRaw = /^\d+$/u.test(String(userinfo.community_invests || '0'))
+        ? BigInt(userinfo.community_invests || 0)
+        : 0n;
+      const rules = (await CacheData.getWalletLevelRules())
+        .slice()
+        .sort((left, right) => left.level - right.level);
+      const nextRule = rules.find(rule => rule.level > effectiveLevel) || rules.at(-1);
+      const targetRaw = BigInt(parseAssetAmount(String(nextRule?.min_price || 0), 18));
+      const progressBasisPoints = nextRule?.level > effectiveLevel && targetRaw > 0n
+        ? (communityInvestsRaw * 10000n / targetRaw)
+        : 10000n;
+      const boundedProgressBasisPoints = progressBasisPoints > 10000n ? 10000n : progressBasisPoints;
       return res.send(ApiResult.success({
-        effective_level: isManualLevel === 1 ? manualLevel : level
+        effective_level: effectiveLevel,
+        community_invests: formatAssetAmount(communityInvestsRaw.toString(), 18),
+        next_level: Number(nextRule?.level || effectiveLevel),
+        next_level_amount: String(nextRule?.min_price || 0),
+        level_progress_percent: Number(boundedProgressBasisPoints) / 100
       }));
     } catch (error) {
       return res.send(ApiResult.exception(error, "AuthService.profile"));

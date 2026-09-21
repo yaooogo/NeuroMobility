@@ -5,6 +5,7 @@ import ManagePagination from '../components/ManagePagination.vue';
 import { getUser } from '../lib/auth.js';
 import { post } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
+import { formatFixedAmount } from '../lib/amount.js';
 
 const user = getUser();
 const query = reactive({ keyword: '', search_team: 0, status: '', level: '', page: 1, page_size: 20 });
@@ -84,7 +85,7 @@ onMounted(load);
         <thead><tr><th>ID</th><th>钱包地址</th><th>邀请人</th><th>邀请码</th><th>投资</th><th>社区投资</th><th>社区用户数</th><th>层级</th><th>等级</th><th>等级模式</th><th>提现</th><th>USDT提现</th><th>状态</th><th>系统备注</th><th>名称备注</th><th>社区备注</th><th>创建时间</th><th v-if="can(user, 'wallets-update')">操作</th></tr></thead>
         <tbody>
           <tr v-if="loading || !list.length"><td :colspan="can(user, 'wallets-update') ? 18 : 17" class="empty-cell">{{ loading ? '正在加载...' : '暂无钱包' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.wallet || '-' }}</td><td class="mono-cell">{{ row.inviter || '-' }}</td><td>{{ row.ref_code || '-' }}</td><td>{{ row.invests }}</td><td>{{ row.community_invests }}</td><td>{{ row.community_users }}</td><td>{{ row.lv }}</td><td>{{ row.level }}</td><td>{{ row.is_manual_level === 1 ? `手动 ${row.manual_level}` : '自动' }}</td><td>{{ row.withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td>{{ row.usdt_withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td>{{ row.remark_system || '-' }}</td><td>{{ row.remark_name || '-' }}</td><td>{{ row.remark_community || '-' }}</td><td>{{ row.created_at || '-' }}</td><td v-if="can(user, 'wallets-update')"><button class="table-button" @click="edit(row)">编辑</button></td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.wallet || '-' }}</td><td class="mono-cell">{{ row.inviter || '-' }}</td><td>{{ row.ref_code || '-' }}</td><td>{{ formatFixedAmount(row.invests) }}</td><td>{{ formatFixedAmount(row.community_invests) }}</td><td>{{ row.community_users }}</td><td>{{ row.lv }}</td><td>{{ row.level }}</td><td>{{ row.is_manual_level === 1 ? `手动 ${row.manual_level}` : '自动' }}</td><td>{{ row.withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td>{{ row.usdt_withdraw_enabled === 1 ? '允许' : '禁止' }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td>{{ row.remark_system || '-' }}</td><td>{{ row.remark_name || '-' }}</td><td>{{ row.remark_community || '-' }}</td><td>{{ row.created_at || '-' }}</td><td v-if="can(user, 'wallets-update')"><button class="table-button" @click="edit(row)">编辑</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />

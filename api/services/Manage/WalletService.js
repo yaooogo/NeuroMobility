@@ -12,8 +12,8 @@ function normalizeWallet(row) {
   return {
     id: Number(row.id || 0),
     wallet: row.wallet || '',
-    invests: String(row.invests ?? '0'),
-    community_invests: String(row.community_invests ?? '0'),
+    invests: formatAssetAmount(row.invests ?? '0', 18),
+    community_invests: formatAssetAmount(row.community_invests ?? '0', 18),
     community_users: Number(row.community_users || 0),
     inviter: row.inviter || '',
     ref_code: row.ref_code || '',

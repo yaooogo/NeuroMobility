@@ -15,6 +15,7 @@ import AboutContentService from '../services/Manage/AboutContentService.js';
 import VehicleService from '../services/Manage/VehicleService.js';
 import TransferOrderService from '../services/Manage/TransferOrderService.js';
 import OverviewService from '../services/Manage/OverviewService.js';
+import InvestmentOrderService from '../services/Manage/InvestmentOrderService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -115,6 +116,7 @@ router.route('/deposit-order/list').post(TransferOrderService.depositList)
 router.route('/withdrawal-order/list').post(TransferOrderService.withdrawalList)
 router.route('/withdrawal-order/export').post(TransferOrderService.withdrawalExport)
 router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCancel)
+router.route('/investment-order/list').post(InvestmentOrderService.list)
 
 // 钱包与钱包资产
 router.route('/wallet/list').post(WalletService.walletList)

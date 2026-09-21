@@ -3,12 +3,12 @@ import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
-import { requestInvestmentConfig } from "../lib/api.js";
+import { requestCreateInvestment, requestInvestmentConfig } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
-defineProps({ connected: { type: Boolean, default: false } });
-const emit = defineEmits(["connect", "action"]);
+const props = defineProps({ connected: { type: Boolean, default: false }, authenticated: { type: Boolean, default: false } });
+const emit = defineEmits(["connect", "action", "notice"]);
 const { lang } = useLocale();
 const router = useRouter();
 
@@ -22,6 +22,7 @@ const investmentConfig = ref({
 });
 const selectedAmount = ref(1000);
 const customAmount = ref("");
+const submitting = ref(false);
 const amountOptions = computed(() => {
   const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
   const wholeVehicle = Number(investmentConfig.value.whole_vehicle_tier) || 50000;
@@ -61,9 +62,21 @@ function setCustomAmount(event) {
   if (customAmount.value) selectedAmount.value = 0;
 }
 
-function submit() {
-  if (!canSubmit.value) return;
-  emit("action", { key: "participate", amount: finalAmount.value });
+async function submit() {
+  if (!canSubmit.value || submitting.value) return;
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+    emit("connect");
+    return;
+  }
+  submitting.value = true;
+  try {
+    const order = await requestCreateInvestment(String(finalAmount.value));
+    await router.push({ name: "invest-success", query: { order_id: order.order_id } });
+  } catch (error) {
+    emit("notice", { message: error?.message || lang("投资失败"), type: "error" });
+  } finally {
+    submitting.value = false;
+  }
 }
 
 onMounted(async () => {
@@ -125,7 +138,7 @@ onMounted(async () => {
         />
         <span v-if="customAmount">USDT</span>
       </label>
-      <button class="participate-button" type="button" :disabled="!canSubmit" @click="submit">{{ lang("立即参与") }}</button>
+      <button class="participate-button" type="button" :disabled="!canSubmit || submitting" @click="submit">{{ submitting ? lang("提交中...") : lang("立即参与") }}</button>
     </section>
 
     <section class="instructions">

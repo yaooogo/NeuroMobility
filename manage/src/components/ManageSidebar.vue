@@ -21,6 +21,7 @@ const user = getUser();
       <router-link v-if="can(user, 'user-frozen-asset-logs')" class="menu-item" active-class="menu-item--active" to="/frozen-asset-logs">冻结资产变更记录</router-link>
       <router-link v-if="can(user, 'deposit-orders')" class="menu-item" active-class="menu-item--active" to="/deposit-orders">充值订单</router-link>
       <router-link v-if="can(user, 'withdrawal-orders')" class="menu-item" active-class="menu-item--active" to="/withdrawal-orders">提现订单</router-link>
+      <router-link v-if="can(user, 'investment-orders')" class="menu-item" active-class="menu-item--active" to="/investment-orders">投资订单</router-link>
       <router-link v-if="can(user, 'help-articles')" class="menu-item" active-class="menu-item--active" to="/help-articles">帮助中心</router-link>
       <router-link v-if="can(user, 'announcements')" class="menu-item" active-class="menu-item--active" to="/announcements">公告管理</router-link>
       <router-link v-if="can(user, 'about')" class="menu-item" active-class="menu-item--active" to="/about">关于我们</router-link>

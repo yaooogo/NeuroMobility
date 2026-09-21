@@ -98,6 +98,18 @@ export async function requestInvestmentConfig() {
   return unwrap(await http.get("/content/investment-config"));
 }
 
+export async function requestCreateInvestment(amount) {
+  return unwrap(await http.post("/investment/create", { amount }));
+}
+
+export async function requestInvestmentOrders() {
+  return unwrap(await http.get("/investment/orders"));
+}
+
+export async function requestInvestmentOrder(orderId) {
+  return unwrap(await http.get("/investment/order", { params: { order_id: orderId } }));
+}
+
 export async function requestAssetOverview() {
   return unwrap(await http.get("/asset/overview"));
 }

@@ -3,6 +3,7 @@ import Auth from "../Util/Auth.js";
 import AuthService from "../services/Api/AuthService.js";
 import ContentService from "../services/Api/ContentService.js";
 import AssetService from "../services/Api/AssetService.js";
+import InvestmentService from "../services/Api/InvestmentService.js";
 const router = express.Router();
 
 router.route("/content/announcements").get(ContentService.announcements);
@@ -21,6 +22,9 @@ router.route("/asset/overview").get(AssetService.overview);
 router.route("/asset/withdraw/prepare").post(AssetService.prepareWithdrawal);
 router.route("/asset/withdraw/submitted").post(AssetService.withdrawalSubmitted);
 router.route("/asset/records").get(AssetService.records);
+router.route("/investment/create").post(InvestmentService.create);
+router.route("/investment/orders").get(InvestmentService.list);
+router.route("/investment/order").get(InvestmentService.detail);
 
 
 export default router;

@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
 import { post } from '../lib/http.js';
+import { formatFixedAmount } from '../lib/amount.js';
 
 const ROOT_PAGE_SIZE = 20;
 const CHILD_PAGE_SIZE = 100;
@@ -88,10 +89,6 @@ async function toggle(row) {
 function search() { query.page = 1; loadRoots(); }
 function reset() { query.keyword = ''; query.page = 1; loadRoots(); }
 function changePage(page) { query.page = page; loadRoots(); }
-function formatAmount(value) {
-  const number = Number(value || 0);
-  return Number.isFinite(number) ? number.toLocaleString('en-US', { maximumFractionDigits: 8 }) : String(value || '0');
-}
 function formatInteger(value) { return Number(value || 0).toLocaleString('en-US'); }
 onMounted(loadRoots);
 </script>
@@ -112,7 +109,7 @@ onMounted(loadRoots);
           <template v-for="item in flatRows" v-else :key="item.key">
             <tr v-if="item.type === 'node'" :class="{ 'network-row--child': item.depth > 0 }">
               <td><div class="wallet-tree-cell" :style="{ paddingLeft: `${item.depth * 24}px` }"><button v-if="hasChildren(item.row)" class="tree-toggle" :disabled="isLoading(item.row)" @click="toggle(item.row)">{{ isExpanded(item.row) ? '−' : '+' }}</button><span v-else class="tree-toggle tree-toggle--empty"></span><strong class="mono-cell">{{ item.row.wallet || '-' }}</strong></div></td>
-              <td>{{ formatAmount(item.row.invests) }}</td><td>{{ formatAmount(item.row.community_invests) }}</td><td>{{ formatInteger(item.row.community_users) }}</td><td>{{ formatInteger(item.row.direct_count) }}</td><td>{{ formatInteger(item.row.team_count) }}</td><td>{{ item.row.lv }}</td><td>{{ item.row.effective_level }}</td><td class="mono-cell">{{ item.row.inviter || '-' }}</td><td><span class="status-badge" :class="item.row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ item.row.status === 1 ? '启用' : '禁用' }}</span></td>
+              <td>{{ formatFixedAmount(item.row.invests) }}</td><td>{{ formatFixedAmount(item.row.community_invests) }}</td><td>{{ formatInteger(item.row.community_users) }}</td><td>{{ formatInteger(item.row.direct_count) }}</td><td>{{ formatInteger(item.row.team_count) }}</td><td>{{ item.row.lv }}</td><td>{{ item.row.effective_level }}</td><td class="mono-cell">{{ item.row.inviter || '-' }}</td><td><span class="status-badge" :class="item.row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ item.row.status === 1 ? '启用' : '禁用' }}</span></td>
               <td><div class="remark-stack"><span>系统：{{ item.row.remark_system || '-' }}</span><span>名称：{{ item.row.remark_name || '-' }}</span><span>社区：{{ item.row.remark_community || '-' }}</span></div></td><td>{{ item.row.created_at || '-' }}</td>
             </tr>
             <tr v-else><td colspan="12"><div class="network-inline" :style="{ paddingLeft: `${item.depth * 24}px` }"><span v-if="item.type === 'loading'">正在加载直属下线...</span><button v-else class="table-button" :disabled="isLoading(item.row)" @click="loadChildren(item.row, item.nextPage, true)">{{ isLoading(item.row) ? '加载中...' : '加载更多直属下线' }}</button></div></td></tr>

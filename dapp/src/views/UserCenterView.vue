@@ -19,12 +19,14 @@ const props = defineProps({
 const emit = defineEmits(["connect", "copy", "logout", "action"]);
 const { lang } = useLocale();
 const profileLevel = ref(null);
+const profileProgress = ref(null);
 
 const displayAddress = computed(() => {
   if (!props.address) return lang("连接钱包");
   return `${props.address.slice(0, 5)}...${props.address.slice(-4)}`;
 });
-const progress = computed(() => Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
+const progress = computed(() => profileProgress.value?.percent
+  ?? Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
 const levelMap = {
   0: { label: "普通会员", icon: "" },
   1: { label: "区域合伙人", icon: requireAsset("@assets/images/level/1.png") },
@@ -37,9 +39,11 @@ function getLevelInfo(level) {
   return { level: normalizedLevel, ...levelMap[normalizedLevel] };
 }
 const displayedCurrentLevel = computed(() => profileLevel.value ?? props.currentLevel);
-const displayedNextLevel = computed(() => profileLevel.value === null
+const displayedNextLevel = computed(() => profileProgress.value?.nextLevel ?? (profileLevel.value === null
   ? props.nextLevel
-  : Math.min(3, displayedCurrentLevel.value + 1));
+  : Math.min(3, displayedCurrentLevel.value + 1)));
+const displayedCommunityInvests = computed(() => profileProgress.value?.communityInvests ?? props.currentAmount);
+const displayedTargetAmount = computed(() => profileProgress.value?.targetAmount ?? props.targetAmount);
 const currentLevelInfo = computed(() => getLevelInfo(displayedCurrentLevel.value));
 const nextLevelInfo = computed(() => getLevelInfo(displayedNextLevel.value));
 const menuItems = computed(() => [
@@ -50,7 +54,12 @@ const menuItems = computed(() => [
 ]);
 
 function formatAmount(value) {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+  const text = String(value ?? '0').trim();
+  if (!/^\d+(?:\.\d+)?$/u.test(text)) return '0';
+  const [integerPart, fractionPart = ''] = text.split('.');
+  const integer = BigInt(integerPart || '0').toLocaleString();
+  const fraction = fractionPart.slice(0, 2).replace(/0+$/u, '');
+  return fraction ? `${integer}.${fraction}` : integer;
 }
 
 function handleMenuClick(item) {
@@ -60,14 +69,24 @@ function handleMenuClick(item) {
 async function loadProfile() {
   if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
     profileLevel.value = null;
+    profileProgress.value = null;
     return;
   }
   try {
     const data = await requestProfile();
     const level = Number(data?.effective_level);
     profileLevel.value = Number.isFinite(level) ? level : null;
+    const percent = Number(data?.level_progress_percent);
+    const nextLevel = Number(data?.next_level);
+    profileProgress.value = {
+      communityInvests: String(data?.community_invests ?? '0'),
+      targetAmount: String(data?.next_level_amount ?? '0'),
+      nextLevel: Number.isFinite(nextLevel) ? nextLevel : Math.min(3, level + 1),
+      percent: Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 0
+    };
   } catch {
     profileLevel.value = null;
+    profileProgress.value = null;
   }
 }
 
@@ -102,7 +121,7 @@ watch(() => [props.connected, props.authenticated, props.address], loadProfile, 
         </div>
         <div class="level-percent"><span>{{ Math.round(progress) }}%</span><span>50%</span><span>100%</span></div>
         <div class="level-track"><i :style="{ width: `${Math.max(4, progress)}%` }"></i></div>
-        <div class="level-amount"><span>{{ formatAmount(currentAmount) }}USDT</span><span>{{ formatAmount(targetAmount) }}USDT</span></div>
+        <div class="level-amount"><span>{{ formatAmount(displayedCommunityInvests) }} USDT</span><span>{{ formatAmount(displayedTargetAmount) }} USDT</span></div>
       </section>
 
       <section class="menu-card">
