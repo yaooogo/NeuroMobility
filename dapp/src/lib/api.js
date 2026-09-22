@@ -74,6 +74,10 @@ export async function requestProfile() {
   return unwrap(await http.get("/profile"));
 }
 
+export async function requestTeam() {
+  return unwrap(await http.get("/team"));
+}
+
 export async function requestAnnouncements(language = "zh") {
   const data = unwrap(await http.get("/content/announcements", { params: { language } }));
   return Array.isArray(data?.items) ? data.items : [];
@@ -98,6 +102,10 @@ export async function requestInvestmentConfig() {
   return unwrap(await http.get("/content/investment-config"));
 }
 
+export async function requestPlatformStats() {
+  return unwrap(await http.get("/content/platform-stats"));
+}
+
 export async function requestCreateInvestment(amount) {
   return unwrap(await http.post("/investment/create", { amount }));
 }
@@ -108,6 +116,10 @@ export async function requestInvestmentOrders() {
 
 export async function requestInvestmentOrder(orderId) {
   return unwrap(await http.get("/investment/order", { params: { order_id: orderId } }));
+}
+
+export async function requestDividendRecords() {
+  return unwrap(await http.get("/investment/dividends"));
 }
 
 export async function requestAssetOverview() {

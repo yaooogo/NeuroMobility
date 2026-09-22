@@ -134,6 +134,8 @@ router.route('/system-config/wallet-level').post(SystemConfigService.walletLevel
 router.route('/system-config/wallet-level/update').post(SystemConfigService.walletLevelUpdate)
 router.route('/system-config/investment').post(SystemConfigService.investmentDetail)
 router.route('/system-config/investment/update').post(SystemConfigService.investmentUpdate)
+router.route('/system-config/other').post(SystemConfigService.otherDetail)
+router.route('/system-config/other/update').post(SystemConfigService.otherUpdate)
 
 
 export default router;

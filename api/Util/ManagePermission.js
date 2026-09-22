@@ -107,6 +107,7 @@ const ROUTE_PERMISSION_RULES = [
   { path: "/wallet", permissions: ["wallets"] },
   { path: "/system-config/wallet-level/update", permissions: ["parameter-config-update"], exact: true },
   { path: "/system-config/investment/update", permissions: ["parameter-config-update"], exact: true },
+  { path: "/system-config/other/update", permissions: ["parameter-config-update"], exact: true },
   { path: "/system-config", permissions: ["parameter-config"] },
   { path: "/user/create", permissions: ["users-create"], exact: true },
   { path: "/user/update", permissions: ["users-update"], exact: true },

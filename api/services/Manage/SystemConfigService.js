@@ -19,11 +19,18 @@ import {
   normalizeGrowthRewardRules,
   validateGrowthRewardRules
 } from '../../config/growthReward.js';
+import {
+  OTHER_SYS_CONFIG_NAME,
+  getDefaultOtherConfig,
+  normalizeOtherConfig,
+  validateOtherConfig
+} from '../../config/otherConfig.js';
 
 const TABLE_NAME = 'sys_config';
 const BRIEF = '等级金额阈值配置';
 const INVESTMENT_BRIEF = '投资配置';
 const GROWTH_REWARD_BRIEF = '成长奖励配置';
+const OTHER_BRIEF = '其他配置';
 
 function parseRules(value) {
   try { return normalizeWalletLevelRules(JSON.parse(value || '[]')); }
@@ -72,6 +79,23 @@ async function ensureGrowthRewardRow() {
     name: GROWTH_REWARD_SYS_CONFIG_NAME,
     value: JSON.stringify(getDefaultGrowthRewardRules()),
     brief: GROWTH_REWARD_BRIEF
+  }, result);
+  return DB.query().table(TABLE_NAME).where('id', result.insertId).first();
+}
+
+function parseOtherConfig(value) {
+  try { return normalizeOtherConfig(JSON.parse(value || '{}')); }
+  catch { return getDefaultOtherConfig(); }
+}
+
+async function ensureOtherRow() {
+  let row = await DB.query().table(TABLE_NAME).where('name', OTHER_SYS_CONFIG_NAME).first();
+  if (row) return row;
+  const result = { insertId: 0 };
+  await DB.query().table(TABLE_NAME).insert({
+    name: OTHER_SYS_CONFIG_NAME,
+    value: JSON.stringify(getDefaultOtherConfig()),
+    brief: OTHER_BRIEF
   }, result);
   return DB.query().table(TABLE_NAME).where('id', result.insertId).first();
 }
@@ -157,4 +181,31 @@ async function investmentUpdate(req, res) {
   }
 }
 
-export default { walletLevelDetail, walletLevelUpdate, investmentDetail, investmentUpdate };
+async function otherDetail(req, res) {
+  try {
+    const row = await ensureOtherRow();
+    return res.send(ApiResult.success({
+      id: Number(row?.id || 0),
+      name: row?.name || OTHER_SYS_CONFIG_NAME,
+      brief: row?.brief || OTHER_BRIEF,
+      ...parseOtherConfig(row?.value)
+    }, '获取其他配置成功'));
+  } catch (error) { return res.send(ApiResult.exception(error, 'SystemConfigService.otherDetail')); }
+}
+
+async function otherUpdate(req, res) {
+  try {
+    const config = validateOtherConfig(req.body || {});
+    const row = await ensureOtherRow();
+    await DB.query().table(TABLE_NAME).where('id', row.id).update({
+      value: JSON.stringify(config),
+      brief: OTHER_BRIEF
+    });
+    await CacheData.removeSysConfig(OTHER_SYS_CONFIG_NAME);
+    return res.send(ApiResult.success({ ...config }, '其他配置保存成功'));
+  } catch (error) {
+    return res.send(ApiResult.error(400, error.message || '其他配置格式不正确'));
+  }
+}
+
+export default { walletLevelDetail, walletLevelUpdate, investmentDetail, investmentUpdate, otherDetail, otherUpdate };

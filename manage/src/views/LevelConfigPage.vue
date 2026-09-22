@@ -22,7 +22,9 @@ const investment = ref({
   exit_multiple: '1',
   guaranteed_dividend_percent: '3'
 });
+const other = ref({ platform_operated_vehicles: '1258', virtual_users: '56320' });
 const investmentLoaded = ref(false);
+const otherLoaded = ref(false);
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
@@ -71,9 +73,23 @@ async function loadInvestment() {
   finally { loading.value = false; }
 }
 
+async function loadOther() {
+  loading.value = true; error.value = '';
+  try {
+    const data = await post('/system-config/other');
+    other.value = {
+      platform_operated_vehicles: String(data.platform_operated_vehicles),
+      virtual_users: String(data.virtual_users)
+    };
+    otherLoaded.value = true;
+  } catch (err) { error.value = err.message || '加载其他配置失败'; }
+  finally { loading.value = false; }
+}
+
 async function selectTab(tab) {
   activeTab.value = tab; error.value = ''; success.value = '';
   if (tab === 'investment' && !investmentLoaded.value) await loadInvestment();
+  if (tab === 'other' && !otherLoaded.value) await loadOther();
 }
 
 function validateLevels() {
@@ -146,8 +162,18 @@ function validateInvestment() {
   return '';
 }
 
+function validateOther() {
+  const platformOperatedVehicles = Number(other.value.platform_operated_vehicles);
+  const virtualUsers = Number(other.value.virtual_users);
+  if (!Number.isSafeInteger(platformOperatedVehicles) || platformOperatedVehicles < 0) return '平台运营车辆必须为非负整数';
+  if (!Number.isSafeInteger(virtualUsers) || virtualUsers < 0) return '虚拟用户必须为非负整数';
+  return '';
+}
+
 async function save() {
-  const message = activeTab.value === 'level' ? validateLevels() : validateInvestment();
+  const message = activeTab.value === 'level'
+    ? validateLevels()
+    : (activeTab.value === 'investment' ? validateInvestment() : validateOther());
   if (message) { error.value = message; return; }
   saving.value = true; error.value = ''; success.value = '';
   try {
@@ -166,7 +192,7 @@ async function save() {
         bonus_percent: String(item.bonus_percent)
       }));
       success.value = '等级配置已保存';
-    } else {
+    } else if (activeTab.value === 'investment') {
       const data = await post('/system-config/investment/update', investment.value);
       investment.value = {
         whole_vehicle_tier: String(data.whole_vehicle_tier),
@@ -182,6 +208,13 @@ async function save() {
         guaranteed_dividend_percent: String(data.guaranteed_dividend_percent)
       };
       success.value = '投资配置已保存';
+    } else {
+      const data = await post('/system-config/other/update', other.value);
+      other.value = {
+        platform_operated_vehicles: String(data.platform_operated_vehicles),
+        virtual_users: String(data.virtual_users)
+      };
+      success.value = '其他配置已保存';
     }
   } catch (err) { error.value = err.message || '保存配置失败'; }
   finally { saving.value = false; }
@@ -196,6 +229,7 @@ onMounted(loadLevels);
       <div class="parameter-tabs">
         <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'level' }" type="button" @click="selectTab('level')">等级配置</button>
         <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'investment' }" type="button" @click="selectTab('investment')">投资配置</button>
+        <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'other' }" type="button" @click="selectTab('other')">其他配置</button>
       </div>
       <div v-if="activeTab === 'level'" class="parameter-section-head">
         <div>
@@ -203,10 +237,16 @@ onMounted(loadLevels);
           <p>配置各等级对应的金额阈值，达到对应金额后自动进入该等级。</p>
         </div>
       </div>
-      <div v-else class="parameter-section-head">
+      <div v-else-if="activeTab === 'investment'" class="parameter-section-head">
         <div>
           <h2>投资配置</h2>
           <p>配置整车挡位、投资等待期、百分比区间及达到出局条件的倍数。</p>
+        </div>
+      </div>
+      <div v-else class="parameter-section-head">
+        <div>
+          <h2>其他配置</h2>
+          <p>配置前端展示的平台运营车辆和虚拟用户数量。</p>
         </div>
       </div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
@@ -247,7 +287,7 @@ onMounted(loadLevels);
           </div>
         </section>
       </template>
-      <template v-else>
+      <template v-else-if="activeTab === 'investment'">
         <div v-if="loading" class="investment-loading">正在加载...</div>
         <div v-else class="investment-form">
           <label class="investment-field">
@@ -311,7 +351,20 @@ onMounted(loadLevels);
           </label>
         </div>
       </template>
-      <div v-if="canUpdate" class="level-config-actions"><button class="submit-button" type="button" :disabled="saving || loading || (activeTab === 'investment' && !investmentLoaded)" @click="save">{{ saving ? '保存中...' : '保存配置' }}</button></div>
+      <template v-else>
+        <div v-if="loading" class="investment-loading">正在加载...</div>
+        <div v-else class="investment-form">
+          <label class="investment-field">
+            <span>平台运营车辆</span>
+            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="other.platform_operated_vehicles" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ other.platform_operated_vehicles }}</strong><em>台</em></div>
+          </label>
+          <label class="investment-field">
+            <span>虚拟用户</span>
+            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="other.virtual_users" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ other.virtual_users }}</strong><em>人</em></div>
+          </label>
+        </div>
+      </template>
+      <div v-if="canUpdate" class="level-config-actions"><button class="submit-button" type="button" :disabled="saving || loading || (activeTab === 'investment' && !investmentLoaded) || (activeTab === 'other' && !otherLoaded)" @click="save">{{ saving ? '保存中...' : '保存配置' }}</button></div>
     </section>
   </ManageLayout>
 </template>

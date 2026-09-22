@@ -1,37 +1,75 @@
 <script setup>
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestTeam } from "../lib/api.js";
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
-  totalContribution: { type: Number, default: 1258056 },
-  teamCount: { type: Number, default: 32 },
-  records: {
-    type: Array,
-    default: () => Array.from({ length: 5 }, () => ({
-      time: "2026-09-20 15:00:45",
-      address: "0x0254...1gko9",
-      amount: 1000,
-      teamSize: 28
-    }))
-  }
+  address: { type: String, default: "" },
+  connected: { type: Boolean, default: false },
+  authenticated: { type: Boolean, default: false }
 });
 
 const router = useRouter();
 const { lang } = useLocale();
+const totalContribution = ref("0");
+const teamCount = ref(0);
+const records = ref([]);
+const loading = ref(false);
+const errorMessage = ref("");
+let requestId = 0;
 
 function amount(value, decimals = 2) {
-  return Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
+  const text = String(value ?? "0").trim();
+  if (!/^\d+(?:\.\d+)?$/u.test(text)) return "0";
+  const [integerPart, fractionPart = ""] = text.split(".");
+  const integer = BigInt(integerPart || "0").toLocaleString();
+  if (decimals < 1) return integer;
+  const fraction = fractionPart.slice(0, decimals).padEnd(decimals, "0");
+  return `${integer}.${fraction}`;
 }
 
 function timeParts(value) {
   const [date = "", time = ""] = String(value || "").split(" ");
   return { date, time };
 }
+
+function shortAddress(value) {
+  const text = String(value || "");
+  return text.length > 13 ? `${text.slice(0, 7)}...${text.slice(-5)}` : text;
+}
+
+async function loadTeam() {
+  const currentRequestId = ++requestId;
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+    totalContribution.value = "0";
+    teamCount.value = 0;
+    records.value = [];
+    errorMessage.value = "";
+    return;
+  }
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const data = await requestTeam();
+    if (currentRequestId !== requestId) return;
+    totalContribution.value = String(data?.total_contribution ?? "0");
+    teamCount.value = Number(data?.team_count || 0);
+    records.value = Array.isArray(data?.records) ? data.records : [];
+  } catch (error) {
+    if (currentRequestId !== requestId) return;
+    totalContribution.value = "0";
+    teamCount.value = 0;
+    records.value = [];
+    errorMessage.value = error?.message || lang("加载失败，请稍后重试");
+  } finally {
+    if (currentRequestId === requestId) loading.value = false;
+  }
+}
+
+watch(() => [props.connected, props.authenticated, props.address], loadTeam, { immediate: true });
 </script>
 
 <template>
@@ -52,13 +90,15 @@ function timeParts(value) {
       <h2>{{ lang("团队记录") }}</h2>
       <div class="records-card">
         <div class="record-head"><span>{{ lang("时间") }}</span><span>{{ lang("地址") }}</span><span>{{ lang("参与金额") }}</span><span>{{ lang("团队人数") }}</span></div>
-        <div v-for="(record, index) in props.records" :key="`${record.time}-${record.address}-${index}`" class="record-row">
+        <div v-for="(record, index) in records" :key="`${record.time}-${record.address}-${index}`" class="record-row">
           <span><b>{{ timeParts(record.time).date }}</b><b>{{ timeParts(record.time).time }}</b></span>
-          <span>{{ record.address }}</span>
+          <span :title="record.address">{{ shortAddress(record.address) }}</span>
           <span>{{ amount(record.amount, 0) }} U</span>
-          <span>{{ record.teamSize }}</span>
+          <span>{{ record.team_size }}</span>
         </div>
-        <p v-if="!props.records.length" class="empty-records">{{ lang("暂无团队记录") }}</p>
+        <p v-if="loading" class="empty-records">{{ lang("正在加载...") }}</p>
+        <p v-else-if="errorMessage" class="empty-records">{{ errorMessage }}</p>
+        <p v-else-if="!records.length" class="empty-records">{{ lang("暂无团队记录") }}</p>
       </div>
     </section>
   </section>

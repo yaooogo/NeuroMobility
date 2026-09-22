@@ -15,6 +15,11 @@ import {
     getDefaultGrowthRewardRules,
     normalizeGrowthRewardRules
 } from "../config/growthReward.js"
+import {
+    OTHER_SYS_CONFIG_NAME,
+    getDefaultOtherConfig,
+    normalizeOtherConfig
+} from "../config/otherConfig.js"
 
 export default {
 
@@ -198,5 +203,15 @@ export default {
         )
 
         return normalizeGrowthRewardRules(rules)
+    },
+
+    async getOtherConfig() {
+        const config = await this.getSysConfig(
+            OTHER_SYS_CONFIG_NAME,
+            'json',
+            getDefaultOtherConfig()
+        )
+
+        return normalizeOtherConfig(config)
     },
 }

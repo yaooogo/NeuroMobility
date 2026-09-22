@@ -1,8 +1,9 @@
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import AppHeader from "../components/AppHeader.vue";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestPlatformStats } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
@@ -14,6 +15,12 @@ defineProps({
 
 const emit = defineEmits(["wallet-click", "notification-click", "action"]);
 const { lang } = useLocale();
+const platformStats = ref({ platform_operated_vehicles: 1258, cumulative_users: 56320 });
+function formatCount(value) { return Number(value || 0).toLocaleString(); }
+async function loadPlatformStats() {
+  try { platformStats.value = await requestPlatformStats(); }
+  catch { /* Keep the last/default values when public stats are temporarily unavailable. */ }
+}
 const quickActions = computed(() => [
   { key: "invest", label: lang("投资计划"), icon: requireAsset("@assets/images/icons/coin.png") },
   { key: "cars", label: lang("车辆信息"), icon: requireAsset("@assets/images/icons/car.png") },
@@ -26,6 +33,7 @@ const highlights = computed(() => [
   { title: lang("资金安全透明"), sub: lang("链上可查"), icon: requireAsset("@assets/images/icons/share.png") },
   { title: lang("合伙人体系"), sub: lang("收益多元化"), icon: requireAsset("@assets/images/icons/partner.png") }
 ]);
+onMounted(loadPlatformStats);
 </script>
 
 <template>
@@ -49,8 +57,8 @@ const highlights = computed(() => [
       </div>
 
       <div class="stats-grid">
-        <article><span>{{ lang('平台运营车辆') }}</span><strong>1,258 <small>{{ lang('台') }}</small></strong><i><img :src='requireAsset("@assets/images/icons/car.png")' /></i></article>
-        <article><span>{{ lang('累计用户') }}</span><strong>56,320 <small>{{ lang('人') }}</small></strong><i><img :src='requireAsset("@assets/images/icons/user.png")' /></i></article>
+        <article><span>{{ lang('平台运营车辆') }}</span><strong>{{ formatCount(platformStats.platform_operated_vehicles) }} <small>{{ lang('台') }}</small></strong><i><img :src='requireAsset("@assets/images/icons/car.png")' /></i></article>
+        <article><span>{{ lang('累计用户') }}</span><strong>{{ formatCount(platformStats.cumulative_users) }} <small>{{ lang('人') }}</small></strong><i><img :src='requireAsset("@assets/images/icons/user.png")' /></i></article>
       </div>
 
       <button class="investment-banner" type="button" @click="emit('action', { key: 'invest' })">

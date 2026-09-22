@@ -62,6 +62,18 @@ function publicOrder(row) {
   };
 }
 
+function publicDividend(row) {
+  return {
+    id: Number(row.id || 0),
+    dividend_id: row.dividend_id || '',
+    order_id: row.order_id || '',
+    token: row.token || TOKEN,
+    amount: formatAssetAmount(row.amount || '0', INVESTMENT_DECIMALS),
+    percent: Number(row.percent || 0),
+    time: row.cycle_at || row.created_at || ''
+  };
+}
+
 async function updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, levelRules) {
   const walletRows = await DB.query(configName, connection).exec(
     `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`, [wallet]
@@ -277,4 +289,40 @@ async function detail(req, res) {
   } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentService.detail')); }
 }
 
-export default { create, list, detail };
+async function dividends(req, res) {
+  try {
+    await ensureInvestmentOrderTable();
+    const wallet = address(req.auth?.address());
+    if (!isWallet(wallet)) return res.send(ApiResult.error(400, '钱包地址无效'));
+
+    const now = new Date();
+    const monthStart = Helper.dateFormat('YYYY-mm-01 00:00:00', now);
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const monthEnd = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nextMonth);
+    const prefix = Database.prefix('default') || '';
+    const [summaryRows, rows] = await Promise.all([
+      DB.query().exec(
+        `SELECT COALESCE(SUM(amount), 0) AS total_dividend,
+                COALESCE(SUM(CASE WHEN cycle_at>=? AND cycle_at<? THEN amount ELSE 0 END), 0) AS monthly_dividend
+         FROM ${prefix}investment_dividend
+         WHERE LOWER(wallet)=?`,
+        [monthStart, monthEnd, wallet]
+      ),
+      DB.query().table('investment_dividend')
+        .whereRaw('LOWER(wallet)=?', [wallet])
+        .orderBy('id', 'desc')
+        .take(100)
+        .get()
+    ]);
+    const summary = summaryRows?.[0] || {};
+    return res.send(ApiResult.success({
+      total_dividend: formatAssetAmount(summary.total_dividend || '0', INVESTMENT_DECIMALS),
+      monthly_dividend: formatAssetAmount(summary.monthly_dividend || '0', INVESTMENT_DECIMALS),
+      items: (rows || []).map(publicDividend)
+    }, '获取分红记录成功'));
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'InvestmentService.dividends'));
+  }
+}
+
+export default { create, list, detail, dividends };

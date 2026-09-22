@@ -1,33 +1,68 @@
 <script setup>
+import { ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
+import { requestDividendRecords } from "../lib/api.js";
 import dividendToken from "../assets/images/dividend-token.png";
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
-  totalDividend: { type: Number, default: 12580 },
-  monthlyDividend: { type: Number, default: 325 },
-  records: {
-    type: Array,
-    default: () => ["2026.09.01", "2026.08.01", "2026.07.01", "2026.06.01"].map((date, index) => ({
-      id: index + 1,
-      date,
-      amount: 325,
-      token: "USDT"
-    }))
-  }
+  address: { type: String, default: "" },
+  connected: { type: Boolean, default: false },
+  authenticated: { type: Boolean, default: false }
 });
 
 const router = useRouter();
 const { lang } = useLocale();
+const totalDividend = ref("0");
+const monthlyDividend = ref("0");
+const records = ref([]);
+const loading = ref(false);
+const errorMessage = ref("");
+let requestId = 0;
 
 function amount(value) {
-  return Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+  const text = String(value ?? "0").trim();
+  if (!/^\d+(?:\.\d+)?$/u.test(text)) return "0.00";
+  const [integerPart, fractionPart = ""] = text.split(".");
+  return `${BigInt(integerPart || "0").toLocaleString()}.${fractionPart.slice(0, 2).padEnd(2, "0")}`;
 }
+
+function recordDate(value) {
+  return String(value || "").slice(0, 10).replaceAll("-", ".");
+}
+
+async function loadRecords() {
+  const currentRequestId = ++requestId;
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+    totalDividend.value = "0";
+    monthlyDividend.value = "0";
+    records.value = [];
+    loading.value = false;
+    errorMessage.value = "";
+    return;
+  }
+  loading.value = true;
+  errorMessage.value = "";
+  try {
+    const data = await requestDividendRecords();
+    if (currentRequestId !== requestId) return;
+    totalDividend.value = String(data?.total_dividend ?? "0");
+    monthlyDividend.value = String(data?.monthly_dividend ?? "0");
+    records.value = Array.isArray(data?.items) ? data.items : [];
+  } catch (error) {
+    if (currentRequestId !== requestId) return;
+    totalDividend.value = "0";
+    monthlyDividend.value = "0";
+    records.value = [];
+    errorMessage.value = error?.message || lang("加载失败，请稍后重试");
+  } finally {
+    if (currentRequestId === requestId) loading.value = false;
+  }
+}
+
+watch(() => [props.connected, props.authenticated, props.address], loadRecords, { immediate: true });
 </script>
 
 <template>
@@ -47,12 +82,14 @@ function amount(value) {
     </section>
 
     <div class="dividend-list">
-      <article v-for="record in props.records" :key="record.id" class="dividend-record">
+      <article v-for="record in records" :key="record.id" class="dividend-record">
         <img :src="dividendToken" alt="" />
-        <time>{{ record.date }}</time>
+        <time>{{ recordDate(record.time) }}</time>
         <strong>+ {{ amount(record.amount) }} {{ record.token }}</strong>
       </article>
-      <p v-if="!props.records.length" class="dividend-empty">{{ lang("暂无分红记录") }}</p>
+      <p v-if="loading" class="dividend-empty">{{ lang("正在加载...") }}</p>
+      <p v-else-if="errorMessage" class="dividend-empty">{{ errorMessage }}</p>
+      <p v-else-if="!records.length" class="dividend-empty">{{ lang("暂无分红记录") }}</p>
     </div>
   </section>
 </template>

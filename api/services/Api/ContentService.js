@@ -3,6 +3,7 @@ import DB from '../../Util/database/DB.js';
 import { normalizeContentLanguage } from '../../Util/ContentLanguage.js';
 import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTable, ensureVehicleTable } from '../../Util/ContentSchema.js';
 import CacheData from '../../Util/CacheData.js';
+import Database from '../../Util/Database.js';
 
 function normalizeVehicleTags(value) {
   try {
@@ -133,4 +134,24 @@ async function investmentConfig(req, res) {
   }
 }
 
-export default { announcements, helpArticles, about, vehicles, investmentConfig };
+async function platformStats(req, res) {
+  try {
+    const prefix = Database.prefix('default') || '';
+    const [config, userRows] = await Promise.all([
+      CacheData.getOtherConfig(),
+      DB.query().exec(`SELECT COUNT(*) AS count FROM ${prefix}wallet`)
+    ]);
+    const realUsers = Number(userRows?.[0]?.count || 0);
+    const virtualUsers = Number(config.virtual_users || 0);
+    return res.send(ApiResult.success({
+      platform_operated_vehicles: Number(config.platform_operated_vehicles || 0),
+      real_users: realUsers,
+      virtual_users: virtualUsers,
+      cumulative_users: realUsers + virtualUsers
+    }, '获取平台统计成功'));
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'ContentService.platformStats'));
+  }
+}
+
+export default { announcements, helpArticles, about, vehicles, investmentConfig, platformStats };
