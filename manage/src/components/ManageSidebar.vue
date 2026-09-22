@@ -14,6 +14,7 @@ const user = getUser();
     <nav class="menu-list">
       <router-link v-if="can(user, 'overview')" class="menu-item" active-class="menu-item--active" to="/overview">首页总览</router-link>
       <router-link v-if="can(user, 'investment-orders')" class="menu-item" active-class="menu-item--active" to="/investment-orders">投资订单</router-link>
+      <router-link v-if="can(user, 'position-salary-records')" class="menu-item" active-class="menu-item--active" to="/position-salary-records">岗位工资记录</router-link>
       <router-link v-if="can(user, 'wallets')" class="menu-item" active-class="menu-item--active" to="/wallets">钱包管理</router-link>
       <router-link v-if="can(user, 'wallet-network')" class="menu-item" active-class="menu-item--active" to="/wallet-network">网体图</router-link>
       <router-link v-if="can(user, 'wallet-assets')" class="menu-item" active-class="menu-item--active" to="/wallet-assets">钱包资产管理</router-link>

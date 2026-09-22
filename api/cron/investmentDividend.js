@@ -134,7 +134,7 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
       [reward.wallet, order.token || 'USDT']
     );
     const asset = assetRows?.[0];
-    if (!asset) throw new Error(`极差收益资产账户不存在: ${reward.wallet} ${order.token || 'USDT'}`);
+    if (!asset) throw new Error(`毛利分成资产账户不存在: ${reward.wallet} ${order.token || 'USDT'}`);
     const before = BigInt(String(asset.balance || '0'));
     const after = before + assetReward;
     await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({

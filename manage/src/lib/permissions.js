@@ -10,6 +10,7 @@ export function firstPage(user) {
   if (can(user, 'deposit-orders')) return '/deposit-orders';
   if (can(user, 'withdrawal-orders')) return '/withdrawal-orders';
   if (can(user, 'investment-orders')) return '/investment-orders';
+  if (can(user, 'position-salary-records')) return '/position-salary-records';
   if (can(user, 'help-articles')) return '/help-articles';
   if (can(user, 'announcements')) return '/announcements';
   if (can(user, 'about')) return '/about';
