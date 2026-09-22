@@ -10,6 +10,11 @@ import {
     getDefaultInvestmentConfig,
     normalizeInvestmentConfig
 } from "../config/investmentConfig.js"
+import {
+    GROWTH_REWARD_SYS_CONFIG_NAME,
+    getDefaultGrowthRewardRules,
+    normalizeGrowthRewardRules
+} from "../config/growthReward.js"
 
 export default {
 
@@ -183,5 +188,15 @@ export default {
         )
 
         return normalizeInvestmentConfig(config)
+    },
+
+    async getGrowthRewardRules() {
+        const rules = await this.getSysConfig(
+            GROWTH_REWARD_SYS_CONFIG_NAME,
+            'json',
+            getDefaultGrowthRewardRules()
+        )
+
+        return normalizeGrowthRewardRules(rules)
     },
 }

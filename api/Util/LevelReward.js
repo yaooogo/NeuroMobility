@@ -33,7 +33,7 @@ export function calculateLevelRewardRates(ancestors, levelRules, percentField) {
       ? configuredPercent - lowerLevelPercentTotal
       : 0n;
     lowerLevelPercentTotal += configuredPercent;
-    if (recipient.wallet && rewardPercent > 0n) rewards.push({ ...recipient, percent: rewardPercent });
+    if (recipient.wallet) rewards.push({ ...recipient, percent: rewardPercent });
   }
   return rewards;
 }

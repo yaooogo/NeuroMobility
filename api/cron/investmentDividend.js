@@ -7,6 +7,7 @@ import Helper from '../Util/Helper.js';
 import { ensureAssetTransferTables } from '../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../Util/InvestmentSchema.js';
 import { calculateLevelRewardRates } from '../Util/LevelReward.js';
+import growthSnapshot from './growthSnapshot.js';
 
 const INVESTMENT_DECIMALS = 18;
 const PERCENT_DECIMALS = 4;
@@ -84,24 +85,38 @@ export function calculateDifferentialRewardRates(ancestors, levelRules) {
   return calculateLevelRewardRates(ancestors, levelRules, 'differential_percent');
 }
 
+export function calculateGrossRewardAmount(payout, differentialPercent, growthPercent) {
+  return BigInt(payout) * (BigInt(differentialPercent) + BigInt(growthPercent)) / PERCENT_DENOMINATOR;
+}
+
 async function distributeDifferentialRewards(configName, connection, prefix, order, payout, tokenDecimals, levelRules, dividendId, now) {
   if (payout <= 0n) return;
+  const snapshotMonth = String(now || '').slice(0, 7);
   const ancestors = await DB.query(configName, connection).exec(
     `SELECT relation.inviter AS wallet,
             relation.lv,
             member.level,
             member.manual_level,
-            member.is_manual_level
+            member.is_manual_level,
+            COALESCE(growth.growth_percent, 0) AS growth_percent
      FROM ${prefix}wallet_relation AS relation
      INNER JOIN ${prefix}wallet AS member
        ON LOWER(member.wallet)=LOWER(relation.inviter)
+     LEFT JOIN ${prefix}wallet_growth_snapshot AS growth
+       ON growth.wallet=LOWER(relation.inviter)
+      AND growth.snapshot_month=?
      WHERE LOWER(relation.wallet)=?
      ORDER BY relation.lv ASC`,
-    [String(order.wallet || '').toLowerCase()]
+    [snapshotMonth, String(order.wallet || '').toLowerCase()]
   );
   const rewards = calculateDifferentialRewardRates(ancestors, levelRules);
+  const growthPercentByWallet = new Map((ancestors || []).map(item => [
+    String(item.wallet || '').trim().toLowerCase(),
+    scaledDecimal(item.growth_percent || '0', PERCENT_DECIMALS)
+  ]));
   for (const reward of rewards) {
-    const investmentReward = payout * reward.percent / PERCENT_DENOMINATOR;
+    const growthPercent = growthPercentByWallet.get(reward.wallet) || 0n;
+    const investmentReward = calculateGrossRewardAmount(payout, reward.percent, growthPercent);
     const assetReward = scaleRaw(investmentReward, INVESTMENT_DECIMALS, tokenDecimals);
     if (assetReward <= 0n) continue;
     const assetRows = await DB.query(configName, connection).exec(
@@ -241,6 +256,7 @@ async function processOrder(candidate, tokenDecimals, levelRules) {
 }
 
 async function distribute() {
+  await growthSnapshot.capture();
   await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
   const levelRules = await CacheData.getWalletLevelRules();
   const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
