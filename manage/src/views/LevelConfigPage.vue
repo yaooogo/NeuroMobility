@@ -32,7 +32,11 @@ async function loadLevels() {
   loading.value = true; error.value = '';
   try {
     const data = await post('/system-config/wallet-level');
-    rules.value = (data.rules || []).map(item => ({ level: String(item.level), amount: String(item.amount) }));
+    rules.value = (data.rules || []).map(item => ({
+      level: String(item.level),
+      amount: String(item.amount),
+      differential_percent: String(item.differential_percent ?? 0)
+    }));
   } catch (err) { error.value = err.message || '加载等级配置失败'; }
   finally { loading.value = false; }
 }
@@ -65,9 +69,14 @@ async function selectTab(tab) {
 }
 
 function validateLevels() {
-  const normalized = rules.value.map(item => ({ level: Number(item.level), amount: Number(item.amount) }));
+  const normalized = rules.value.map(item => ({
+    level: Number(item.level),
+    amount: Number(item.amount),
+    differentialPercent: Number(item.differential_percent)
+  }));
   if (normalized.length !== 3 || normalized.some((item, index) => item.level !== 3 - index)) return '等级配置固定为 1、2、3 级';
   if (normalized.some(item => !Number.isFinite(item.amount) || item.amount < 0)) return '金额必须为非负数';
+  if (normalized.some(item => !Number.isFinite(item.differentialPercent) || item.differentialPercent < 0 || item.differentialPercent > 100)) return '极差收益必须在 0% 到 100% 之间';
   for (let index = 0; index < normalized.length - 1; index += 1) {
     if (normalized[index].amount <= normalized[index + 1].amount) return `等级 ${normalized[index].level} 的金额必须高于等级 ${normalized[index + 1].level}`;
   }
@@ -108,7 +117,11 @@ async function save() {
   try {
     if (activeTab.value === 'level') {
       const data = await post('/system-config/wallet-level/update', { rules: rules.value });
-      rules.value = (data.rules || []).map(item => ({ level: String(item.level), amount: String(item.amount) }));
+      rules.value = (data.rules || []).map(item => ({
+        level: String(item.level),
+        amount: String(item.amount),
+        differential_percent: String(item.differential_percent ?? 0)
+      }));
       success.value = '等级配置已保存';
     } else {
       const data = await post('/system-config/investment/update', investment.value);
@@ -157,12 +170,13 @@ onMounted(loadLevels);
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div v-if="activeTab === 'level'" class="table-wrap level-config-wrap">
         <table class="data-table level-config-table">
-          <thead><tr><th>等级</th><th>金额</th></tr></thead>
+          <thead><tr><th>等级</th><th>金额</th><th>极差收益（%）</th></tr></thead>
           <tbody>
-            <tr v-if="loading"><td colspan="2" class="empty-cell">正在加载...</td></tr>
+            <tr v-if="loading"><td colspan="3" class="empty-cell">正在加载...</td></tr>
             <tr v-for="row in rules" :key="row.level">
               <td><strong>{{ row.level }}</strong></td>
               <td><input v-if="canUpdate" v-model.trim="row.amount" class="text-input" type="number" min="0" step="0.01" /><span v-else>{{ row.amount }}</span></td>
+              <td><input v-if="canUpdate" v-model.trim="row.differential_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><span v-else>{{ row.differential_percent }}%</span></td>
             </tr>
           </tbody>
         </table>
@@ -246,7 +260,7 @@ onMounted(loadLevels);
 .parameter-section-head p { margin:  0 0 16px; color: var(--muted); }
 .level-config-wrap { margin: 0 24px; width: auto; }
 .level-config-table { min-width: 620px; }
-.level-config-table th:nth-child(1), .level-config-table td:nth-child(1) { width: 28%; }
+.level-config-table th:nth-child(1), .level-config-table td:nth-child(1) { width: 20%; }
 .investment-form { display: grid; gap: 20px; margin: 0 24px 26px; max-width: 720px; }
 .investment-field { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 18px; }
 .investment-field > span { font-weight: 600; }

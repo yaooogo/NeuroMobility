@@ -56,7 +56,11 @@ function format(row) {
   return {
     id: Number(row?.id || 0), name: row?.name || WALLET_LEVEL_SYS_CONFIG_NAME,
     brief: row?.brief || BRIEF,
-    rules: parseRules(row?.value).map(item => ({ level: item.level, amount: item.min_price }))
+    rules: parseRules(row?.value).map(item => ({
+      level: item.level,
+      amount: item.min_price,
+      differential_percent: item.differential_percent
+    }))
   };
 }
 
@@ -77,7 +81,11 @@ async function walletLevelDetail(req, res) {
 async function walletLevelUpdate(req, res) {
   try {
     const rawRules = Array.isArray(req.body?.rules) ? req.body.rules : [];
-    const rules = validateWalletLevelRules(rawRules.map(item => ({ level: item?.level, min_price: item?.amount })));
+    const rules = validateWalletLevelRules(rawRules.map(item => ({
+      level: item?.level,
+      min_price: item?.amount,
+      differential_percent: item?.differential_percent
+    })));
     const row = await ensureRow();
     await DB.query().table(TABLE_NAME).where('id', row.id).update({ value: JSON.stringify(rules), brief: BRIEF });
     await CacheData.removeWalletLevelRules();
