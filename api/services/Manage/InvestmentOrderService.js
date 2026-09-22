@@ -23,6 +23,21 @@ function normalize(row) {
   };
 }
 
+function normalizeDividend(row) {
+  return {
+    id: Number(row.id || 0),
+    dividend_id: row.dividend_id || '',
+    order_id: row.order_id || '',
+    wallet: row.wallet || '',
+    token: row.token || 'USDT',
+    cycle_at: row.cycle_at || '',
+    percent: Number(row.percent || 0),
+    amount: formatAssetAmount(row.amount || '0', 18),
+    created_at: row.created_at || '',
+    updated_at: row.updated_at || ''
+  };
+}
+
 async function list(req, res) {
   try {
     await ensureInvestmentOrderTable();
@@ -47,4 +62,23 @@ async function list(req, res) {
   } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.list')); }
 }
 
-export default { list };
+async function dividendList(req, res) {
+  try {
+    await ensureInvestmentOrderTable();
+    const orderId = String(req.body?.order_id || '').trim();
+    if (!orderId) return res.send(ApiResult.error(400, '投资订单号不能为空'));
+
+    const page = Math.max(Helper.parseInt(req.body?.page, 1), 1);
+    const pageSize = Math.min(Math.max(Helper.parseInt(req.body?.page_size, 20), 1), 100);
+    const result = await DB.query().table('investment_dividend')
+      .where('order_id', orderId)
+      .orderBy('id', 'desc')
+      .paginate(page, pageSize);
+    return res.send(ApiResult.success({
+      items: (result.items || []).map(normalizeDividend), total: result.total, page: result.currentPage,
+      page_size: result.perPage, last_page: result.lastPage
+    }, '获取投资分红记录成功'));
+  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.dividendList')); }
+}
+
+export default { list, dividendList };

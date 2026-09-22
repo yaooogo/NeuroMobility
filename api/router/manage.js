@@ -117,6 +117,7 @@ router.route('/withdrawal-order/list').post(TransferOrderService.withdrawalList)
 router.route('/withdrawal-order/export').post(TransferOrderService.withdrawalExport)
 router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCancel)
 router.route('/investment-order/list').post(InvestmentOrderService.list)
+router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
 
 // 钱包与钱包资产
 router.route('/wallet/list').post(WalletService.walletList)
