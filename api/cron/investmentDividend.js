@@ -6,6 +6,7 @@ import DB from '../Util/database/DB.js';
 import Helper from '../Util/Helper.js';
 import { ensureAssetTransferTables } from '../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../Util/InvestmentSchema.js';
+import { calculateLevelRewardRates } from '../Util/LevelReward.js';
 
 const INVESTMENT_DECIMALS = 18;
 const PERCENT_DECIMALS = 4;
@@ -80,33 +81,7 @@ export function calculateDividendPayout(order, selectPercent = randomPercent) {
 }
 
 export function calculateDifferentialRewardRates(ancestors, levelRules) {
-  const rulesByLevel = new Map((levelRules || []).map(rule => [
-    Number(rule.level || 0),
-    scaledDecimal(rule.differential_percent || '0', PERCENT_DECIMALS)
-  ]));
-  const recipientsByLevel = new Map();
-  for (const ancestor of ancestors || []) {
-    const level = Number(ancestor.is_manual_level) === 1
-      ? Number(ancestor.manual_level || 0)
-      : Number(ancestor.level || 0);
-    if (!rulesByLevel.has(level) || recipientsByLevel.has(level)) continue;
-    recipientsByLevel.set(level, {
-      wallet: String(ancestor.wallet || ancestor.inviter || '').trim().toLowerCase(),
-      level
-    });
-  }
-
-  let lowerLevelPercentTotal = 0n;
-  const rewards = [];
-  for (const recipient of [...recipientsByLevel.values()].sort((a, b) => a.level - b.level)) {
-    const configuredPercent = rulesByLevel.get(recipient.level) || 0n;
-    const rewardPercent = configuredPercent > lowerLevelPercentTotal
-      ? configuredPercent - lowerLevelPercentTotal
-      : 0n;
-    lowerLevelPercentTotal += configuredPercent;
-    if (recipient.wallet && rewardPercent > 0n) rewards.push({ ...recipient, percent: rewardPercent });
-  }
-  return rewards;
+  return calculateLevelRewardRates(ancestors, levelRules, 'differential_percent');
 }
 
 async function distributeDifferentialRewards(configName, connection, prefix, order, payout, tokenDecimals, levelRules, dividendId, now) {

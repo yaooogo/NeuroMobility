@@ -7,6 +7,10 @@ import Helper from '../../Util/Helper.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import {
+  LEVEL_REWARD_PERCENT_DENOMINATOR,
+  calculateLevelRewardRates
+} from '../../Util/LevelReward.js';
 
 const TOKEN = 'USDT';
 const INVESTMENT_DECIMALS = 18;
@@ -14,6 +18,12 @@ const INVESTMENT_DECIMALS = 18;
 function address(value) { return String(value || '').trim().toLowerCase(); }
 function isWallet(value) { return /^0x[a-f0-9]{40}$/u.test(address(value)); }
 function addDays(value, days) { return new Date(value.getTime() + Number(days || 0) * 86400000); }
+function scaleRaw(value, fromDecimals, toDecimals) {
+  const raw = BigInt(value);
+  if (fromDecimals === toDecimals) return raw;
+  const factor = 10n ** BigInt(Math.abs(toDecimals - fromDecimals));
+  return toDecimals > fromDecimals ? raw * factor : raw / factor;
+}
 function orderId() {
   const stamp = Helper.dateFormat('YYYYmmddHHMMSS', new Date());
   return `N${stamp}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
@@ -52,7 +62,7 @@ function publicOrder(row) {
   };
 }
 
-async function updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw) {
+async function updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, levelRules) {
   const walletRows = await DB.query(configName, connection).exec(
     `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`, [wallet]
   );
@@ -71,7 +81,7 @@ async function updateInvestmentTotals(configName, connection, prefix, wallet, am
 
   const ancestors = await DB.query(configName, connection).table('wallet_relation')
     .whereRaw('LOWER(wallet)=?', [wallet]).orderBy('lv', 'asc').get();
-  const rules = (await CacheData.getWalletLevelRules()).slice().sort((a, b) => b.level - a.level);
+  const rules = levelRules.slice().sort((a, b) => b.level - a.level);
   for (const ancestor of ancestors || []) {
     const inviter = address(ancestor.inviter);
     if (!inviter) continue;
@@ -93,12 +103,61 @@ async function updateInvestmentTotals(configName, connection, prefix, wallet, am
   return investsAfter;
 }
 
+async function distributeExpansionRewards(configName, connection, prefix, wallet, amountRaw, assetDecimals, levelRules, newOrderId, now) {
+  const ancestors = await DB.query(configName, connection).exec(
+    `SELECT relation.inviter AS wallet,
+            relation.lv,
+            member.level,
+            member.manual_level,
+            member.is_manual_level
+     FROM ${prefix}wallet_relation AS relation
+     INNER JOIN ${prefix}wallet AS member
+       ON LOWER(member.wallet)=LOWER(relation.inviter)
+     WHERE LOWER(relation.wallet)=?
+     ORDER BY relation.lv ASC`,
+    [wallet]
+  );
+  const rewards = calculateLevelRewardRates(ancestors, levelRules, 'expansion_reward_percent');
+  for (const reward of rewards) {
+    const configuredReward = amountRaw * reward.percent / LEVEL_REWARD_PERCENT_DENOMINATOR;
+    const assetReward = scaleRaw(configuredReward, INVESTMENT_DECIMALS, assetDecimals);
+    if (assetReward <= 0n) continue;
+    const assetRows = await DB.query(configName, connection).exec(
+      `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
+      [reward.wallet, TOKEN]
+    );
+    const asset = assetRows?.[0];
+    if (!asset) throw new Error(`拓展奖励资产账户不存在: ${reward.wallet} ${TOKEN}`);
+    const before = BigInt(String(asset.balance || '0'));
+    const after = before + assetReward;
+    await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
+      balance: after.toString(), updated_at: now
+    });
+    await DB.query(configName, connection).table('wallet_assets_logs').insert({
+      biz_id: `${newOrderId}E${reward.level}`,
+      wallet: reward.wallet,
+      token: TOKEN,
+      balance: assetReward.toString(),
+      before_balance: before.toString(),
+      after_balance: after.toString(),
+      scene: 'investment_expansion_reward',
+      reason: `Investment expansion reward ${newOrderId} level ${reward.level}`,
+      type: 'in',
+      created_at: now,
+      updated_at: now
+    });
+  }
+}
+
 async function create(req, res) {
   try {
     await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
     const wallet = address(req.auth?.address());
     if (!isWallet(wallet)) return res.send(ApiResult.error(400, '钱包地址无效'));
-    const investmentConfig = await CacheData.getInvestmentConfig();
+    const [investmentConfig, levelRules] = await Promise.all([
+      CacheData.getInvestmentConfig(),
+      CacheData.getWalletLevelRules()
+    ]);
     const amountText = String(req.body?.amount ?? '').trim();
     const amountRaw = BigInt(parseAssetAmount(amountText, INVESTMENT_DECIMALS));
     const minimumRaw = BigInt(parseAssetAmount(String(investmentConfig.minimum_investment_amount), INVESTMENT_DECIMALS));
@@ -133,7 +192,18 @@ async function create(req, res) {
         before_balance: before.toString(), after_balance: after.toString(), scene: 'investment',
         reason: `Investment order ${newOrderId}`, type: 'out', created_at: now, updated_at: now
       });
-      const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw);
+      const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, levelRules);
+      await distributeExpansionRewards(
+        configName,
+        connection,
+        prefix,
+        wallet,
+        amountRaw,
+        assetDecimals,
+        levelRules,
+        newOrderId,
+        now
+      );
       if (investsAfter >= wholeRaw) {
         await DB.query(configName, connection).table('investment_order')
           .whereRaw('LOWER(wallet)=?', [wallet]).whereIn('status', [0, 1])
