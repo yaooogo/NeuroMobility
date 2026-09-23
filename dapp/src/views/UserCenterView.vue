@@ -191,7 +191,7 @@ watch(() => [props.connected, props.authenticated, props.address], loadProfile, 
 .mobility-banner { position: relative; width: 100%; height: 123px; margin-top: 18px; padding: 0; border: 0; border-radius: 11px; background: #2171e9 url("../assets/images/profile-banner.jpg") center/cover no-repeat; color: #fff; text-align: left; overflow: hidden; cursor: pointer; }
 .mobility-banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(24,101,235,.94) 0%, rgba(29,107,235,.77) 40%, transparent 70%); }
 .mobility-banner > span { position: relative; z-index: 1; display: block; padding: 33px 14px; }
-.mobility-banner strong { display: block; font-size: 22px; line-height: 1.2; }
+.mobility-banner strong { display: block; font-size: 20px; line-height: 1.2; }
 .mobility-banner small { display: block; margin-top: 7px; font-size: 13px; }
 @media (max-width: 390px) {
   .profile-hero { padding-left: 21px; padding-right: 21px; }
