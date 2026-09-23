@@ -8,6 +8,7 @@ import ChainConfig from '../../Util/ChainConfig.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 
 const TOKEN = 'USDT';
 const WITHDRAW_TTL_SECONDS = 15 * 60;
@@ -38,9 +39,9 @@ function tokenPublic(item) {
 
 async function getContext(req) {
   const wallet = address(req.auth?.address());
-  if (!isWallet(wallet)) throw new Error('钱包地址无效');
+  if (!isWallet(wallet)) throw new Error('Invalid wallet address');
   const token = await AssetToken.getTokenItem(TOKEN);
-  if (!token || !isWallet(token.contract)) throw new Error('USDT 资产配置不完整');
+  if (!token || !isWallet(token.contract)) throw new Error('USDT asset configuration is incomplete');
   return { wallet, token, decimals: Number(token.decimals || AssetToken.DEFAULT_DECIMALS) };
 }
 
@@ -148,9 +149,9 @@ async function overview(req, res) {
       balance: formatAssetAmount(asset?.balance || '0', decimals),
       frozen_balance: formatAssetAmount(asset?.frozen_balance || '0', decimals),
       raw_balance: String(asset?.balance || '0')
-    }, '获取资产信息成功'));
+    }, 'Asset information retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'AssetService.overview'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'AssetService.overview'));
   }
 }
 
@@ -160,27 +161,27 @@ async function prepareWithdrawal(req, res) {
     const { wallet, token, decimals } = await getContext(req);
     await releaseExpiredWithdrawals(wallet);
     const target = address(req.body?.address || wallet);
-    if (target !== wallet) return res.send(ApiResult.error(400, '提现地址必须与当前登录钱包一致'));
-    if (Number(token.withdrawable || 0) !== 1) return res.send(ApiResult.error(400, '当前资产暂不支持提现'));
+    if (target !== wallet) return res.send(ApiResult.error(400, 'The withdrawal address must match the connected wallet'));
+    if (Number(token.withdrawable || 0) !== 1) return res.send(ApiResult.error(400, 'Withdrawals are not supported for this asset'));
 
     const walletInfo = await DB.query().table('wallet').whereRaw('LOWER(wallet)=?', [wallet]).first();
-    if (!walletInfo || Number(walletInfo.status || 0) !== 1) return res.send(ApiResult.error(403, '当前账户不可用'));
+    if (!walletInfo || Number(walletInfo.status || 0) !== 1) return res.send(ApiResult.error(403, 'This account is unavailable'));
     if (Number(walletInfo.withdraw_enabled || 0) !== 1 || Number(walletInfo.usdt_withdraw_enabled || 0) !== 1) {
-      return res.send(ApiResult.error(403, '当前账户未开启 USDT 提现'));
+      return res.send(ApiResult.error(403, 'USDT withdrawals are not enabled for this account'));
     }
 
     const rawDebit = BigInt(parseAssetAmount(req.body?.amount, decimals));
     const rawMinimum = BigInt(parseAssetAmount(String(token.withdraw_min_amount || '0'), decimals));
-    if (rawDebit <= 0n || rawDebit < rawMinimum) return res.send(ApiResult.error(400, `最低提现 ${token.withdraw_min_amount} USDT`));
+    if (rawDebit <= 0n || rawDebit < rawMinimum) return res.send(ApiResult.error(400, `The minimum withdrawal amount is ${token.withdraw_min_amount} USDT`));
     const rawFee = calculateFee(rawDebit, token, decimals);
-    if (rawFee >= rawDebit) return res.send(ApiResult.error(400, '提现金额必须大于手续费'));
+    if (rawFee >= rawDebit) return res.send(ApiResult.error(400, 'The withdrawal amount must be greater than the service fee'));
     const rawClaim = rawDebit - rawFee;
     const dailyLimit = BigInt(parseAssetAmount(String(token.withdraw_daily_limit || '0'), decimals));
     const orderId = createOrderId();
     const deadline = Math.floor(Date.now() / 1000) + WITHDRAW_TTL_SECONDS;
     const withdrawalContract = String(ChainConfig.getContract('TokenWithdrawal').address || '').trim();
     const privateKey = String(ChainConfig.getVerifyAddrPk() || '').trim();
-    if (!isWallet(withdrawalContract) || !privateKey) return res.send(ApiResult.error(500, '提现合约配置不完整'));
+    if (!isWallet(withdrawalContract) || !privateKey) return res.send(ApiResult.error(500, 'Withdrawal contract configuration is incomplete'));
 
     const signer = new ethers.Wallet(privateKey);
     const signature = ethers.Signature.from(await signer.signTypedData(
@@ -203,7 +204,7 @@ async function prepareWithdrawal(req, res) {
       const locked = rows?.[0];
       const before = BigInt(String(locked?.balance || '0'));
       const frozenBefore = BigInt(String(locked?.frozen_balance || '0'));
-      if (before < rawDebit) throw new Error('可用余额不足');
+      if (before < rawDebit) throw new Error('Insufficient available balance');
 
       if (dailyLimit > 0n) {
         const today = Helper.dateFormat('YYYY-mm-dd', new Date());
@@ -211,7 +212,7 @@ async function prepareWithdrawal(req, res) {
           `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE LOWER(wallet)=? AND token=? AND status IN (0,1,2) AND created_at>=?`,
           [wallet, TOKEN, `${today} 00:00:00`]
         );
-        if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > dailyLimit) throw new Error('超过每日提现限额');
+        if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > dailyLimit) throw new Error('Daily withdrawal limit exceeded');
       }
 
       await DB.query(config, connection).table('wallet_assets').where('id', locked.id).update({
@@ -239,10 +240,11 @@ async function prepareWithdrawal(req, res) {
       amount: rawClaim.toString(), service_amount: rawFee.toString(), debit_amount: rawDebit.toString(),
       deadline, v: signature.v, r: signature.r, s: signature.s,
       display_amount: formatAssetAmount(rawClaim, decimals), display_fee: formatAssetAmount(rawFee, decimals)
-    }, '提现订单已创建'));
+    }, 'Withdrawal order created successfully'));
   } catch (error) {
-    if (/余额不足|每日提现限额|资产金额/u.test(error.message || '')) return res.send(ApiResult.error(400, error.message));
-    return res.send(ApiResult.exception(error, 'AssetService.prepareWithdrawal'));
+    const message = toDappApiMessage(error);
+    if (/Insufficient available balance|Daily withdrawal limit|asset amount/iu.test(message)) return res.send(ApiResult.error(400, message));
+    return res.send(ApiResult.exception(toDappApiError(error), 'AssetService.prepareWithdrawal'));
   }
 }
 
@@ -252,16 +254,16 @@ async function withdrawalSubmitted(req, res) {
     const wallet = address(req.auth?.address());
     const orderId = String(req.body?.order_id || '').trim();
     const txHash = String(req.body?.tx_hash || '').trim();
-    if (!orderId || !/^0x[0-9a-f]{64}$/iu.test(txHash)) return res.send(ApiResult.error(400, '提现交易信息无效'));
+    if (!orderId || !/^0x[0-9a-f]{64}$/iu.test(txHash)) return res.send(ApiResult.error(400, 'Invalid withdrawal transaction information'));
     const row = await DB.query().table('withdrawal_order').where('order_id', orderId).whereRaw('LOWER(wallet)=?', [wallet]).first();
-    if (!row) return res.send(ApiResult.error(404, '提现订单不存在'));
+    if (!row) return res.send(ApiResult.error(404, 'Withdrawal order not found'));
     if (Number(row.status || 0) === 0) {
       const rpc = (ChainConfig.getRpcs() || []).find(Boolean);
       const withdrawalContract = address(ChainConfig.getContract('TokenWithdrawal').address);
-      if (!rpc || !isWallet(withdrawalContract)) return res.send(ApiResult.error(500, '提现链配置不完整'));
+      if (!rpc || !isWallet(withdrawalContract)) return res.send(ApiResult.error(500, 'Withdrawal network configuration is incomplete'));
       const receipt = await new ethers.JsonRpcProvider(rpc).getTransactionReceipt(txHash);
       if (!receipt || Number(receipt.status) !== 1 || address(receipt.to) !== withdrawalContract) {
-        return res.send(ApiResult.error(400, '未找到有效的提现链上回执'));
+        return res.send(ApiResult.error(400, 'No valid on-chain withdrawal receipt was found'));
       }
       const iface = new ethers.Interface([
         'event Claimed(address indexed token,uint256 indexed orderId,address indexed user,uint256 claimAmount,uint256 serviceAmount,address feeReceiver,uint256 claimTime)'
@@ -276,12 +278,12 @@ async function withdrawalSubmitted(req, res) {
           return false;
         }
       });
-      if (!claimed) return res.send(ApiResult.error(400, '提现链上回执与订单不匹配'));
+      if (!claimed) return res.send(ApiResult.error(400, 'The on-chain withdrawal receipt does not match the order'));
       await DB.query().table('withdrawal_order').where('id', row.id).update({ status: 1, tx_hash: txHash, updated_at: Helper.dateFormat() });
     }
-    return res.send(ApiResult.success({ order_id: orderId, tx_hash: txHash }, '提现交易已提交'));
+    return res.send(ApiResult.success({ order_id: orderId, tx_hash: txHash }, 'Withdrawal transaction submitted successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'AssetService.withdrawalSubmitted'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'AssetService.withdrawalSubmitted'));
   }
 }
 
@@ -296,9 +298,9 @@ async function records(req, res) {
       ...(deposits || []).map(row => ({ id: `deposit-${row.id}`, type: 'deposit', amount: formatAssetAmount(row.amount || '0', decimals), token: row.token || TOKEN, status: 2, tx_hash: row.tx_hash || '', time: row.created_at || '' })),
       ...(withdrawals || []).map(row => ({ id: `withdraw-${row.id}`, type: 'withdraw', amount: formatAssetAmount(row.debit_amount || '0', decimals), token: row.token || TOKEN, status: Number(row.status || 0), tx_hash: row.tx_hash || '', time: row.created_at || '' }))
     ].sort((a, b) => String(b.time).localeCompare(String(a.time))).slice(0, 100);
-    return res.send(ApiResult.success({ items, token: tokenPublic(token) }, '获取充提记录成功'));
+    return res.send(ApiResult.success({ items, token: tokenPublic(token) }, 'Deposit and withdrawal records retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'AssetService.records'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'AssetService.records'));
   }
 }
 

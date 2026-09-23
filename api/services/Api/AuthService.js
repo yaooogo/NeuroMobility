@@ -7,6 +7,7 @@ import EthereumUtils from "../../Util/EthereumUtils.js";
 import Wallet from "../../Util/Wallet.js";
 import CacheData from "../../Util/CacheData.js";
 import { formatAssetAmount, parseAssetAmount } from "../../Util/AssetAmount.js";
+import { toDappApiError, toDappApiMessage } from "../../Util/DappApiMessage.js";
 
 const signMessage = `
 Welcome to ${Config.APP_NAME}
@@ -43,7 +44,7 @@ export default {
         })
       );
     } catch (error) {
-      return res.send(ApiResult.exception(error, "AuthService.loginNonce"));
+      return res.send(ApiResult.exception(toDappApiError(error), "AuthService.loginNonce"));
     }
   },
 
@@ -64,7 +65,7 @@ export default {
         ref_code: inviter.ref_code || ""
       }));
     } catch (error) {
-      return res.send(ApiResult.exception(error, "AuthService.resolveInviter"));
+      return res.send(ApiResult.exception(toDappApiError(error), "AuthService.resolveInviter"));
     }
   },
 
@@ -123,7 +124,7 @@ export default {
         ref_code: authResult.data.ref_code || ""
       }));
     } catch (error) {
-      return res.send(ApiResult.exception(error, "AuthService.login"));
+      return res.send(ApiResult.exception(toDappApiError(error), "AuthService.login"));
     }
   },
 
@@ -156,7 +157,7 @@ export default {
         level_progress_percent: Number(boundedProgressBasisPoints) / 100
       }));
     } catch (error) {
-      return res.send(ApiResult.exception(error, "AuthService.profile"));
+      return res.send(ApiResult.exception(toDappApiError(error), "AuthService.profile"));
     }
   },
 
@@ -165,7 +166,7 @@ export default {
       await Auth.forgetToken(req, res);
       return res.send(ApiResult.success());
     } catch (ex) {
-      return res.send(ApiResult.error(130001, ex.message));
+      return res.send(ApiResult.error(130001, toDappApiMessage(ex)));
     }
   }
 };

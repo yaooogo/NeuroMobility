@@ -4,6 +4,7 @@ import CacheData from '../../Util/CacheData.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
@@ -79,7 +80,7 @@ async function updateInvestmentTotals(configName, connection, prefix, wallet, am
     `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`, [wallet]
   );
   const lockedWallet = walletRows?.[0];
-  if (!lockedWallet || Number(lockedWallet.status || 0) !== 1) throw new Error('当前账户不可用');
+  if (!lockedWallet || Number(lockedWallet.status || 0) !== 1) throw new Error('This account is unavailable');
   const investsAfter = BigInt(String(lockedWallet.invests || '0')) + amountRaw;
   await DB.query(configName, connection).table('wallet').where('id', lockedWallet.id).update({ invests: investsAfter.toString() });
   await DB.query(configName, connection).exec(
@@ -139,7 +140,7 @@ async function distributeExpansionRewards(configName, connection, prefix, wallet
       [reward.wallet, TOKEN]
     );
     const asset = assetRows?.[0];
-    if (!asset) throw new Error(`拓展奖励资产账户不存在: ${reward.wallet} ${TOKEN}`);
+    if (!asset) throw new Error(`Expansion reward asset account not found: ${reward.wallet} ${TOKEN}`);
     const before = BigInt(String(asset.balance || '0'));
     const after = before + assetReward;
     await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
@@ -165,7 +166,7 @@ async function create(req, res) {
   try {
     await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
     const wallet = address(req.auth?.address());
-    if (!isWallet(wallet)) return res.send(ApiResult.error(400, '钱包地址无效'));
+    if (!isWallet(wallet)) return res.send(ApiResult.error(400, 'Invalid wallet address'));
     const [investmentConfig, levelRules] = await Promise.all([
       CacheData.getInvestmentConfig(),
       CacheData.getWalletLevelRules()
@@ -174,9 +175,9 @@ async function create(req, res) {
     const amountRaw = BigInt(parseAssetAmount(amountText, INVESTMENT_DECIMALS));
     const minimumRaw = BigInt(parseAssetAmount(String(investmentConfig.minimum_investment_amount), INVESTMENT_DECIMALS));
     const wholeRaw = BigInt(parseAssetAmount(String(investmentConfig.whole_vehicle_tier), INVESTMENT_DECIMALS));
-    if (amountRaw < minimumRaw) return res.send(ApiResult.error(400, `最低投资 ${investmentConfig.minimum_investment_amount} U`));
+    if (amountRaw < minimumRaw) return res.send(ApiResult.error(400, `The minimum investment amount is ${investmentConfig.minimum_investment_amount} U`));
     if (amountRaw !== wholeRaw && amountRaw % minimumRaw !== 0n) {
-      return res.send(ApiResult.error(400, '投资金额必须为最低投资金额的整数倍'));
+      return res.send(ApiResult.error(400, 'The investment amount must be an integer multiple of the minimum investment amount'));
     }
     const token = await AssetToken.getTokenItem(TOKEN);
     const assetDecimals = Number(token?.decimals ?? AssetToken.DEFAULT_DECIMALS);
@@ -194,9 +195,9 @@ async function create(req, res) {
         `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`, [wallet, TOKEN]
       );
       const asset = assetRows?.[0];
-      if (!asset) throw new Error('USDT 资产不存在');
+      if (!asset) throw new Error('USDT asset account not found');
       const before = BigInt(String(asset.balance || '0'));
-      if (before < debitRaw) throw new Error('USDT 余额不足');
+      if (before < debitRaw) throw new Error('Insufficient USDT balance');
       const after = before - debitRaw;
       await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({ balance: after.toString(), updated_at: now });
       await DB.query(configName, connection).table('wallet_assets_logs').insert({
@@ -240,11 +241,11 @@ async function create(req, res) {
     });
 
     const row = await DB.query().table('investment_order').where('id', createdId).first();
-    return res.send(ApiResult.success(publicOrder(row), '投资成功'));
+    return res.send(ApiResult.success(publicOrder(row), 'Investment created successfully'));
   } catch (error) {
-    const message = error.message || '投资失败';
-    if (/余额不足|资产不存在|账户不可用|金额/u.test(message)) return res.send(ApiResult.error(400, message));
-    return res.send(ApiResult.exception(error, 'InvestmentService.create'));
+    const message = toDappApiMessage(error, 'Investment failed');
+    if (/Insufficient|asset account not found|account is unavailable|asset amount/iu.test(message)) return res.send(ApiResult.error(400, message));
+    return res.send(ApiResult.exception(toDappApiError(error, 'Investment failed'), 'InvestmentService.create'));
   }
 }
 
@@ -273,8 +274,8 @@ async function list(req, res) {
       principal: formatAssetAmount(principal.toString(), INVESTMENT_DECIMALS),
       total_dividend: formatAssetAmount(distributed.toString(), INVESTMENT_DECIMALS),
       monthly_dividend: formatAssetAmount(monthlyDividend, INVESTMENT_DECIMALS)
-    }, '获取投资订单成功'));
-  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentService.list')); }
+    }, 'Investment orders retrieved successfully'));
+  } catch (error) { return res.send(ApiResult.exception(toDappApiError(error), 'InvestmentService.list')); }
 }
 
 async function detail(req, res) {
@@ -284,16 +285,16 @@ async function detail(req, res) {
     await activateMatureOrders(wallet);
     const order = await DB.query().table('investment_order')
       .where('order_id', String(req.query?.order_id || '')).whereRaw('LOWER(wallet)=?', [wallet]).first();
-    if (!order) return res.send(ApiResult.error(404, '投资订单不存在'));
+    if (!order) return res.send(ApiResult.error(404, 'Investment order not found'));
     return res.send(ApiResult.success(publicOrder(order)));
-  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentService.detail')); }
+  } catch (error) { return res.send(ApiResult.exception(toDappApiError(error), 'InvestmentService.detail')); }
 }
 
 async function dividends(req, res) {
   try {
     await ensureInvestmentOrderTable();
     const wallet = address(req.auth?.address());
-    if (!isWallet(wallet)) return res.send(ApiResult.error(400, '钱包地址无效'));
+    if (!isWallet(wallet)) return res.send(ApiResult.error(400, 'Invalid wallet address'));
 
     const now = new Date();
     const monthStart = Helper.dateFormat('YYYY-mm-01 00:00:00', now);
@@ -319,9 +320,9 @@ async function dividends(req, res) {
       total_dividend: formatAssetAmount(summary.total_dividend || '0', INVESTMENT_DECIMALS),
       monthly_dividend: formatAssetAmount(summary.monthly_dividend || '0', INVESTMENT_DECIMALS),
       items: (rows || []).map(publicDividend)
-    }, '获取分红记录成功'));
+    }, 'Dividend records retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'InvestmentService.dividends'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'InvestmentService.dividends'));
   }
 }
 

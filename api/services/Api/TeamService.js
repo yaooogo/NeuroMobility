@@ -3,6 +3,7 @@ import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import { toDappApiError } from '../../Util/DappApiMessage.js';
 
 const INVESTMENT_DECIMALS = 18;
 
@@ -14,7 +15,7 @@ async function overview(req, res) {
   try {
     await ensureInvestmentOrderTable();
     const wallet = address(req.auth?.address());
-    if (!wallet) return res.send(ApiResult.error(400, '钱包地址无效'));
+    if (!wallet) return res.send(ApiResult.error(400, 'Invalid wallet address'));
     const prefix = Database.prefix('default') || '';
     const [summaryRows, directRows] = await Promise.all([
       DB.query().exec(
@@ -65,9 +66,9 @@ async function overview(req, res) {
         amount: formatAssetAmount(row.amount || '0', INVESTMENT_DECIMALS),
         team_size: Number(row.team_size || 0)
       }))
-    }, '获取团队数据成功'));
+    }, 'Team data retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'TeamService.overview'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'TeamService.overview'));
   }
 }
 

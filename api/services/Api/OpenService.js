@@ -8,6 +8,7 @@ import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
 import { ensureOpenDepositTable } from '../../Util/OpenDepositSchema.js';
+import { toDappApiError } from '../../Util/DappApiMessage.js';
 
 const TOKEN = 'USDT';
 const DEPOSIT_SCENE = 'open_api_recharge';
@@ -50,10 +51,10 @@ async function createWalletIfMissing(wallet, config, connection, prefix, now) {
     let inviter = null;
     if (configuredInviter) {
         if (!isWallet(configuredInviter)) {
-            throw new Error('OPEN_API_WALLET 配置无效');
+            throw new Error('OPEN_API_WALLET configuration is invalid');
         }
         if (configuredInviter === wallet) {
-            throw new Error('充值钱包不能与 OPEN_API_WALLET 相同');
+            throw new Error('The deposit wallet cannot be the same as OPEN_API_WALLET');
         }
         const inviterRows = await DB.query(config, connection).exec(
             `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`,
@@ -61,7 +62,7 @@ async function createWalletIfMissing(wallet, config, connection, prefix, now) {
         );
         inviter = inviterRows?.[0] || null;
         if (!inviter) {
-            throw new Error('OPEN_API_WALLET 对应的钱包不存在');
+            throw new Error('The wallet configured in OPEN_API_WALLET does not exist');
         }
     }
 
@@ -113,7 +114,7 @@ async function createWalletIfMissing(wallet, config, connection, prefix, now) {
         `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`,
         [wallet]
     );
-    if (!walletRows?.[0]) throw new Error('创建钱包失败');
+    if (!walletRows?.[0]) throw new Error('Failed to create wallet');
     return walletRows[0];
 }
 
@@ -125,23 +126,23 @@ async function deposits(req, res) {
         const signature = String(req.body?.signature ?? '').trim();
 
         if (!uniqueId || !walletInput || !amountInput || !signature) {
-            return res.send(ApiResult.error(400, 'unique_id、wallet、amount、signature 不能为空'));
+            return res.send(ApiResult.error(400, 'unique_id, wallet, amount, and signature are required'));
         }
         if (uniqueId.length > 191) {
-            return res.send(ApiResult.error(400, 'unique_id 长度不能超过 191 个字符'));
+            return res.send(ApiResult.error(400, 'unique_id must not exceed 191 characters'));
         }
 
         const wallet = normalizeWallet(walletInput);
         if (!isWallet(wallet)) {
-            return res.send(ApiResult.error(400, '钱包地址无效'));
+            return res.send(ApiResult.error(400, 'Invalid wallet address'));
         }
         if (!/^[a-f0-9]{64}$/iu.test(signature)) {
-            return res.send(ApiResult.error(401, '签名无效'));
+            return res.send(ApiResult.error(401, 'Invalid signature'));
         }
 
         const secretKey = String(Config.OPEN_API_SECRET_KEY || '');
         if (!secretKey) {
-            throw new Error('OPEN_API_SECRET_KEY 未配置');
+            throw new Error('OPEN_API_SECRET_KEY is not configured');
         }
 
         // The field order is part of the signing protocol and must not be changed.
@@ -152,23 +153,23 @@ async function deposits(req, res) {
         });
         const expectedSignature = Helper.createHmacSha256(params, secretKey);
         if (!signaturesMatch(signature, expectedSignature)) {
-            return res.send(ApiResult.error(401, '签名验证失败'));
+            return res.send(ApiResult.error(401, 'Signature verification failed'));
         }
 
         await ensureOpenDepositTable();
         const token = await AssetToken.getTokenItem(TOKEN);
         if (!token) {
-            throw new Error('USDT 资产未配置');
+            throw new Error('USDT asset is not configured');
         }
 
         let rawAmount;
         try {
             rawAmount = parseAssetAmount(amountInput, Number(token.decimals || AssetToken.DEFAULT_DECIMALS));
         } catch {
-            return res.send(ApiResult.error(400, '充值金额格式无效'));
+            return res.send(ApiResult.error(400, 'Invalid deposit amount format'));
         }
         if (BigInt(rawAmount) <= 0n) {
-            return res.send(ApiResult.error(400, '充值金额必须大于 0'));
+            return res.send(ApiResult.error(400, 'The deposit amount must be greater than 0'));
         }
 
         let duplicated = false;
@@ -206,7 +207,7 @@ async function deposits(req, res) {
             );
             const asset = assetRows?.[0];
             if (!asset) {
-                throw new Error('创建钱包资产失败');
+                throw new Error('Failed to create wallet asset account');
             }
 
             const beforeBalance = BigInt(String(asset.balance || '0'));
@@ -231,16 +232,16 @@ async function deposits(req, res) {
         });
 
         if (duplicated) {
-            return res.send(ApiResult.error(409, 'unique_id 已存在，请勿重复提交'));
+            return res.send(ApiResult.error(409, 'unique_id already exists; do not submit it again'));
         }
         return res.send(ApiResult.success({
             unique_id: uniqueId,
             wallet,
             amount: amountInput,
             token: TOKEN
-        }, '充值成功'));
+        }, 'Deposit completed successfully'));
     } catch (error) {
-        return res.send(ApiResult.exception(error, 'OpenService.deposits'));
+        return res.send(ApiResult.exception(toDappApiError(error), 'OpenService.deposits'));
     }
 }
 

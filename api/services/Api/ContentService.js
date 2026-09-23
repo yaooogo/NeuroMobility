@@ -4,6 +4,7 @@ import { normalizeContentLanguage } from '../../Util/ContentLanguage.js';
 import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTable, ensureVehicleTable } from '../../Util/ContentSchema.js';
 import CacheData from '../../Util/CacheData.js';
 import Database from '../../Util/Database.js';
+import { toDappApiError } from '../../Util/DappApiMessage.js';
 
 function normalizeVehicleTags(value) {
   try {
@@ -51,9 +52,9 @@ async function announcements(req, res) {
 
     return res.send(ApiResult.success({
       items: (rows || []).map(normalizeAnnouncement)
-    }, '获取公告列表成功'));
+    }, 'Announcements retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'ContentService.announcements'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'ContentService.announcements'));
   }
 }
 
@@ -71,9 +72,9 @@ async function helpArticles(req, res) {
 
     return res.send(ApiResult.success({
       items: (rows || []).map(normalizeHelpArticle)
-    }, '获取帮助文章列表成功'));
+    }, 'Help articles retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'ContentService.helpArticles'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'ContentService.helpArticles'));
   }
 }
 
@@ -94,9 +95,9 @@ async function about(req, res) {
         created_at: row.created_at || '',
         updated_at: row.updated_at || ''
       }))
-    }, '获取关于我们内容成功'));
+    }, 'About content retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'ContentService.about'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'ContentService.about'));
   }
 }
 
@@ -120,17 +121,17 @@ async function vehicles(req, res) {
         image: row.image || '',
         tags: normalizeVehicleTags(row.tags)
       }))
-    }, '获取车辆列表成功'));
+    }, 'Vehicles retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'ContentService.vehicles'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'ContentService.vehicles'));
   }
 }
 
 async function investmentConfig(req, res) {
   try {
-    return res.send(ApiResult.success(await CacheData.getInvestmentConfig(), '获取投资配置成功'));
+    return res.send(ApiResult.success(await CacheData.getInvestmentConfig(), 'Investment configuration retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'ContentService.investmentConfig'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'ContentService.investmentConfig'));
   }
 }
 
@@ -148,9 +149,9 @@ async function platformStats(req, res) {
       real_users: realUsers,
       virtual_users: virtualUsers,
       cumulative_users: realUsers + virtualUsers
-    }, '获取平台统计成功'));
+    }, 'Platform statistics retrieved successfully'));
   } catch (error) {
-    return res.send(ApiResult.exception(error, 'ContentService.platformStats'));
+    return res.send(ApiResult.exception(toDappApiError(error), 'ContentService.platformStats'));
   }
 }
 
