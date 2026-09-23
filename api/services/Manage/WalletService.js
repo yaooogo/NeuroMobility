@@ -3,6 +3,7 @@ import AssetToken from '../../Util/AssetToken.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import Wallet from '../../Util/Wallet.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 
 const WALLET_TABLE = 'wallet';
@@ -278,20 +279,62 @@ async function walletTree(req, res) {
 async function walletUpdate(req, res) {
   try {
     const id = Helper.parseInt(req.body?.id, 0);
-    const row = id ? await DB.query().table(WALLET_TABLE).where('id', id).first() : null;
-    if (!row) return res.send(ApiResult.error(404, '钱包不存在'));
     const settings = parseWalletSettings(req.body);
-    const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
-    await DB.query().table(WALLET_TABLE).where('id', id).update({
-      ...settings,
-      level_isupdate: 1,
-      updated_at: now
+    const hasInviter = Object.prototype.hasOwnProperty.call(req.body || {}, 'inviter');
+    const inviterInput = String(req.body?.inviter || '').trim();
+
+    await DB.transaction(async (config, connection) => {
+      const prefix = Database.prefix(config) || '';
+      const rows = id ? await DB.query(config, connection).exec(
+        `SELECT * FROM ${prefix}${WALLET_TABLE} WHERE id=? LIMIT 1 FOR UPDATE`,
+        [id]
+      ) : [];
+      const row = rows?.[0];
+      if (!row) {
+        const error = new Error('钱包不存在');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      let inviterWallet = String(row.inviter || '').trim();
+      if (hasInviter) {
+        if (inviterInput) {
+          const inviter = await DB.query(config, connection).table(WALLET_TABLE)
+            .whereRaw('(LOWER(wallet)=LOWER(?) OR ref_code=?)', [inviterInput, inviterInput])
+            .first();
+          if (!inviter) throw new Error('邀请钱包或邀请码不存在');
+          inviterWallet = String(inviter.wallet || '').trim();
+        } else {
+          inviterWallet = '';
+        }
+
+        if (inviterWallet.toLowerCase() !== String(row.inviter || '').trim().toLowerCase()) {
+          await Wallet.rebuildInviterTree(row.wallet, inviterWallet, { config, connection });
+        }
+      }
+
+      const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+      await DB.query(config, connection).table(WALLET_TABLE).where('id', id).update({
+        ...settings,
+        level_isupdate: 1,
+        updated_at: now
+      });
     });
+
     return res.send(ApiResult.success(normalizeWallet(
       await DB.query().table(WALLET_TABLE).where('id', id).first()
     ), '钱包更新成功'));
   } catch (error) {
-    if (/手动等级/u.test(error.message || '')) return res.send(ApiResult.error(400, error.message));
+    if (error?.statusCode === 404) return res.send(ApiResult.error(404, error.message));
+    const errorMessages = {
+      'Inviter cannot be the wallet itself': '邀请人不能是当前钱包',
+      'Inviter cannot be a descendant wallet': '邀请人不能设置为当前钱包的下级',
+      'Current wallet subtree is too deep or contains a cycle': '当前邀请关系异常，无法修改邀请人'
+    };
+    const message = errorMessages[error.message] || error.message;
+    if (/手动等级|邀请钱包|邀请人|邀请关系/u.test(message || '')) {
+      return res.send(ApiResult.error(400, message));
+    }
     return res.send(ApiResult.exception(error, 'WalletService.walletUpdate'));
   }
 }

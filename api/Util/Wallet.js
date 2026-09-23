@@ -65,30 +65,18 @@ async function createWalletRelationRebuildTempTables(config, connection) {
 function buildWalletRelationInsertSql(prefix, sourceSql) {
     return `INSERT INTO ${prefix}wallet_relation (
                 wallet,
+                wallet_invests,
                 inviter,
+                inviter_invests,
                 lv,
-                wallet_rigs,
-                wallet_hashrate,
-                wallet_inactive_rigs,
-                wallet_inactive_hashrate,
-                inviter_rigs,
-                inviter_hashrate,
-                inviter_inactive_rigs,
-                inviter_inactive_hashrate,
                 created_at,
                 updated_at
             )
             SELECT source.wallet,
+                   COALESCE(wallet_stats.invests, 0),
                    source.inviter,
+                   COALESCE(inviter_stats.invests, 0),
                    source.lv,
-                   COALESCE(wallet_stats.rigs, 0),
-                   COALESCE(wallet_stats.hashrate, 0),
-                   COALESCE(wallet_stats.inactive_rigs, 0),
-                   COALESCE(wallet_stats.inactive_hashrate, 0),
-                   COALESCE(inviter_stats.rigs, 0),
-                   COALESCE(inviter_stats.hashrate, 0),
-                   COALESCE(inviter_stats.inactive_rigs, 0),
-                   COALESCE(inviter_stats.inactive_hashrate, 0),
                    ?,
                    ?
             FROM (${sourceSql}) AS source
@@ -581,7 +569,7 @@ const User = {
 
         const prefix = User.getDb(config, connection).getPrefix();
         const now = Helper.dateFormat("YYYY-mm-dd HH:MM:SS", new Date());
-        const rootLevel = nextInviter ? Number(inviterRow?.lv || 0) + 1 : 1;
+        const rootLevel = nextInviter ? Number(inviterRow?.lv || 0) + 1 : 0;
 
         await dropWalletRelationRebuildTempTables(config, connection);
 

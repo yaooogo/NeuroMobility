@@ -95,7 +95,7 @@ onMounted(load);
       <div v-if="modalError" class="alert-box alert-box--error">{{ modalError }}</div>
       <label class="field-block"><span>钱包地址</span><code v-if="form.id" class="wallet-address">{{ form.wallet }}</code><input v-else v-model.trim="form.wallet" class="text-input" maxlength="42" placeholder="0x..." /></label>
       <div class="wallet-form-grid">
-        <label v-if="!form.id" class="field-block"><span>邀请钱包或邀请码（选填）</span><input v-model.trim="form.inviter" class="text-input" maxlength="100" placeholder="留空则创建根钱包" /></label>
+        <label class="field-block"><span>邀请钱包或邀请码（选填）</span><input v-model.trim="form.inviter" class="text-input" maxlength="100" :placeholder="form.id ? '留空则设为根钱包' : '留空则创建根钱包'" /><small v-if="form.id" class="muted-text">修改后，该钱包及其全部下级会同步迁移到新的邀请关系中。</small></label>
         <label v-if="!form.id" class="field-block"><span>邀请码（选填）</span><input v-model.trim="form.ref_code" class="text-input" maxlength="50" placeholder="留空则自动生成" /></label>
         <label class="field-block"><span>状态</span><select v-model.number="form.status" class="text-input"><option :value="1">启用</option><option :value="0">禁用</option></select></label>
         <label class="field-block"><span>提现权限</span><select v-model.number="form.withdraw_enabled" class="text-input"><option :value="1">允许</option><option :value="0">禁止</option></select></label>
