@@ -5,6 +5,7 @@ import ContentService from "../services/Api/ContentService.js";
 import AssetService from "../services/Api/AssetService.js";
 import InvestmentService from "../services/Api/InvestmentService.js";
 import TeamService from "../services/Api/TeamService.js";
+import OpenService from "../services/Api/OpenService.js";
 const router = express.Router();
 
 router.route("/content/announcements").get(ContentService.announcements);
@@ -16,6 +17,7 @@ router.route("/content/platform-stats").get(ContentService.platformStats);
 router.route("/login/nonce").post(AuthService.loginNonce);
 router.route("/login/inviter").post(AuthService.resolveInviter);
 router.route("/login").post(AuthService.login);
+router.route("/open/api/deposits").post(OpenService.deposits);
 
 router.route("*").all(Auth.verifyToken);
 router.route("/profile").get(AuthService.profile);
