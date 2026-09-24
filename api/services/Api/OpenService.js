@@ -128,9 +128,6 @@ async function deposits(req, res) {
         if (!uniqueId || !walletInput || !amountInput || !signature) {
             return res.send(ApiResult.error(400, 'unique_id, wallet, amount, and signature are required'));
         }
-        if (uniqueId.length > 191) {
-            return res.send(ApiResult.error(400, 'unique_id must not exceed 191 characters'));
-        }
 
         const wallet = normalizeWallet(walletInput);
         if (!isWallet(wallet)) {
