@@ -33,6 +33,16 @@ function recordDate(value) {
   return String(value || "").slice(0, 10).replaceAll("-", ".");
 }
 
+function recordType(scene) {
+  const labels = {
+    investment_dividend: "投资分红",
+    investment_expansion_reward: "投资拓展奖励",
+    investment_differential_income: "投资级差收益",
+    position_salary: "岗位工资"
+  };
+  return lang(labels[scene] || scene || "分红记录");
+}
+
 async function loadRecords() {
   const currentRequestId = ++requestId;
   if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
@@ -76,15 +86,15 @@ watch(() => [props.connected, props.authenticated, props.address], loadRecords, 
     </header>
 
     <section class="dividend-summary">
-      <div><span>{{ lang("总分红 (USDT)") }}</span><strong>{{ amount(totalDividend) }}</strong></div>
+      <div><span>{{ lang("总收益 (USDT)") }}</span><strong>{{ amount(totalDividend) }}</strong></div>
       <i></i>
-      <div><span>{{ lang("单月分红 (USDT)") }}</span><strong>{{ amount(monthlyDividend) }}</strong></div>
+      <div><span>{{ lang("本月收益 (USDT)") }}</span><strong>{{ amount(monthlyDividend) }}</strong></div>
     </section>
 
     <div class="dividend-list">
       <article v-for="record in records" :key="record.id" class="dividend-record">
         <img :src="dividendToken" alt="" />
-        <time>{{ recordDate(record.time) }}</time>
+        <div class="dividend-record__meta"><span>{{ recordType(record.scene) }}</span><time>{{ recordDate(record.time) }}</time></div>
         <strong>+ {{ amount(record.amount) }} {{ record.token }}</strong>
       </article>
       <p v-if="loading" class="dividend-empty">{{ lang("正在加载...") }}</p>
@@ -100,21 +110,23 @@ watch(() => [props.connected, props.authenticated, props.address], loadRecords, 
 .dividend-header h1 { margin: 0; color: #111014; font-size: 18px; line-height: 31px; text-align: center; }
 .dividend-header button { width: 40px; height: 34px; display: grid; place-items: start; padding: 3px 0; border: 0; border-radius: 16px; background: rgba(255,255,255,.72); color: #812bd8; cursor: pointer; }
 .dividend-header button svg { width: 28px; transform: rotate(180deg); }
-.dividend-summary { position: relative; min-height: 136px; display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; padding: 0 28px; border: 1px solid #dfceff; border-radius: 12px; background: linear-gradient(145deg, rgba(255,255,255,.86), rgba(227,221,255,.94)); overflow: hidden; }
+.dividend-summary { position: relative; min-height: 120px; display: grid; grid-template-columns: 1fr 1px 1fr; align-items: center; padding: 0 10px; border: 1px solid #dfceff; border-radius: 12px; background: linear-gradient(145deg, rgba(255,255,255,.86), rgba(227,221,255,.94)); overflow: hidden; }
 .dividend-summary::before, .dividend-summary::after { content: ""; position: absolute; border-radius: 50%; border: 1px solid rgba(255,255,255,.7); transform: rotate(-20deg); }
 .dividend-summary::before { width: 260px; height: 86px; left: -53px; top: 45px; box-shadow: 125px 24px 0 14px rgba(169,139,255,.09); }
 .dividend-summary::after { width: 210px; height: 90px; right: -58px; bottom: -29px; background: rgba(167,133,255,.12); }
 .dividend-summary > * { position: relative; z-index: 1; }
 .dividend-summary div { text-align: center; }
 .dividend-summary span, .dividend-summary strong { display: block; }
-.dividend-summary span { font-size: 13px; }
-.dividend-summary strong { margin-top: 7px; color: #7f25d8; font-size: 21px; line-height: 1; }
+.dividend-summary span { font-size: 12px; }
+.dividend-summary strong { margin-top:10px; color: #7f25d8; font-size: 20px; line-height: 1; }
 .dividend-summary i { height: 83px; background: #a66de9; }
 .dividend-list { display: grid; gap: 12px; margin-top: 20px; }
-.dividend-record { min-height: 73px; display: grid; grid-template-columns: 44px minmax(0,1fr) auto; align-items: center; gap: 13px; padding: 13px 17px; border: 1px solid rgba(233,224,241,.76); border-radius: 17px; background: rgba(255,255,255,.97); box-shadow: 0 7px 21px rgba(91,47,127,.07); }
+.dividend-record { min-height: 66px; display: grid; grid-template-columns: 35px minmax(0,1fr) auto; align-items: center; gap: 8px; padding:13px 15px; border: 1px solid rgba(233,224,241,.76); border-radius: 12px; background: rgba(255,255,255,.97); box-shadow: 0 7px 21px rgba(91,47,127,.07); }
 .dividend-record img { width: 35px; height: 35px; display: block; object-fit: contain; filter: drop-shadow(0 4px 5px rgba(82,18,139,.18)); }
-.dividend-record time { font-size: 13px; }
-.dividend-record strong { color: #9345e7; font-size: 15px; white-space: nowrap; }
+.dividend-record__meta { min-width: 0; display: grid; gap: 4px; }
+.dividend-record__meta span { overflow: hidden; color: #403b43; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.dividend-record time { color: #8f8793; font-size: 12px; }
+.dividend-record strong { color: #9345e7; font-size: 14px; white-space: nowrap; }
 .dividend-empty { margin: 76px 0 0; color: #aaa2ae; font-size: 14px; text-align: center; }
 
 </style>

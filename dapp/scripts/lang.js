@@ -8,6 +8,10 @@ const localesDir = path.join(srcDir, "i18n", "locales");
 // These keys are resolved dynamically by the Launchpad pages, so the regular
 // lang("...") scanner cannot discover all of them by itself.
 const preservedTexts = [
+  "投资分红",
+  "投资拓展奖励",
+  "投资级差收益",
+  "岗位工资",
   "首页",
   "投资",
   "资产",
@@ -19,7 +23,12 @@ const preservedTexts = [
 ];
 
 const seedEn = {
- 
+  "总收益 (USDT)": "Total Earnings (USDT)",
+  "本月收益 (USDT)": "Earnings This Month (USDT)",
+  "投资分红": "Investment Dividend",
+  "投资拓展奖励": "Investment Expansion Reward",
+  "投资级差收益": "Investment Differential Income",
+  "岗位工资": "Position Salary"
 };
 
 const insuranceLocaleSeeds = {

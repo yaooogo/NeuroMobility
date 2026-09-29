@@ -15,6 +15,12 @@ import {
 
 const TOKEN = 'USDT';
 const INVESTMENT_DECIMALS = 18;
+const DIVIDEND_RECORD_SCENES = [
+  'investment_dividend',
+  'investment_expansion_reward',
+  'investment_differential_income',
+  'position_salary'
+];
 
 function address(value) { return String(value || '').trim().toLowerCase(); }
 function isWallet(value) { return /^0x[a-f0-9]{40}$/u.test(address(value)); }
@@ -63,15 +69,16 @@ function publicOrder(row) {
   };
 }
 
-function publicDividend(row) {
+async function publicDividendLog(row) {
+  const token = row.token || TOKEN;
+  const decimals = await AssetToken.getTokenDecimals(token);
   return {
     id: Number(row.id || 0),
-    dividend_id: row.dividend_id || '',
-    order_id: row.order_id || '',
-    token: row.token || TOKEN,
-    amount: formatAssetAmount(row.amount || '0', INVESTMENT_DECIMALS),
-    percent: Number(row.percent || 0),
-    time: row.cycle_at || row.created_at || ''
+    biz_id: row.biz_id || '',
+    token,
+    amount: formatAssetAmount(row.balance || '0', decimals),
+    scene: row.scene || '',
+    time: row.created_at || ''
   };
 }
 
@@ -292,7 +299,7 @@ async function detail(req, res) {
 
 async function dividends(req, res) {
   try {
-    await ensureInvestmentOrderTable();
+    await ensureAssetTransferTables();
     const wallet = address(req.auth?.address());
     if (!isWallet(wallet)) return res.send(ApiResult.error(400, 'Invalid wallet address'));
 
@@ -303,14 +310,20 @@ async function dividends(req, res) {
     const prefix = Database.prefix('default') || '';
     const [summaryRows, rows] = await Promise.all([
       DB.query().exec(
-        `SELECT COALESCE(SUM(amount), 0) AS total_dividend,
-                COALESCE(SUM(CASE WHEN cycle_at>=? AND cycle_at<? THEN amount ELSE 0 END), 0) AS monthly_dividend
-         FROM ${prefix}investment_dividend
-         WHERE LOWER(wallet)=?`,
-        [monthStart, monthEnd, wallet]
+        `SELECT COALESCE(SUM(balance), 0) AS total_dividend,
+                COALESCE(SUM(CASE WHEN created_at>=? AND created_at<? THEN balance ELSE 0 END), 0) AS monthly_dividend
+         FROM ${prefix}wallet_assets_logs
+         WHERE LOWER(wallet)=?
+           AND token=?
+           AND type='in'
+           AND scene IN (?, ?, ?, ?)`,
+        [monthStart, monthEnd, wallet, TOKEN, ...DIVIDEND_RECORD_SCENES]
       ),
-      DB.query().table('investment_dividend')
+      DB.query().table('wallet_assets_logs')
         .whereRaw('LOWER(wallet)=?', [wallet])
+        .where('token', TOKEN)
+        .where('type', 'in')
+        .whereIn('scene', DIVIDEND_RECORD_SCENES)
         .orderBy('id', 'desc')
         .take(100)
         .get()
@@ -319,7 +332,7 @@ async function dividends(req, res) {
     return res.send(ApiResult.success({
       total_dividend: formatAssetAmount(summary.total_dividend || '0', INVESTMENT_DECIMALS),
       monthly_dividend: formatAssetAmount(summary.monthly_dividend || '0', INVESTMENT_DECIMALS),
-      items: (rows || []).map(publicDividend)
+      items: await Promise.all((rows || []).map(publicDividendLog))
     }, 'Dividend records retrieved successfully'));
   } catch (error) {
     return res.send(ApiResult.exception(toDappApiError(error), 'InvestmentService.dividends'));
