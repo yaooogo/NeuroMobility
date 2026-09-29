@@ -146,7 +146,7 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
   }
 }
 
-async function processOrder(candidate, tokenDecimals, levelRules) {
+async function processOrder(candidate, tokenDecimals, levelRules, options = {}) {
   let paid = false;
   try {
     await DB.transaction(async (configName, connection) => {
@@ -157,9 +157,12 @@ async function processOrder(candidate, tokenDecimals, levelRules) {
       );
       const order = rows?.[0];
       const nowDate = new Date();
-      if (!order || Number(order.status || 0) !== 1 || !order.next_dividend_at) return;
-      const cycleDate = asDate(order.next_dividend_at);
-      if (!Number.isFinite(cycleDate.getTime()) || cycleDate.getTime() > nowDate.getTime()) return;
+      const status = Number(order?.status || 0);
+      if (!order || (!options.force && status !== 1) || (options.force && ![0, 1].includes(status)) || !order.next_dividend_at) return;
+      const scheduledCycleDate = asDate(order.next_dividend_at);
+      if (!Number.isFinite(scheduledCycleDate.getTime())) return;
+      if (!options.force && scheduledCycleDate.getTime() > nowDate.getTime()) return;
+      const cycleDate = options.force ? nowDate : scheduledCycleDate;
 
       const cycleAt = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', cycleDate);
       const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nowDate);
@@ -279,4 +282,19 @@ async function distribute() {
   return { matched: (orders || []).length, processed };
 }
 
-export default { distribute };
+export async function distributeOrderNow(orderId) {
+  await growthSnapshot.capture();
+  await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
+  const order = await DB.query().table('investment_order').where('order_id', orderId).first();
+  if (!order) return { status: 'not_found', processed: false };
+  if (![0, 1].includes(Number(order.status || 0))) return { status: 'not_active', processed: false };
+
+  const token = String(order.token || 'USDT').toUpperCase();
+  const item = await AssetToken.getTokenItem(token);
+  const tokenDecimals = Number(item?.decimals ?? AssetToken.DEFAULT_DECIMALS);
+  const levelRules = await CacheData.getWalletLevelRules();
+  const processed = await processOrder(order, tokenDecimals, levelRules, { force: true });
+  return { status: processed ? 'processed' : 'skipped', processed };
+}
+
+export default { distribute, distributeOrderNow };

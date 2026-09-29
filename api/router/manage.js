@@ -119,6 +119,7 @@ router.route('/withdrawal-order/export').post(TransferOrderService.withdrawalExp
 router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCancel)
 router.route('/investment-order/list').post(InvestmentOrderService.list)
 router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
+router.route('/investment-order/dividend-now').post(InvestmentOrderService.dividendNow)
 router.route('/position-salary-record/list').post(PositionSalaryService.list)
 
 // 钱包与钱包资产

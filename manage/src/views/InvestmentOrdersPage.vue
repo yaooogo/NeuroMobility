@@ -11,6 +11,8 @@ const summary = reactive({ order_count: 0, amount: '0', distributed_amount: '0',
 const dividendVisible = ref(false); const dividendOrder = ref(null); const dividendList = ref([]);
 const dividendQuery = reactive({ order_id: '', page: 1, page_size: 20 });
 const dividendTotal = ref(0); const dividendLastPage = ref(1); const dividendLoading = ref(false); const dividendError = ref('');
+const manualDividendEnabled = ['dev', 'localdev'].includes(import.meta.env.MODE);
+const distributingOrderId = ref('');
 const statusLabels = { 0: '等待期', 1: '分红中', 2: '已出局' };
 async function load() {
   loading.value = true; error.value = '';
@@ -48,6 +50,19 @@ function closeDividends() {
   if (!dividendLoading.value) dividendVisible.value = false;
 }
 function changeDividendPage(page) { dividendQuery.page = page; loadDividends(); }
+async function dividendNow(row) {
+  if (!window.confirm(`确认立即给订单 ${row.order_id} 分红一次吗？`)) return;
+  distributingOrderId.value = row.order_id;
+  error.value = '';
+  try {
+    await post('/investment-order/dividend-now', { order_id: row.order_id });
+    await load();
+  } catch (err) {
+    error.value = err.message || '立即分红失败';
+  } finally {
+    distributingOrderId.value = '';
+  }
+}
 onMounted(load);
 </script>
 
@@ -72,7 +87,7 @@ onMounted(load);
         <thead><tr><th>ID</th><th>订单号</th><th>钱包</th><th>投资金额</th><th>已分红</th><th>总分红</th><th>等待期</th><th>分红周期</th><th>分红范围</th><th>保底分红</th><th>整车</th><th>状态</th><th>等待截止</th><th>下次分红</th><th>投资时间</th><th>操作</th></tr></thead>
         <tbody>
           <tr v-if="loading || !list.length"><td colspan="16" class="empty-cell">{{ loading ? '正在加载...' : '暂无投资订单' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ formatFixedAmount(row.amount) }} U</td><td>{{ formatFixedAmount(row.distributed_amount) }} U</td><td>{{ formatFixedAmount(row.total_dividend) }} U</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.min_percent }}% ~ {{ row.max_percent }}%</td><td>{{ row.guaranteed_percent }}%</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td><button class="table-button" type="button" @click="openDividends(row)">分红记录</button></td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ formatFixedAmount(row.amount) }} U</td><td>{{ formatFixedAmount(row.distributed_amount) }} U</td><td>{{ formatFixedAmount(row.total_dividend) }} U</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.min_percent }}% ~ {{ row.max_percent }}%</td><td>{{ row.guaranteed_percent }}%</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && row.status !== 2" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />

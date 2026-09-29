@@ -1,9 +1,17 @@
 import ApiResult from '../../Util/ApiResult.js';
+import Config from '../../Util/Config.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import { distributeOrderNow } from '../../cron/investmentDividend.js';
+
+function manualDividendEnabled() {
+  const environments = [Config.APP_ENV, Config.NODE_ENV, Config.CHAIN_NET]
+    .map(value => String(value || '').trim().toLowerCase());
+  return environments.some(value => ['development', 'dev', 'local', 'localdev', 'test'].includes(value));
+}
 
 function normalize(row) {
   return {
@@ -150,4 +158,18 @@ async function dividendList(req, res) {
   } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.dividendList')); }
 }
 
-export default { list, dividendList };
+async function dividendNow(req, res) {
+  try {
+    if (!manualDividendEnabled()) return res.send(ApiResult.error(403, '一键分红仅限 dev/local 环境'));
+    const orderId = String(req.body?.order_id || '').trim();
+    if (!orderId) return res.send(ApiResult.error(400, '投资订单号不能为空'));
+
+    const result = await distributeOrderNow(orderId);
+    if (result.status === 'not_found') return res.send(ApiResult.error(404, '投资订单不存在'));
+    if (result.status === 'not_active') return res.send(ApiResult.error(400, '已出局订单不能立即分红'));
+    if (!result.processed) return res.send(ApiResult.error(409, '订单未能分红，请刷新后重试'));
+    return res.send(ApiResult.success({ order_id: orderId }, '分红成功'));
+  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.dividendNow')); }
+}
+
+export default { list, dividendList, dividendNow };
