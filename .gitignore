@@ -3,3 +3,4 @@ dist
 artifacts
 .deps
 api/upload
+api.zip

@@ -450,7 +450,7 @@ const User = {
         const walletStatsRows = await User.getDb(config, connection)
             .table("wallet")
             .whereRaw(`LOWER(wallet) IN (${placeholders})`, statsWalletKeys)
-            .select(["wallet", "rigs", "hashrate", "inactive_rigs", "inactive_hashrate"])
+            .select(["wallet", "invests"])
             .get();
 
         const walletStatsMap = new Map(
@@ -474,14 +474,8 @@ const User = {
                 wallet: walletValue,
                 inviter: inviterValue,
                 lv: relLv,
-                wallet_rigs: Helper.parseInt(currentWalletStats.rigs, 0),
-                wallet_hashrate: String(currentWalletStats.hashrate ?? "0"),
-                wallet_inactive_rigs: Helper.parseInt(currentWalletStats.inactive_rigs, 0),
-                wallet_inactive_hashrate: String(currentWalletStats.inactive_hashrate ?? "0"),
-                inviter_rigs: Helper.parseInt(inviterStats.rigs, 0),
-                inviter_hashrate: String(inviterStats.hashrate ?? "0"),
-                inviter_inactive_rigs: Helper.parseInt(inviterStats.inactive_rigs, 0),
-                inviter_inactive_hashrate: String(inviterStats.inactive_hashrate ?? "0"),
+                wallet_invests: Helper.parseInt(currentWalletStats.invests, 0),
+                inviter_invests: Helper.parseInt(inviterStats.invests, 0),
                 created_at: now,
                 updated_at: now
             };

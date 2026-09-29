@@ -30,7 +30,7 @@ export function normalizeWalletLevelRules(rules) {
   const positionSalaryMap = new Map();
   for (const item of rules) {
     const level = Number.parseInt(item?.level, 10);
-    const amount = Number(item?.min_price ?? item?.amount ?? item?.minSubRigs);
+    const amount = Number(item?.min_price);
     if (!FIXED_WALLET_LEVELS.includes(level) || !Number.isFinite(amount) || amount < 0) continue;
     amountMap.set(level, amount);
     const differentialPercent = Number(item?.differential_percent ?? item?.differentialPercent ?? 0);
@@ -70,7 +70,7 @@ export function validateWalletLevelRules(rules) {
   }
 
   const hasInvalidAmount = rules.some((item) => {
-    const amount = Number(item?.min_price ?? item?.amount ?? item?.minSubRigs);
+    const amount = Number(item?.min_price);
     return !Number.isFinite(amount) || amount < 0;
   });
   if (hasInvalidAmount) throw new Error('金额必须为非负数');
@@ -107,12 +107,12 @@ export function validateWalletLevelRules(rules) {
   return normalized;
 }
 
-export function buildWalletLevelCaseSql(totalRigsExpr, rules) {
+export function buildWalletLevelCaseSql(totalInvestsExpr, rules) {
   const normalized = normalizeWalletLevelRules(rules);
   const lines = ["CASE"];
 
   for (const rule of normalized) {
-    lines.push(`WHEN ${totalRigsExpr} >= ${rule.min_price} THEN ${rule.level}`);
+    lines.push(`WHEN ${totalInvestsExpr} >= ${rule.min_price} THEN ${rule.level}`);
   }
 
   lines.push("ELSE 0");
