@@ -81,7 +81,7 @@ watch(locale, loadVehicles, { immediate: true });
 .content-state button { padding: 8px 18px; border: 0; border-radius: 18px; background: #8731dc; color: #fff; cursor: pointer; }
 .vehicle-list { display: grid; gap: 18px; }
 .vehicle-card { min-height: 130px; display: grid; grid-template-columns: 100px minmax(0,1fr); gap: 16px; padding: 16px; border: 1px solid #f3edf7; border-radius: 18px; background: #fff; box-shadow: 0 7px 22px rgba(91,48,127,.075); }
-.vehicle-card > img { width:100px; height: 100px; align-self: center; border-radius: 11px; object-fit: cover; }
+.vehicle-card > img { width:100%; align-self: center; border-radius: 11px; object-fit: cover; }
 .vehicle-info { min-width: 0; align-self: center; }
 .vehicle-info h2 { margin: 0; color: #4a474b; font-size: 17px; line-height: 1.15; }
 .vehicle-info > p { margin: 9px 0 10px; font-size: 13px; line-height: 1.2; }
