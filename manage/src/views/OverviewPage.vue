@@ -13,20 +13,24 @@ const balanceError = ref('');
 const userCards = computed(() => [
   { label: '24H新增用户', value: formatInteger(overview.value?.users?.new_24h) },
   { label: '总用户数', value: formatInteger(overview.value?.users?.total) },
-  { label: '总激活用户数', value: formatInteger(overview.value?.users?.active) }
+  { label: '总激活用户数', value: formatInteger(overview.value?.users?.active) },
+  { label: '总投资用户数', description: '已投资未出局用户', value: formatInteger(overview.value?.users?.investing) },
+  { label: '总出局用户数', description: '已出局未复投用户', value: formatInteger(overview.value?.users?.exited) }
 ]);
 
 const fundGroups = computed(() => [
-  { title: '充值U', values: overview.value?.funds?.recharge_usdt },
-  { title: '提现U', values: overview.value?.funds?.withdrawal_usdt }
+  { title: '充值U', values: overview.value?.funds?.recharge_usdt, periods: ['today', 'month', 'total'] },
+  { title: '提现U', values: overview.value?.funds?.withdrawal_usdt, periods: ['today', 'month', 'total'] },
+  { title: '总投资', values: overview.value?.investments?.investment, periods: ['today', 'month', 'total'] },
+  { title: '总分红', values: overview.value?.investments?.dividend, periods: ['month', 'last_month', 'total'] },
+  { title: '总分成+成长奖励', values: overview.value?.investments?.commission_growth, periods: ['month', 'last_month', 'total'] },
+  { title: '总拓展奖励（极差）', values: overview.value?.investments?.expansion_reward, periods: ['today', 'month', 'total'] },
+  { title: '总月薪', values: overview.value?.investments?.salary, periods: ['month', 'last_month', 'total'] }
 ]);
 
-function periodCards(values) {
-  return [
-    { label: '当日', value: formatAmount(values?.today) },
-    { label: '当月', value: formatAmount(values?.month) },
-    { label: '总计', value: formatAmount(values?.total) }
-  ];
+function periodCards(group) {
+  const labels = { today: '当日', month: '当月', last_month: '上月', total: '总计' };
+  return group.periods.map(period => ({ label: labels[period], value: formatAmount(group.values?.[period]) }));
 }
 
 function formatInteger(value) {
@@ -94,9 +98,9 @@ onMounted(refresh);
       
       <section class="overview-section">
         <h2>用户数据</h2>
-        <div class="overview-grid overview-grid--three">
+        <div class="overview-grid overview-grid--users">
           <article v-for="item in userCards" :key="item.label" class="overview-card">
-            <span>{{ item.label }}</span><strong>{{ item.value }}</strong>
+            <span>{{ item.label }}<small v-if="item.description" class="overview-card__description">{{ item.description }}</small></span><strong>{{ item.value }}</strong>
           </article>
         </div>
       </section>
@@ -107,7 +111,7 @@ onMounted(refresh);
           <article v-for="group in fundGroups" :key="group.title" class="fund-stat-panel">
             <h3>{{ group.title }}</h3>
             <div class="overview-grid overview-grid--three">
-              <div v-for="item in periodCards(group.values)" :key="item.label" class="fund-stat-card">
+              <div v-for="item in periodCards(group)" :key="item.label" class="fund-stat-card">
                 <span>{{ item.label }}</span><strong>{{ item.value }}</strong>
               </div>
             </div>
@@ -145,9 +149,11 @@ onMounted(refresh);
 .overview-section h2 { margin: 0; font-size: 18px; }
 .overview-grid { display: grid; gap: 14px; }
 .overview-grid--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.overview-grid--users { grid-template-columns: repeat(5, minmax(180px, 1fr)); overflow-x: auto; }
 .overview-grid--tokens { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .overview-card { display: flex; flex-direction: column; justify-content: space-between; gap: 18px; padding: 20px; border: 1px solid rgba(142, 168, 241, 0.14); border-radius: 14px; background: rgba(255, 255, 255, 0.035); }
 .overview-card span { color: var(--muted); font-size: 14px; }
+.overview-card .overview-card__description { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 400; }
 .overview-card strong { color: var(--text); font-size: 28px; line-height: 1.15; overflow-wrap: anywhere; }
 .overview-card small { color: #8fb3ff; font-size: 13px; font-weight: 600; }
 .overview-note, .overview-empty { margin: 0; color: var(--muted); font-size: 12px; }

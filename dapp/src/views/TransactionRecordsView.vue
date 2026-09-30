@@ -64,7 +64,7 @@ watch(() => props.connected, (connected) => {
         <i :class="`transaction-icon transaction-icon--${record.type}`">
           <AppIcon :name="record.type === 'deposit' ? 'download' : 'upload'" />
         </i>
-        <div class="transaction-meta"><time>{{ record.time }}</time><small>{{ statusText(record.status) }}</small></div>
+        <div class="transaction-meta"><time>{{ record.time }}</time><small>{{ record.source === "api" ? `API ${lang("充值")} · ${statusText(record.status)}` : statusText(record.status) }}</small></div>
         <strong :class="`transaction-amount transaction-amount--${record.type}`">
           {{ record.type === "deposit" ? "+" : "-" }} {{ formatAmount(record.amount) }} {{ record.token }}
         </strong>
