@@ -29,9 +29,9 @@ const progress = computed(() => profileProgress.value?.percent
   ?? Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
 const levelMap = {
   0: { label: "普通会员", icon: "" },
-  1: { label: "区域合伙人", icon: requireAsset("@assets/images/level/1.png") },
+  1: { label: "战略合伙人", icon: requireAsset("@assets/images/level/1.png") },
   2: { label: "城市合伙人", icon: requireAsset("@assets/images/level/2.png") },
-  3: { label: "战略合伙人", icon: requireAsset("@assets/images/level/3.png") }
+  3: { label: "区域合伙人", icon: requireAsset("@assets/images/level/3.png") }
 };
 function getLevelInfo(level) {
   const numericLevel = Number(level);
@@ -115,9 +115,9 @@ watch(() => [props.connected, props.authenticated, props.address], loadProfile, 
           <span>{{ lang("下一级别") }}</span>
         </div>
         <div class="level-values">
-          <strong>L{{ currentLevelInfo.level }}</strong>
+          <strong>{{ lang(currentLevelInfo.label) }}</strong>
           <span class="level-arrow"><AppIcon name="chevron" /></span>
-          <strong>L{{ nextLevelInfo.level }}</strong>
+          <strong>{{ lang(nextLevelInfo.label) }}</strong>
         </div>
         <div class="level-percent"><span>{{ Math.round(progress) }}%</span><span>50%</span><span>100%</span></div>
         <div class="level-track"><i :style="{ width: `${Math.max(4, progress)}%` }"></i></div>
@@ -171,8 +171,9 @@ watch(() => [props.connected, props.authenticated, props.address], loadProfile, 
 .level-card { position: relative; min-height: 174px; margin-top: -1px; padding: 21px 20px 17px; border-radius: 19px; overflow: hidden; background: url("../assets/images/level-card-bg.jpg") #fff no-repeat center -20px; background-size: auto 120%; }
 .level-head, .level-values, .level-percent, .level-amount { position: relative; display: flex; justify-content: space-between; }
 .level-head { color: #404040 ; font-size: 13px; }
-.level-values { align-items: center; margin-top: 11px; color: #9d43e9; }
-.level-values strong { display: flex; align-items: center; gap: 7px; font-size: 25px; line-height: 1; color: #8233d5; }
+.level-values { display: grid; grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); align-items: center; gap: 8px; margin-top: 11px; color: #9d43e9; }
+.level-values strong { min-width: 0; font-size: 17px; line-height: 1.25; color: #8233d5; overflow-wrap: anywhere; }
+.level-values strong:last-child { text-align: right; }
 .level-values strong img { width: 34px; height: 34px; object-fit: contain; }
 .level-arrow { width: 16px; height: 16px; display: grid; place-items: center; border: 2px solid #9d43e9; border-radius: 50%; }
 .level-arrow svg { width: 13px; }
