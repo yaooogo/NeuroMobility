@@ -127,6 +127,7 @@ async function distributeExpansionRewards(configName, connection, prefix, wallet
   const ancestors = await DB.query(configName, connection).exec(
     `SELECT relation.inviter AS wallet,
             relation.lv,
+            member.invests,
             member.level,
             member.manual_level,
             member.is_manual_level
@@ -137,7 +138,8 @@ async function distributeExpansionRewards(configName, connection, prefix, wallet
      ORDER BY relation.lv ASC`,
     [wallet]
   );
-  const rewards = calculateLevelRewardRates(ancestors, levelRules, 'expansion_reward_percent');
+  const investedAncestors = (ancestors || []).filter(ancestor => BigInt(String(ancestor.invests || '0')) > 0n);
+  const rewards = calculateLevelRewardRates(investedAncestors, levelRules, 'expansion_reward_percent');
   for (const reward of rewards) {
     const configuredReward = amountRaw * reward.percent / LEVEL_REWARD_PERCENT_DENOMINATOR;
     const assetReward = scaleRaw(configuredReward, INVESTMENT_DECIMALS, assetDecimals);
