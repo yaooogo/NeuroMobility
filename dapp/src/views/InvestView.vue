@@ -19,17 +19,20 @@ const investmentConfig = ref({
   dividend_cycle_days: 30,
   min_percent: 3,
   max_percent: 10,
+  rusdt_investment_enabled: 1,
+  mixed_investment_enabled: 1,
   mixed_usdt_percent: 70
 });
 const selectedAmount = ref(1000);
 const selectedToken = ref("USDT");
 const customAmount = ref("");
 const submitting = ref(false);
-const participationModes = [
+const configLoaded = ref(false);
+const participationModes = computed(() => [
   { value: "USDT", label: "USDT" },
-  { value: "RUSDT", label: "RUSDT" },
-  { value: "USDT+RUSDT", label: "USDT+RUSDT" }
-];
+  ...(configLoaded.value && Number(investmentConfig.value.rusdt_investment_enabled ?? 0) === 1 ? [{ value: "RUSDT", label: "RUSDT" }] : []),
+  ...(configLoaded.value && Number(investmentConfig.value.mixed_investment_enabled ?? 0) === 1 ? [{ value: "USDT+RUSDT", label: "USDT+RUSDT" }] : [])
+]);
 const amountOptions = computed(() => {
   const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
   const wholeVehicle = Number(investmentConfig.value.whole_vehicle_tier) || 50000;
@@ -54,6 +57,7 @@ const mixedSplit = computed(() => {
 const canSubmit = computed(() => {
   const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
   const amount = finalAmount.value;
+  if (!participationModes.value.some((mode) => mode.value === selectedToken.value)) return false;
   if (!Number.isFinite(amount) || amount < minimum) return false;
   if (!customAmount.value) return true;
   return Number.isInteger(amount / minimum);
@@ -106,6 +110,12 @@ function setCustomAmount(event) {
   if (customAmount.value) selectedAmount.value = 0;
 }
 
+function syncSelectedToken() {
+  if (!participationModes.value.some((mode) => mode.value === selectedToken.value)) {
+    selectedToken.value = participationModes.value[0]?.value || "USDT";
+  }
+}
+
 async function submit() {
   if (!canSubmit.value || submitting.value) return;
   if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
@@ -132,6 +142,8 @@ onMounted(async () => {
     const dividendCycleDays = Number(data?.dividend_cycle_days);
     const minPercent = Number(data?.min_percent);
     const maxPercent = Number(data?.max_percent);
+    const rusdtInvestmentEnabled = Number(data?.rusdt_investment_enabled ?? 1);
+    const mixedInvestmentEnabled = Number(data?.mixed_investment_enabled ?? 1);
     const mixedUsdtPercent = Number(data?.mixed_usdt_percent);
     if (Number.isInteger(minimum) && minimum > 0) investmentConfig.value.minimum_investment_amount = minimum;
     if (Number.isFinite(wholeVehicle) && wholeVehicle > 0) investmentConfig.value.whole_vehicle_tier = wholeVehicle;
@@ -139,9 +151,15 @@ onMounted(async () => {
     if (Number.isInteger(dividendCycleDays) && dividendCycleDays > 0) investmentConfig.value.dividend_cycle_days = dividendCycleDays;
     if (Number.isFinite(minPercent) && minPercent >= 0 && minPercent <= 100) investmentConfig.value.min_percent = minPercent;
     if (Number.isFinite(maxPercent) && maxPercent >= 0 && maxPercent <= 100) investmentConfig.value.max_percent = maxPercent;
+    investmentConfig.value.rusdt_investment_enabled = rusdtInvestmentEnabled === 1 ? 1 : 0;
+    investmentConfig.value.mixed_investment_enabled = mixedInvestmentEnabled === 1 ? 1 : 0;
     if (Number.isFinite(mixedUsdtPercent) && mixedUsdtPercent >= 0 && mixedUsdtPercent <= 100) investmentConfig.value.mixed_usdt_percent = mixedUsdtPercent;
+    configLoaded.value = true;
+    syncSelectedToken();
     if (!customAmount.value) selectedAmount.value = investmentConfig.value.minimum_investment_amount;
   } catch {
+    configLoaded.value = true;
+    syncSelectedToken();
     // Keep safe defaults when the public configuration endpoint is unavailable.
   }
 });
@@ -161,8 +179,9 @@ onMounted(async () => {
     </section>
 
     <section class="amount-section">
-      <h2>{{ lang("参与方式") }}</h2>
-      <div class="participation-tabs">
+      <template v-if="participationModes.length > 1">
+        <h2>{{ lang("参与方式") }}</h2>
+        <div class="participation-tabs">
         <button
           v-for="mode in participationModes"
           :key="mode.value"
@@ -172,7 +191,8 @@ onMounted(async () => {
         >
           {{ mode.label }}
         </button>
-      </div>
+        </div>
+      </template>
       <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ investmentConfig.minimum_investment_amount.toLocaleString() }} U)</small></h2>
       <div class="amount-grid">
         <button
@@ -234,7 +254,7 @@ onMounted(async () => {
 .amount-section { margin-top: 20px; }
 .amount-section h2, .instructions > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #a243ee; font-size: 15px; line-height: 23px; }
 .amount-section h2 small { color: #99949d; font-size: 11px; font-weight: 400; }
-.participation-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 43px; padding:8px; border-radius: 8px; background: #F1EFFD; }
+.participation-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin: 0 0 43px; padding:8px; border-radius: 8px; background: #F1EFFD; }
 .participation-tabs button { min-width: 0; height: 32px; overflow: hidden; border: 0; border-radius: 6px; background: #d9c4f3; color: #918d96; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .participation-tabs button.active { background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; }
 .amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px 14px; }

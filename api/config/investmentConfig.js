@@ -12,6 +12,8 @@ const DEFAULT_INVESTMENT_CONFIG = Object.freeze({
   dividend_max_percent: 100,
   exit_multiple: 1,
   guaranteed_dividend_percent: 3,
+  rusdt_investment_enabled: 1,
+  mixed_investment_enabled: 1,
   mixed_usdt_percent: 70
 });
 
@@ -32,6 +34,8 @@ export function normalizeInvestmentConfig(config) {
   const dividendMaxPercent = Number(config?.dividend_max_percent ?? config?.dividendMaxPercent);
   const exitMultiple = Number(config?.exit_multiple ?? config?.exitMultiple);
   const guaranteedDividendPercent = Number(config?.guaranteed_dividend_percent ?? config?.guaranteedDividendPercent);
+  const rusdtInvestmentEnabled = Number(config?.rusdt_investment_enabled ?? config?.rusdtInvestmentEnabled);
+  const mixedInvestmentEnabled = Number(config?.mixed_investment_enabled ?? config?.mixedInvestmentEnabled);
   const mixedUsdtPercent = Number(config?.mixed_usdt_percent ?? config?.mixedUsdtPercent);
 
   const normalized = {
@@ -69,6 +73,12 @@ export function normalizeInvestmentConfig(config) {
       && guaranteedDividendPercent >= 0 && guaranteedDividendPercent <= 100
       ? guaranteedDividendPercent
       : defaults.guaranteed_dividend_percent,
+    rusdt_investment_enabled: Number.isFinite(rusdtInvestmentEnabled)
+      ? (rusdtInvestmentEnabled === 1 ? 1 : 0)
+      : defaults.rusdt_investment_enabled,
+    mixed_investment_enabled: Number.isFinite(mixedInvestmentEnabled)
+      ? (mixedInvestmentEnabled === 1 ? 1 : 0)
+      : defaults.mixed_investment_enabled,
     mixed_usdt_percent: Number.isFinite(mixedUsdtPercent) && mixedUsdtPercent >= 0 && mixedUsdtPercent <= 100
       ? mixedUsdtPercent
       : defaults.mixed_usdt_percent
@@ -114,6 +124,8 @@ export function validateInvestmentConfig(config) {
   const dividendMaxPercent = Number(config?.dividend_max_percent ?? config?.dividendMaxPercent);
   const exitMultiple = Number(config?.exit_multiple ?? config?.exitMultiple);
   const guaranteedDividendPercent = Number(config?.guaranteed_dividend_percent ?? config?.guaranteedDividendPercent);
+  const rusdtInvestmentEnabled = Number(config?.rusdt_investment_enabled ?? config?.rusdtInvestmentEnabled ?? 1);
+  const mixedInvestmentEnabled = Number(config?.mixed_investment_enabled ?? config?.mixedInvestmentEnabled ?? 1);
   const mixedUsdtPercent = Number(config?.mixed_usdt_percent ?? config?.mixedUsdtPercent);
 
   if (!Number.isFinite(wholeVehicleTier) || wholeVehicleTier <= 0) {
@@ -169,6 +181,8 @@ export function validateInvestmentConfig(config) {
     dividend_max_percent: dividendMaxPercent,
     exit_multiple: exitMultiple,
     guaranteed_dividend_percent: guaranteedDividendPercent,
+    rusdt_investment_enabled: rusdtInvestmentEnabled === 1 ? 1 : 0,
+    mixed_investment_enabled: mixedInvestmentEnabled === 1 ? 1 : 0,
     mixed_usdt_percent: mixedUsdtPercent
   };
 }

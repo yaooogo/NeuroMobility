@@ -44,6 +44,13 @@ function normalizeInvestmentToken(value) {
   return INVESTMENT_TOKENS.includes(token) ? token : TOKEN;
 }
 
+function isInvestmentTokenEnabled(token, config) {
+  if (token === TOKEN) return true;
+  if (token === R_TOKEN) return Number(config?.rusdt_investment_enabled ?? 1) === 1;
+  if (token === MIXED_TOKEN) return Number(config?.mixed_investment_enabled ?? 1) === 1;
+  return false;
+}
+
 function normalizePercent(value, fallback = 0) {
   const percent = Number(value);
   if (!Number.isFinite(percent)) return fallback;
@@ -238,6 +245,9 @@ async function create(req, res) {
     ]);
     const amountText = String(req.body?.amount ?? '').trim();
     const investmentToken = normalizeInvestmentToken(req.body?.token);
+    if (!isInvestmentTokenEnabled(investmentToken, investmentConfig)) {
+      return res.send(ApiResult.error(400, `${investmentToken} investment is currently unavailable`));
+    }
     const mixedUsdtPercent = mixedPercentForToken(investmentToken, investmentConfig.mixed_usdt_percent);
     const amountRaw = BigInt(parseAssetAmount(amountText, INVESTMENT_DECIMALS));
     const minimumRaw = BigInt(parseAssetAmount(String(investmentConfig.minimum_investment_amount), INVESTMENT_DECIMALS));

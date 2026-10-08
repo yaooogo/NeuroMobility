@@ -21,6 +21,8 @@ const investment = ref({
   dividend_max_percent: '100',
   exit_multiple: '1',
   guaranteed_dividend_percent: '3',
+  rusdt_investment_enabled: '1',
+  mixed_investment_enabled: '1',
   mixed_usdt_percent: '70'
 });
 const other = ref({ platform_operated_vehicles: '1258', virtual_users: '56320' });
@@ -68,6 +70,8 @@ async function loadInvestment() {
       dividend_max_percent: String(data.dividend_max_percent),
       exit_multiple: String(data.exit_multiple),
       guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
+      rusdt_investment_enabled: String(data.rusdt_investment_enabled ?? 1),
+      mixed_investment_enabled: String(data.mixed_investment_enabled ?? 1),
       mixed_usdt_percent: String(data.mixed_usdt_percent)
     };
     investmentLoaded.value = true;
@@ -210,6 +214,8 @@ async function save() {
         dividend_max_percent: String(data.dividend_max_percent),
         exit_multiple: String(data.exit_multiple),
         guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
+        rusdt_investment_enabled: String(data.rusdt_investment_enabled ?? 1),
+        mixed_investment_enabled: String(data.mixed_investment_enabled ?? 1),
         mixed_usdt_percent: String(data.mixed_usdt_percent)
       };
       success.value = '投资配置已保存';
@@ -355,6 +361,20 @@ onMounted(loadLevels);
             </div>
           </label>
           <label class="investment-field">
+            <span>RUSDT 参与</span>
+            <div>
+              <label v-if="canUpdate" class="config-check"><input v-model="investment.rusdt_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 RUSDT</span></label>
+              <strong v-else>{{ investment.rusdt_investment_enabled === '1' ? '允许' : '禁止' }}</strong>
+            </div>
+          </label>
+          <label class="investment-field">
+            <span>混合支付</span>
+            <div>
+              <label v-if="canUpdate" class="config-check"><input v-model="investment.mixed_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 USDT+RUSDT</span></label>
+              <strong v-else>{{ investment.mixed_investment_enabled === '1' ? '允许' : '禁止' }}</strong>
+            </div>
+          </label>
+          <label class="investment-field">
             <span>混合投资比例</span>
             <div>
               <div class="range-inputs">
@@ -417,6 +437,8 @@ onMounted(loadLevels);
 .dividend-config > .range-inputs { flex: 1 1 240px; }
 .investment-loading { padding: 0 24px 26px; color: var(--muted); }
 .investment-tip { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; }
+.config-check { min-height: 42px; display: inline-flex; align-items: center; gap: 10px; color: var(--text); cursor: pointer; }
+.config-check input { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
 .level-config-actions { display: flex; margin-top: auto; padding-top: 26px; border-top: 1px solid var(--line); }
 .level-config-actions .submit-button { width: 100%; min-height: 42px; border-radius: 0 0 24px 24px; font-size: 16px; }
 @media (max-width: 640px) {
