@@ -9,6 +9,7 @@ import AssetTokenService from '../services/Manage/AssetTokenService.js';
 import AssetLogService from '../services/Manage/AssetLogService.js';
 import SystemConfigService from '../services/Manage/SystemConfigService.js';
 import WalletService from '../services/Manage/WalletService.js';
+import WalletImportTaskService from '../services/Manage/WalletImportTaskService.js';
 import AnnouncementService from '../services/Manage/AnnouncementService.js';
 import HelpArticleService from '../services/Manage/HelpArticleService.js';
 import AboutContentService from '../services/Manage/AboutContentService.js';
@@ -29,10 +30,28 @@ const imageUpload = multer({
     fileSize: Upload.getMaxImageUploadBytes()
   }
 });
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 20 * 1024 * 1024
+  }
+});
 
 function singleImage(fieldName) {
   return (req, res, next) => {
     imageUpload.single(fieldName)(req, res, (error) => {
+      if (error) {
+        return res.send(ApiResult.error(400, error.message || "Upload failed"));
+      }
+
+      return next();
+    });
+  };
+}
+
+function singleCsv(fieldName) {
+  return (req, res, next) => {
+    csvUpload.single(fieldName)(req, res, (error) => {
       if (error) {
         return res.send(ApiResult.error(400, error.message || "Upload failed"));
       }
@@ -131,6 +150,9 @@ router.route('/wallet/list').post(WalletService.walletList)
 router.route('/wallet/tree').post(WalletService.walletTree)
 router.route('/wallet/create').post(WalletService.walletCreate)
 router.route('/wallet/update').post(WalletService.walletUpdate)
+router.route('/wallet/import').post(singleCsv('file'), WalletImportTaskService.create)
+router.route('/wallet/import-task/detail').post(WalletImportTaskService.detail)
+router.route('/wallet/import-task/list').post(WalletImportTaskService.list)
 router.route('/wallet-asset/list').post(WalletService.walletAssetList)
 router.route('/wallet-asset/change').post(WalletService.walletAssetChange)
 

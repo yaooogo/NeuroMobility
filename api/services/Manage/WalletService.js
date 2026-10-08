@@ -59,6 +59,310 @@ async function generateRefCode(config, connection) {
   return `NM${Date.now().toString(36).toUpperCase()}`;
 }
 
+function normalizeImportItems(value) {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch (error) {
+      return [];
+    }
+  }
+  return Array.isArray(value) ? value : [];
+}
+
+function normalizeImportWallet(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function walletImport(req, res) {
+  try {
+    const rawItems = normalizeImportItems(req.body?.items);
+    if (!rawItems.length) return res.send(ApiResult.error(400, '请先选择需要导入的钱包 CSV'));
+    if (rawItems.length > 500) return res.send(ApiResult.error(400, '单次最多导入 500 个钱包'));
+
+    const items = rawItems.map((item, index) => ({
+      line_no: Helper.parseInt(item?.line_no, index + 2),
+      wallet: normalizeImportWallet(item?.wallet),
+      inviter: String(item?.inviter || '').trim()
+    }));
+    const seenWallets = new Set();
+    for (const item of items) {
+      if (!/^0x[a-f0-9]{40}$/u.test(item.wallet)) throw new Error(`第 ${item.line_no} 行：钱包地址格式不正确`);
+      if (seenWallets.has(item.wallet)) throw new Error(`第 ${item.line_no} 行：CSV 内钱包地址重复`);
+      seenWallets.add(item.wallet);
+      if (item.inviter && !/^0x[a-fA-F0-9]{40}$/u.test(item.inviter) && !/^[a-zA-Z0-9]{4,50}$/u.test(item.inviter)) {
+        throw new Error(`第 ${item.line_no} 行：邀请人必须是钱包地址或邀请码`);
+      }
+      if (item.inviter && item.inviter.toLowerCase() === item.wallet) throw new Error(`第 ${item.line_no} 行：邀请人不能是当前钱包`);
+    }
+
+    const settings = parseWalletSettings({
+      status: 1,
+      withdraw_enabled: 1,
+      usdt_withdraw_enabled: 1,
+      is_manual_level: 0,
+      manual_level: 0
+    });
+    const tokens = await AssetToken.getTokens();
+    const imported = [];
+
+    await DB.transaction(async (config, connection) => {
+      const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+      for (const item of items) {
+        const duplicateWallet = await DB.query(config, connection).table(WALLET_TABLE)
+          .whereRaw('LOWER(wallet)=?', [item.wallet])
+          .first();
+        if (duplicateWallet) throw new Error(`第 ${item.line_no} 行：钱包地址已存在`);
+
+        let inviter = null;
+        if (item.inviter) {
+          const inviterInput = item.inviter.trim();
+          inviter = await DB.query(config, connection).table(WALLET_TABLE)
+            .whereRaw('(LOWER(wallet)=LOWER(?) OR ref_code=?)', [inviterInput, inviterInput.toUpperCase()])
+            .first();
+          if (!inviter) throw new Error(`第 ${item.line_no} 行：邀请钱包或邀请码不存在，请确认父级在 CSV 中排在子级前面`);
+          if (String(inviter.wallet || '').toLowerCase() === item.wallet) throw new Error(`第 ${item.line_no} 行：邀请人不能是当前钱包`);
+        }
+
+        const refCode = await generateRefCode(config, connection);
+        await DB.query(config, connection).table(WALLET_TABLE).insert({
+          wallet: item.wallet,
+          invests: '0',
+          community_invests: '0',
+          community_users: 0,
+          inviter: inviter?.wallet || null,
+          ref_code: refCode,
+          lv: inviter ? Number(inviter.lv || 0) + 1 : 0,
+          level: 0,
+          level_isupdate: 0,
+          ...settings,
+          created_at: now,
+          updated_at: now
+        });
+
+        if (inviter) {
+          const ancestors = await DB.query(config, connection).table('wallet_relation')
+            .whereRaw('LOWER(wallet)=LOWER(?)', [inviter.wallet])
+            .orderBy('lv', 'asc')
+            .get();
+          const relationRows = [{
+            wallet: item.wallet,
+            wallet_invests: '0',
+            inviter: inviter.wallet,
+            inviter_invests: String(inviter.invests ?? '0'),
+            lv: 1,
+            created_at: now,
+            updated_at: now
+          }];
+          for (const ancestor of ancestors || []) {
+            if (!ancestor.inviter) continue;
+            relationRows.push({
+              wallet: item.wallet,
+              wallet_invests: '0',
+              inviter: ancestor.inviter,
+              inviter_invests: String(ancestor.inviter_invests ?? '0'),
+              lv: Number(ancestor.lv || 0) + 1,
+              created_at: now,
+              updated_at: now
+            });
+          }
+          await DB.query(config, connection).table('wallet_relation').insert(relationRows);
+        }
+
+        if (tokens.length) {
+          await DB.query(config, connection).table(WALLET_ASSET_TABLE).insert(tokens.map(token => ({
+            wallet: item.wallet,
+            token: token.value,
+            balance: '0',
+            frozen_balance: '0',
+            updated_at: now
+          })));
+        }
+        imported.push({ line_no: item.line_no, wallet: item.wallet, inviter: inviter?.wallet || '', ref_code: refCode });
+      }
+    });
+
+    return res.send(ApiResult.success({
+      success_count: imported.length,
+      items: imported
+    }, `成功导入 ${imported.length} 个钱包`));
+  } catch (error) {
+    if (/第 \d+ 行|CSV|钱包|邀请|单次最多|手动等级/u.test(error.message || '')) {
+      return res.send(ApiResult.error(400, error.message));
+    }
+    return res.send(ApiResult.exception(error, 'WalletService.walletImport'));
+  }
+}
+
+function resolveWalletImportOrder(items, inviterByWallet) {
+  const itemMap = new Map(items.map(item => [item.wallet, item]));
+  const ordered = [];
+  const visiting = new Set();
+  const visited = new Set();
+
+  function visit(item) {
+    if (visited.has(item.wallet)) return;
+    if (visiting.has(item.wallet)) throw new Error(`第 ${item.line_no} 行：CSV 内邀请关系存在循环`);
+    visiting.add(item.wallet);
+    const inviterWallet = inviterByWallet.get(item.wallet);
+    if (inviterWallet && itemMap.has(inviterWallet)) visit(itemMap.get(inviterWallet));
+    visiting.delete(item.wallet);
+    visited.add(item.wallet);
+    ordered.push(item);
+  }
+
+  for (const item of items) visit(item);
+  return ordered;
+}
+
+async function walletImportBatch(req, res) {
+  try {
+    const rawItems = normalizeImportItems(req.body?.items);
+    if (!rawItems.length) return res.send(ApiResult.error(400, '请先选择需要导入的钱包 CSV'));
+    if (rawItems.length > 500) return res.send(ApiResult.error(400, '单次最多导入 500 个钱包'));
+
+    const items = rawItems.map((item, index) => ({
+      line_no: Helper.parseInt(item?.line_no, index + 2),
+      wallet: normalizeImportWallet(item?.wallet),
+      inviter: String(item?.inviter || '').trim()
+    }));
+    const seenWallets = new Set();
+    for (const item of items) {
+      if (!/^0x[a-f0-9]{40}$/u.test(item.wallet)) throw new Error(`第 ${item.line_no} 行：钱包地址格式不正确`);
+      if (seenWallets.has(item.wallet)) throw new Error(`第 ${item.line_no} 行：CSV 内钱包地址重复`);
+      seenWallets.add(item.wallet);
+      if (item.inviter && !/^0x[a-fA-F0-9]{40}$/u.test(item.inviter) && !/^[a-zA-Z0-9]{4,50}$/u.test(item.inviter)) {
+        throw new Error(`第 ${item.line_no} 行：邀请人必须是钱包地址或邀请码`);
+      }
+      if (item.inviter && item.inviter.toLowerCase() === item.wallet) throw new Error(`第 ${item.line_no} 行：邀请人不能是当前钱包`);
+    }
+
+    const settings = parseWalletSettings({
+      status: 1,
+      withdraw_enabled: 1,
+      usdt_withdraw_enabled: 1,
+      is_manual_level: 0,
+      manual_level: 0
+    });
+    const tokens = await AssetToken.getTokens();
+    const imported = [];
+
+    await DB.transaction(async (config, connection) => {
+      const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+      const refCodes = new Map();
+
+      for (const item of items) {
+        const duplicateWallet = await DB.query(config, connection).table(WALLET_TABLE)
+          .whereRaw('LOWER(wallet)=?', [item.wallet])
+          .first();
+        if (duplicateWallet) throw new Error(`第 ${item.line_no} 行：钱包地址已存在`);
+      }
+
+      for (const item of items) {
+        const refCode = await generateRefCode(config, connection);
+        refCodes.set(item.wallet, refCode);
+        await DB.query(config, connection).table(WALLET_TABLE).insert({
+          wallet: item.wallet,
+          invests: '0',
+          community_invests: '0',
+          community_users: 0,
+          inviter: null,
+          ref_code: refCode,
+          lv: 0,
+          level: 0,
+          level_isupdate: 0,
+          ...settings,
+          created_at: now,
+          updated_at: now
+        });
+
+        if (tokens.length) {
+          await DB.query(config, connection).table(WALLET_ASSET_TABLE).insert(tokens.map(token => ({
+            wallet: item.wallet,
+            token: token.value,
+            balance: '0',
+            frozen_balance: '0',
+            updated_at: now
+          })));
+        }
+      }
+
+      const inviterRows = new Map();
+      const inviterByWallet = new Map();
+      for (const item of items) {
+        if (!item.inviter) continue;
+        const inviterInput = item.inviter.trim();
+        const inviter = await DB.query(config, connection).table(WALLET_TABLE)
+          .whereRaw('(LOWER(wallet)=LOWER(?) OR ref_code=?)', [inviterInput, inviterInput.toUpperCase()])
+          .first();
+        if (!inviter) throw new Error(`第 ${item.line_no} 行：邀请钱包或邀请码不存在`);
+        const inviterWallet = String(inviter.wallet || '').toLowerCase();
+        if (inviterWallet === item.wallet) throw new Error(`第 ${item.line_no} 行：邀请人不能是当前钱包`);
+        inviterRows.set(item.wallet, inviter);
+        inviterByWallet.set(item.wallet, inviterWallet);
+      }
+
+      const orderedItems = resolveWalletImportOrder(items, inviterByWallet);
+      for (const item of orderedItems) {
+        const inviter = inviterRows.get(item.wallet);
+        if (!inviter) {
+          imported.push({ line_no: item.line_no, wallet: item.wallet, inviter: '', ref_code: refCodes.get(item.wallet) });
+          continue;
+        }
+
+        const currentInviter = await DB.query(config, connection).table(WALLET_TABLE)
+          .whereRaw('LOWER(wallet)=LOWER(?)', [inviter.wallet])
+          .first();
+        if (!currentInviter) throw new Error(`第 ${item.line_no} 行：邀请钱包不存在`);
+
+        await DB.query(config, connection).table(WALLET_TABLE).whereRaw('LOWER(wallet)=?', [item.wallet]).update({
+          inviter: currentInviter.wallet,
+          lv: Number(currentInviter.lv || 0) + 1,
+          updated_at: now
+        });
+
+        const ancestors = await DB.query(config, connection).table('wallet_relation')
+          .whereRaw('LOWER(wallet)=LOWER(?)', [currentInviter.wallet])
+          .orderBy('lv', 'asc')
+          .get();
+        const relationRows = [{
+          wallet: item.wallet,
+          wallet_invests: '0',
+          inviter: currentInviter.wallet,
+          inviter_invests: String(currentInviter.invests ?? '0'),
+          lv: 1,
+          created_at: now,
+          updated_at: now
+        }];
+        for (const ancestor of ancestors || []) {
+          if (!ancestor.inviter) continue;
+          relationRows.push({
+            wallet: item.wallet,
+            wallet_invests: '0',
+            inviter: ancestor.inviter,
+            inviter_invests: String(ancestor.inviter_invests ?? '0'),
+            lv: Number(ancestor.lv || 0) + 1,
+            created_at: now,
+            updated_at: now
+          });
+        }
+        await DB.query(config, connection).table('wallet_relation').insert(relationRows);
+        imported.push({ line_no: item.line_no, wallet: item.wallet, inviter: currentInviter.wallet, ref_code: refCodes.get(item.wallet) });
+      }
+    });
+
+    return res.send(ApiResult.success({
+      success_count: imported.length,
+      items: imported.sort((a, b) => a.line_no - b.line_no)
+    }, `成功导入 ${imported.length} 个钱包`));
+  } catch (error) {
+    if (/第 \d+ 行|CSV|钱包|邀请|单次最多|手动等级/u.test(error.message || '')) {
+      return res.send(ApiResult.error(400, error.message));
+    }
+    return res.send(ApiResult.exception(error, 'WalletService.walletImportBatch'));
+  }
+}
+
 async function walletCreate(req, res) {
   try {
     const wallet = String(req.body?.wallet || '').trim().toLowerCase();
@@ -461,4 +765,4 @@ async function walletAssetChange(req, res) {
   }
 }
 
-export default { walletList, walletTree, walletCreate, walletUpdate, walletAssetList, walletAssetChange };
+export default { walletList, walletTree, walletCreate, walletUpdate, walletImport: walletImportBatch, walletAssetList, walletAssetChange };
