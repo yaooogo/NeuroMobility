@@ -10,7 +10,7 @@ import Helper from '../../Util/Helper.js';
 import { ensureOpenDepositTable } from '../../Util/OpenDepositSchema.js';
 import { toDappApiError } from '../../Util/DappApiMessage.js';
 
-const TOKEN = 'USDT';
+const TOKEN = 'RUSDT';
 const DEPOSIT_SCENE = 'open_api_recharge';
 
 function normalizeWallet(value) {
@@ -156,7 +156,7 @@ async function deposits(req, res) {
         await ensureOpenDepositTable();
         const token = await AssetToken.getTokenItem(TOKEN);
         if (!token) {
-            throw new Error('USDT asset is not configured');
+            throw new Error(`${TOKEN} asset is not configured`);
         }
 
         let rawAmount;
@@ -221,7 +221,7 @@ async function deposits(req, res) {
                 before_balance: beforeBalance.toString(),
                 after_balance: afterBalance.toString(),
                 scene: DEPOSIT_SCENE,
-                reason: `USDT open API recharge ${uniqueId}`,
+                reason: `${TOKEN} open API recharge ${uniqueId}`,
                 type: 'in',
                 created_at: now,
                 updated_at: now

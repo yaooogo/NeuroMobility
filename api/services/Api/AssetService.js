@@ -292,16 +292,33 @@ async function records(req, res) {
     await ensureAssetTransferTables();
     const { wallet, token, decimals } = await getContext(req);
     await releaseExpiredWithdrawals(wallet);
+    const tokenDecimals = new Map([[TOKEN, decimals]]);
+    async function decimalsFor(value) {
+      const symbol = String(value || TOKEN).trim().toUpperCase() || TOKEN;
+      if (!tokenDecimals.has(symbol)) {
+        tokenDecimals.set(symbol, await AssetToken.getTokenDecimals(symbol));
+      }
+      return tokenDecimals.get(symbol);
+    }
     const deposits = await DB.query().table('receiver_order').whereRaw('LOWER(wallet)=?', [wallet]).orderBy('id', 'desc').take(100).get();
     const withdrawals = await DB.query().table('withdrawal_order').whereRaw('LOWER(wallet)=?', [wallet]).orderBy('id', 'desc').take(100).get();
     const apiDeposits = await DB.query().table('wallet_assets_logs')
-      .whereRaw('LOWER(wallet)=?', [wallet]).where('token', TOKEN)
+      .whereRaw('LOWER(wallet)=?', [wallet])
       .where('type', 'in').where('scene', 'open_api_recharge')
       .orderBy('id', 'desc').take(100).get();
     const items = [
-      ...(deposits || []).map(row => ({ id: `deposit-${row.id}`, type: 'deposit', amount: formatAssetAmount(row.amount || '0', decimals), token: row.token || TOKEN, status: 2, tx_hash: row.tx_hash || '', time: row.created_at || '' })),
-      ...(withdrawals || []).map(row => ({ id: `withdraw-${row.id}`, type: 'withdraw', amount: formatAssetAmount(row.debit_amount || '0', decimals), token: row.token || TOKEN, status: Number(row.status || 0), tx_hash: row.tx_hash || '', time: row.created_at || '' })),
-      ...(apiDeposits || []).map(row => ({ id: `api-deposit-${row.id}`, type: 'deposit', source: 'api', amount: formatAssetAmount(row.balance || '0', decimals), token: row.token || TOKEN, status: 2, tx_hash: '', time: row.created_at || '' }))
+      ...(await Promise.all((deposits || []).map(async row => {
+        const rowToken = row.token || TOKEN;
+        return { id: `deposit-${row.id}`, type: 'deposit', amount: formatAssetAmount(row.amount || '0', await decimalsFor(rowToken)), token: rowToken, status: 2, tx_hash: row.tx_hash || '', time: row.created_at || '' };
+      }))),
+      ...(await Promise.all((withdrawals || []).map(async row => {
+        const rowToken = row.token || TOKEN;
+        return { id: `withdraw-${row.id}`, type: 'withdraw', amount: formatAssetAmount(row.debit_amount || '0', await decimalsFor(rowToken)), token: rowToken, status: Number(row.status || 0), tx_hash: row.tx_hash || '', time: row.created_at || '' };
+      }))),
+      ...(await Promise.all((apiDeposits || []).map(async row => {
+        const rowToken = row.token || TOKEN;
+        return { id: `api-deposit-${row.id}`, type: 'deposit', source: 'api', amount: formatAssetAmount(row.balance || '0', await decimalsFor(rowToken)), token: rowToken, status: 2, tx_hash: '', time: row.created_at || '' };
+      })))
     ].sort((a, b) => String(b.time).localeCompare(String(a.time))).slice(0, 100);
     return res.send(ApiResult.success({ items, token: tokenPublic(token) }, 'Deposit and withdrawal records retrieved successfully'));
   } catch (error) {
