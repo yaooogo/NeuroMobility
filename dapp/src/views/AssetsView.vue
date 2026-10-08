@@ -270,7 +270,7 @@ watch(() => [props.connected, props.authenticated, props.address], () => {
 .orders-section > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 15px; line-height: 23px; }
 .order-card { margin-top: 14px; padding: 15px; border: 1px solid #f1edf5; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
 .empty-orders { padding: 36px 15px; border: 1px solid #f1edf5; border-radius: 12px; color: #aaa3ad; text-align: center; }
-.order-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px; border-radius: 12px; background: #f0ecfb; }
+.order-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 14px; border-radius: 8px; background: #f0ecfb; }
 .order-summary span { min-width: 0; color: #5a555e; font-size: 12px; white-space: nowrap; }
 .order-summary b { display: block; margin-top: 5px; color: #8d37e1; font-size: 17px; }
 .order-card dl { margin: 16px 0 19px 10px; }
