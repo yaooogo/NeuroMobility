@@ -238,7 +238,7 @@ onMounted(async () => {
 .participation-tabs button { min-width: 0; height: 32px; overflow: hidden; border: 0; border-radius: 6px; background: #d9c4f3; color: #918d96; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .participation-tabs button.active { background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; }
 .amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px 14px; }
-.amount-grid button { position: relative; height: 44px; padding: 0; border: 1px solid #e1d5f9; border-radius: 8px; background: #f2effa; color: #918d96; font-size: 16px; cursor: pointer; transition: .18s ease; }
+.amount-grid button { position: relative; height: 44px; padding: 0; border: 1px solid #e1d5f9; border-radius: 8px; background: #F1EFFD; color: #918d96; font-size: 16px; cursor: pointer; transition: .18s ease; }
 .amount-grid button.active { border-color: transparent; background: linear-gradient(115deg, #ad53f5, #7926d4); color: #fff; font-weight: 700; box-shadow: 0 8px 18px rgba(138,49,218,.16); }
 .amount-grid em { position: absolute; right: -2px; top: -17px; max-width: calc(100% + 4px); padding: 4px 6px; overflow: hidden; border-radius: 5px 5px 0 5px; background: #a342ec; color: #fff; font-size: 9px; font-style: normal; line-height: 15px; text-overflow: ellipsis; white-space: nowrap; }
 .custom-amount { height: 44px; display: flex; align-items: center; margin-top: 20px; padding: 0 16px; border: 1px solid #e1d5f9; border-radius: 8px; background: #f2effa; transition: .18s ease; }
@@ -247,7 +247,7 @@ onMounted(async () => {
 .custom-amount input::placeholder { color: #bcb7c2; }
 .custom-amount span { color: #9d44e7; font-size: 12px; }
 .mixed-split { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); align-items: center; gap: 15px; margin-top: 30px; }
-.mixed-split div { min-width: 0; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; overflow: hidden; border: 1.5px solid #a64df1; border-radius: 8px; background: #f4f0fb; color: #a54cf0; }
+.mixed-split div { min-width: 0; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; overflow: hidden; border: 1.5px solid #A95CF8; border-radius: 8px; background: #F1EFFD; color: #a54cf0; }
 .mixed-split strong, .mixed-split span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mixed-split strong { color: #918d96; font-size: 17px; font-weight: 400; }
 .mixed-split span { font-size: 17px; }
