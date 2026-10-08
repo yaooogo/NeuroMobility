@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { onMounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
@@ -18,10 +18,13 @@ const modal = ref(false);
 const error = ref('');
 const modalError = ref('');
 const success = ref('');
-const form = reactive({
-  id: 0, wallet: '', inviter: '', ref_code: '', status: 1, withdraw_enabled: 1, usdt_withdraw_enabled: 1,
-  is_manual_level: 0, manual_level: 0, remark_system: '', remark_name: '', remark_community: ''
+const defaultForm = () => ({
+  id: 0, wallet: '', inviter: '', ref_code: '', status: 1,
+  withdraw_enabled: 1, usdt_withdraw_enabled: 1,
+  is_manual_level: 0, manual_level: 0,
+  remark_system: '', remark_name: '', remark_community: ''
 });
+const form = reactive(defaultForm());
 
 async function load() {
   loading.value = true; error.value = '';
@@ -36,16 +39,10 @@ async function load() {
 
 function search() { query.page = 1; load(); }
 function changePage(page) { query.page = page; load(); }
-function openCreate() {
-  Object.assign(form, {
-    id: 0, wallet: '', inviter: '', ref_code: '', status: 1,
-    withdraw_enabled: 1, usdt_withdraw_enabled: 1, is_manual_level: 0, manual_level: 0,
-    remark_system: '', remark_name: '', remark_community: ''
-  });
-  modalError.value = ''; modal.value = true;
-}
+function openCreate() { Object.assign(form, defaultForm()); modalError.value = ''; modal.value = true; }
 function edit(row) {
   Object.assign(form, {
+    ...defaultForm(),
     id: row.id, wallet: row.wallet, inviter: row.inviter, ref_code: row.ref_code, status: row.status,
     withdraw_enabled: row.withdraw_enabled, usdt_withdraw_enabled: row.usdt_withdraw_enabled,
     is_manual_level: row.is_manual_level, manual_level: row.manual_level,

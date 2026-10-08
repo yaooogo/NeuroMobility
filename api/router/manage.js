@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import ManageAuth from '../Util/ManageAuth.js';
 import ManageOperationLog from '../Util/ManageOperationLog.js';
 import AuthService from '../services/Manage/AuthService.js';
@@ -17,6 +17,7 @@ import TransferOrderService from '../services/Manage/TransferOrderService.js';
 import OverviewService from '../services/Manage/OverviewService.js';
 import InvestmentOrderService from '../services/Manage/InvestmentOrderService.js';
 import PositionSalaryService from '../services/Manage/PositionSalaryService.js';
+import TeamInvestmentConfigService from '../services/Manage/TeamInvestmentConfigService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -120,6 +121,9 @@ router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCan
 router.route('/investment-order/list').post(InvestmentOrderService.list)
 router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
 router.route('/investment-order/dividend-now').post(InvestmentOrderService.dividendNow)
+router.route('/team-investment-config/list').post(TeamInvestmentConfigService.list)
+router.route('/team-investment-config/save').post(TeamInvestmentConfigService.save)
+router.route('/team-investment-config/delete').post(TeamInvestmentConfigService.remove)
 router.route('/position-salary-record/list').post(PositionSalaryService.list)
 
 // 钱包与钱包资产

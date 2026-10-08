@@ -6,6 +6,7 @@ import DB from '../Util/database/DB.js';
 import Helper from '../Util/Helper.js';
 import { ensureAssetTransferTables } from '../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../Util/InvestmentSchema.js';
+import { ensureTeamInvestmentConfigTable } from '../Util/TeamInvestmentConfigSchema.js';
 import { calculateLevelRewardRates } from '../Util/LevelReward.js';
 import growthSnapshot from './growthSnapshot.js';
 
@@ -47,26 +48,40 @@ function asDate(value) {
   return new Date(String(value || '').replace(' ', 'T'));
 }
 
-export function calculateDividendPayout(order, selectPercent = randomPercent) {
+function dividendRuleValue(rule, key, fallback) {
+  if (!rule || !Object.prototype.hasOwnProperty.call(rule, key)) return fallback;
+  const value = rule[key];
+  return value === null || typeof value === 'undefined' || String(value).trim() === '' ? fallback : value;
+}
+
+export function calculateDividendPayout(order, ruleOrSelectPercent = null, selectPercentOverride = null) {
+  const rule = typeof ruleOrSelectPercent === 'function' ? null : ruleOrSelectPercent;
+  const selectPercent = typeof ruleOrSelectPercent === 'function'
+    ? ruleOrSelectPercent
+    : (selectPercentOverride || randomPercent);
   const amount = BigInt(String(order.amount || '0'));
   const totalDividend = BigInt(String(order.total_dividend || '0'));
-  const dividendMultiple = scaledDecimal(order.dividend_multiple || '1', MULTIPLE_DECIMALS);
+  const dividendMultiple = scaledDecimal(dividendRuleValue(rule, 'dividend_multiple', order.dividend_multiple || '1'), MULTIPLE_DECIMALS);
   const exitMultiple = scaledDecimal(order.exit_multiple || '1', MULTIPLE_DECIMALS);
   const threshold = amount * dividendMultiple / MULTIPLE_DENOMINATOR;
   const exitTarget = amount * exitMultiple / MULTIPLE_DENOMINATOR;
   const useLaterRule = totalDividend >= threshold;
   const configuredMinPercent = scaledDecimal(
-    useLaterRule ? order.dividend_min_percent : order.min_percent,
+    useLaterRule
+      ? dividendRuleValue(rule, 'dividend_min_percent', order.dividend_min_percent)
+      : dividendRuleValue(rule, 'min_percent', order.min_percent),
     PERCENT_DECIMALS
   );
   const configuredMaxPercent = scaledDecimal(
-    useLaterRule ? order.dividend_max_percent : order.max_percent,
+    useLaterRule
+      ? dividendRuleValue(rule, 'dividend_max_percent', order.dividend_max_percent)
+      : dividendRuleValue(rule, 'max_percent', order.max_percent),
     PERCENT_DECIMALS
   );
   const minPercent = configuredMinPercent <= configuredMaxPercent ? configuredMinPercent : configuredMaxPercent;
   const maxPercent = configuredMaxPercent >= configuredMinPercent ? configuredMaxPercent : configuredMinPercent;
   let percent = selectPercent(minPercent, maxPercent);
-  const guaranteed = scaledDecimal(order.guaranteed_percent, PERCENT_DECIMALS);
+  const guaranteed = scaledDecimal(dividendRuleValue(rule, 'guaranteed_percent', order.guaranteed_percent), PERCENT_DECIMALS);
   const guaranteedFloor = guaranteed < maxPercent ? guaranteed : maxPercent;
   if (Number(order.guaranteed_eligible || 0) === 1 && percent < guaranteedFloor) percent = guaranteedFloor;
 
@@ -79,6 +94,35 @@ export function calculateDividendPayout(order, selectPercent = randomPercent) {
     totalAfter: totalDividend + payout,
     exitTarget,
     exited: remaining === 0n || totalDividend + payout >= exitTarget
+  };
+}
+
+async function nearestInviterDividendRule(configName, connection, prefix, wallet) {
+  const rows = await DB.query(configName, connection).exec(
+    `SELECT config.min_percent,
+            config.max_percent,
+            config.dividend_multiple,
+            config.dividend_min_percent,
+            config.dividend_max_percent,
+            config.guaranteed_percent
+     FROM ${prefix}wallet_relation AS relation
+     INNER JOIN ${prefix}team_investment_config AS config
+       ON LOWER(config.wallet)=LOWER(relation.inviter)
+      AND config.status=1
+     WHERE LOWER(relation.wallet)=?
+       AND relation.lv=1
+     LIMIT 1`,
+    [String(wallet || '').toLowerCase()]
+  );
+  const config = rows?.[0];
+  if (!config) return null;
+  return {
+    min_percent: config.min_percent,
+    max_percent: config.max_percent,
+    dividend_multiple: config.dividend_multiple,
+    dividend_min_percent: config.dividend_min_percent,
+    dividend_max_percent: config.dividend_max_percent,
+    guaranteed_percent: config.guaranteed_percent
   };
 }
 
@@ -168,7 +212,8 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
       const cycleAt = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', cycleDate);
       const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nowDate);
       const dividendId = `D${order.order_id}${Helper.dateFormat('YYYYmmddHHMMSS', cycleDate)}`;
-      const calculation = calculateDividendPayout(order);
+      const teamDividendRule = await nearestInviterDividendRule(configName, connection, prefix, order.wallet);
+      const calculation = calculateDividendPayout(order, teamDividendRule);
       const assetPayout = scaleRaw(calculation.payout, INVESTMENT_DECIMALS, tokenDecimals);
       const payout = scaleRaw(assetPayout, tokenDecimals, INVESTMENT_DECIMALS);
       const previousTotal = BigInt(String(order.total_dividend || '0'));
@@ -261,7 +306,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
 
 async function distribute() {
   await growthSnapshot.capture();
-  await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
+  await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable()]);
   const levelRules = await CacheData.getWalletLevelRules();
   const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
   await DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now])
@@ -284,7 +329,7 @@ async function distribute() {
 
 export async function distributeOrderNow(orderId) {
   await growthSnapshot.capture();
-  await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
+  await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable()]);
   const order = await DB.query().table('investment_order').where('order_id', orderId).first();
   if (!order) return { status: 'not_found', processed: false };
   if (![0, 1].includes(Number(order.status || 0))) return { status: 'not_active', processed: false };

@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import { getUser } from '../lib/auth.js';
@@ -12,6 +12,9 @@ const growthRewards = ref([]);
 const investment = ref({
   whole_vehicle_tier: '50000',
   minimum_investment_amount: '1000',
+  usdt_minimum_investment_amount: '1000',
+  rusdt_minimum_investment_amount: '100',
+  mixed_minimum_investment_amount: '500',
   waiting_period_days: '0',
   dividend_cycle_days: '30',
   min_percent: '0',
@@ -20,6 +23,9 @@ const investment = ref({
   dividend_min_percent: '0',
   dividend_max_percent: '100',
   exit_multiple: '1',
+  usdt_exit_multiple: '1',
+  rusdt_exit_multiple: '1',
+  mixed_exit_multiple: '1',
   guaranteed_dividend_percent: '3',
   rusdt_investment_enabled: '1',
   mixed_investment_enabled: '1',
@@ -61,6 +67,9 @@ async function loadInvestment() {
     investment.value = {
       whole_vehicle_tier: String(data.whole_vehicle_tier),
       minimum_investment_amount: String(data.minimum_investment_amount),
+      usdt_minimum_investment_amount: String(data.usdt_minimum_investment_amount ?? data.minimum_investment_amount),
+      rusdt_minimum_investment_amount: String(data.rusdt_minimum_investment_amount ?? 100),
+      mixed_minimum_investment_amount: String(data.mixed_minimum_investment_amount ?? 500),
       waiting_period_days: String(data.waiting_period_days),
       dividend_cycle_days: String(data.dividend_cycle_days),
       min_percent: String(data.min_percent),
@@ -69,6 +78,9 @@ async function loadInvestment() {
       dividend_min_percent: String(data.dividend_min_percent),
       dividend_max_percent: String(data.dividend_max_percent),
       exit_multiple: String(data.exit_multiple),
+      usdt_exit_multiple: String(data.usdt_exit_multiple ?? data.exit_multiple),
+      rusdt_exit_multiple: String(data.rusdt_exit_multiple ?? data.exit_multiple),
+      mixed_exit_multiple: String(data.mixed_exit_multiple ?? data.exit_multiple),
       guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
       rusdt_investment_enabled: String(data.rusdt_investment_enabled ?? 1),
       mixed_investment_enabled: String(data.mixed_investment_enabled ?? 1),
@@ -132,7 +144,6 @@ function validateGrowthRewards() {
   if (new Set(keys).size !== keys.length) return '同一等级和整车数不能重复配置';
   return '';
 }
-
 function addGrowthReward() {
   growthRewards.value.push({ level: '1', whole_vehicle_count: '1', bonus_percent: '0' });
 }
@@ -144,7 +155,9 @@ function removeGrowthReward(index) {
 function validateInvestment() {
   if (Object.values(investment.value).some(value => String(value).trim() === '')) return '投资配置项不能为空';
   const wholeVehicleTier = Number(investment.value.whole_vehicle_tier);
-  const minimumInvestmentAmount = Number(investment.value.minimum_investment_amount);
+  const usdtMinimumInvestmentAmount = Number(investment.value.usdt_minimum_investment_amount);
+  const rusdtMinimumInvestmentAmount = Number(investment.value.rusdt_minimum_investment_amount);
+  const mixedMinimumInvestmentAmount = Number(investment.value.mixed_minimum_investment_amount);
   const waitingPeriodDays = Number(investment.value.waiting_period_days);
   const dividendCycleDays = Number(investment.value.dividend_cycle_days);
   const minPercent = Number(investment.value.min_percent);
@@ -152,11 +165,15 @@ function validateInvestment() {
   const dividendMultiple = Number(investment.value.dividend_multiple);
   const dividendMinPercent = Number(investment.value.dividend_min_percent);
   const dividendMaxPercent = Number(investment.value.dividend_max_percent);
-  const exitMultiple = Number(investment.value.exit_multiple);
+  const usdtExitMultiple = Number(investment.value.usdt_exit_multiple);
+  const rusdtExitMultiple = Number(investment.value.rusdt_exit_multiple);
+  const mixedExitMultiple = Number(investment.value.mixed_exit_multiple);
   const guaranteedDividendPercent = Number(investment.value.guaranteed_dividend_percent);
   const mixedUsdtPercent = Number(investment.value.mixed_usdt_percent);
-  if (!Number.isFinite(wholeVehicleTier) || wholeVehicleTier <= 0) return '整车挡位必须大于 0';
-  if (!Number.isInteger(minimumInvestmentAmount) || minimumInvestmentAmount <= 0) return '最低投资金额必须为正整数';
+  if (!Number.isFinite(wholeVehicleTier) || wholeVehicleTier <= 0) return '整车档位必须大于 0';
+  if (!Number.isInteger(usdtMinimumInvestmentAmount) || usdtMinimumInvestmentAmount <= 0) return 'USDT 最低投资金额必须为正整数';
+  if (!Number.isInteger(rusdtMinimumInvestmentAmount) || rusdtMinimumInvestmentAmount <= 0) return 'RUSDT 最低投资金额必须为正整数';
+  if (!Number.isInteger(mixedMinimumInvestmentAmount) || mixedMinimumInvestmentAmount <= 0) return '混合支付最低投资金额必须为正整数';
   if (!Number.isInteger(waitingPeriodDays) || waitingPeriodDays < 0) return '等待期必须为非负整数';
   if (!Number.isInteger(dividendCycleDays) || dividendCycleDays <= 0) return '分红周期必须为正整数';
   if (!Number.isFinite(minPercent) || !Number.isFinite(maxPercent) || minPercent < 0 || minPercent > 100 || maxPercent < 0 || maxPercent > 100) return '分红百分比必须在 0% 到 100% 之间';
@@ -164,12 +181,13 @@ function validateInvestment() {
   if (!Number.isFinite(dividendMultiple) || dividendMultiple <= 0) return '分红倍数必须大于 0';
   if (!Number.isFinite(dividendMinPercent) || !Number.isFinite(dividendMaxPercent) || dividendMinPercent < 0 || dividendMinPercent > 100 || dividendMaxPercent < 0 || dividendMaxPercent > 100) return '分红百分比区间必须在 0% 到 100% 之间';
   if (dividendMinPercent > dividendMaxPercent) return '分红百分比区间起始值不能大于结束值';
-  if (!Number.isFinite(exitMultiple) || exitMultiple <= 0) return '出局倍数必须大于 0';
+  if (!Number.isFinite(usdtExitMultiple) || usdtExitMultiple <= 0) return 'USDT 出局倍数必须大于 0';
+  if (!Number.isFinite(rusdtExitMultiple) || rusdtExitMultiple <= 0) return 'RUSDT 出局倍数必须大于 0';
+  if (!Number.isFinite(mixedExitMultiple) || mixedExitMultiple <= 0) return '混合出局倍数必须大于 0';
   if (!Number.isFinite(guaranteedDividendPercent) || guaranteedDividendPercent < 0 || guaranteedDividendPercent > 100) return '保底分红必须在 0% 到 100% 之间';
   if (!Number.isFinite(mixedUsdtPercent) || mixedUsdtPercent < 0 || mixedUsdtPercent > 100) return '混合投资 USDT 比例必须在 0% 到 100% 之间';
   return '';
 }
-
 function validateOther() {
   const platformOperatedVehicles = Number(other.value.platform_operated_vehicles);
   const virtualUsers = Number(other.value.virtual_users);
@@ -177,7 +195,6 @@ function validateOther() {
   if (!Number.isSafeInteger(virtualUsers) || virtualUsers < 0) return '虚拟用户必须为非负整数';
   return '';
 }
-
 async function save() {
   const message = activeTab.value === 'level'
     ? validateLevels()
@@ -205,6 +222,9 @@ async function save() {
       investment.value = {
         whole_vehicle_tier: String(data.whole_vehicle_tier),
         minimum_investment_amount: String(data.minimum_investment_amount),
+        usdt_minimum_investment_amount: String(data.usdt_minimum_investment_amount ?? data.minimum_investment_amount),
+        rusdt_minimum_investment_amount: String(data.rusdt_minimum_investment_amount ?? 100),
+        mixed_minimum_investment_amount: String(data.mixed_minimum_investment_amount ?? 500),
         waiting_period_days: String(data.waiting_period_days),
         dividend_cycle_days: String(data.dividend_cycle_days),
         min_percent: String(data.min_percent),
@@ -213,6 +233,9 @@ async function save() {
         dividend_min_percent: String(data.dividend_min_percent),
         dividend_max_percent: String(data.dividend_max_percent),
         exit_multiple: String(data.exit_multiple),
+        usdt_exit_multiple: String(data.usdt_exit_multiple ?? data.exit_multiple),
+        rusdt_exit_multiple: String(data.rusdt_exit_multiple ?? data.exit_multiple),
+        mixed_exit_multiple: String(data.mixed_exit_multiple ?? data.exit_multiple),
         guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
         rusdt_investment_enabled: String(data.rusdt_investment_enabled ?? 1),
         mixed_investment_enabled: String(data.mixed_investment_enabled ?? 1),
@@ -235,7 +258,7 @@ onMounted(loadLevels);
 </script>
 
 <template>
-  <ManageLayout title="参数配置" description="通过顶部页签切换配置模块，保存后立即写入系统配置。">
+  <ManageLayout title="参数配置" description="配置等级、投资与展示参数。">
     <section class="panel-card parameter-panel">
       <div class="parameter-tabs">
         <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'level' }" type="button" @click="selectTab('level')">等级配置</button>
@@ -243,22 +266,13 @@ onMounted(loadLevels);
         <button class="parameter-tab" :class="{ 'parameter-tab--active': activeTab === 'other' }" type="button" @click="selectTab('other')">其他配置</button>
       </div>
       <div v-if="activeTab === 'level'" class="parameter-section-head">
-        <div>
-          <h2>等级配置</h2>
-          <p>配置各等级对应的金额阈值，达到对应金额后自动进入该等级。</p>
-        </div>
+        <div><h2>等级配置</h2><p>配置各等级对应的金额阈值，达到对应金额后自动进入该等级。</p></div>
       </div>
       <div v-else-if="activeTab === 'investment'" class="parameter-section-head">
-        <div>
-          <h2>投资配置</h2>
-          <p>配置整车挡位、投资等待期、百分比区间及达到出局条件的倍数。</p>
-        </div>
+        <div><h2>投资配置</h2><p>配置整车挡位、投资等待期、百分比区间及达到出局条件的倍数。</p></div>
       </div>
       <div v-else class="parameter-section-head">
-        <div>
-          <h2>其他配置</h2>
-          <p>配置前端展示的平台运营车辆和虚拟用户数量。</p>
-        </div>
+        <div><h2>其他配置</h2><p>配置前端展示的平台运营车辆和虚拟用户数量。</p></div>
       </div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
@@ -301,103 +315,28 @@ onMounted(loadLevels);
       <template v-else-if="activeTab === 'investment'">
         <div v-if="loading" class="investment-loading">正在加载...</div>
         <div v-else class="investment-form">
-          <label class="investment-field">
-            <span>整车挡位</span>
-            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.whole_vehicle_tier" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.whole_vehicle_tier }}</strong><em>U</em></div>
-          </label>
-          <label class="investment-field">
-            <span>最低投资金额</span>
-            <div>
-              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.minimum_investment_amount" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.minimum_investment_amount }}</strong><em>U</em></div>
-              <small class="investment-tip">投资金额必须为最低投资金额的整数倍</small>
-            </div>
-          </label>
-          <label class="investment-field">
-            <span>等待期</span>
-            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.waiting_period_days" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ investment.waiting_period_days }}</strong><em>天</em></div>
-          </label>
-          <label class="investment-field">
-            <span>分红周期</span>
-            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_cycle_days" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.dividend_cycle_days }}</strong><em>天</em></div>
-          </label>
-          <label class="investment-field">
-            <span>分红百分比</span>
-            <div class="range-inputs">
-              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.min_percent }}</strong><em>%</em></div>
-              <span class="range-separator">~</span>
-              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.max_percent }}</strong><em>%</em></div>
-            </div>
-
-          </label>
-          <label class="investment-field">
-            <span>出局倍数</span>
-            <div>
-              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.exit_multiple }}</strong><em>倍</em></div>
-              <small class="investment-tip">
-                倍数只算分红，比如投资1000，设置为1.5倍，即分红达到 1000 * 1.5 = 1500 即出局，不算本金
-              </small>
-            </div>
-          </label>
-          <div class="investment-field investment-field--dividend">
-            <span>分红规则</span>
-            <div class="dividend-config">
-              <div class="dividend-threshold">
-                <span>当分红达到</span>
-                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.dividend_multiple }}</strong><em>倍</em></div>
-              </div>
-              <span class="dividend-percent-label">，分红百分比</span>
-              <div class="range-inputs">
-                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.dividend_min_percent }}</strong><em>%</em></div>
-                <span class="range-separator">~</span>
-                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.dividend_max_percent }}</strong><em>%</em></div>
-              </div>
-            </div>
-          </div>
-          <label class="investment-field">
-            <span>保底分红</span>
-            <div>
-              <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.guaranteed_dividend_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.guaranteed_dividend_percent }}</strong><em>%</em></div>
-              <small class="investment-tip">单次投资金额达到或累计金额达到 <strong>{{ investment.whole_vehicle_tier }} U</strong>，保底获得 <strong>{{ investment.guaranteed_dividend_percent }}%</strong> 分红，即 <strong>{{ investment.guaranteed_dividend_percent }}%</strong> 至 <strong>{{ investment.max_percent }}%</strong> 的分红规则。</small>
-            </div>
-          </label>
-          <label class="investment-field">
-            <span>RUSDT 参与</span>
-            <div>
-              <label v-if="canUpdate" class="config-check"><input v-model="investment.rusdt_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 RUSDT</span></label>
-              <strong v-else>{{ investment.rusdt_investment_enabled === '1' ? '允许' : '禁止' }}</strong>
-            </div>
-          </label>
-          <label class="investment-field">
-            <span>混合支付</span>
-            <div>
-              <label v-if="canUpdate" class="config-check"><input v-model="investment.mixed_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 USDT+RUSDT</span></label>
-              <strong v-else>{{ investment.mixed_investment_enabled === '1' ? '允许' : '禁止' }}</strong>
-            </div>
-          </label>
-          <label class="investment-field">
-            <span>混合投资比例</span>
-            <div>
-              <div class="range-inputs">
-                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_usdt_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.mixed_usdt_percent }}</strong><em>% USDT</em></div>
-                <span class="range-separator">+</span>
-                <div class="input-with-unit"><strong>{{ Math.max(0, 100 - Number(investment.mixed_usdt_percent || 0)) }}</strong><em>% RUSDT</em></div>
-              </div>
-              <small class="investment-tip">用户选择 USDT+RUSDT 参与时，按该比例拆分扣款。</small>
-            </div>
-          </label>
+          <label class="investment-field"><span>整车挡位</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.whole_vehicle_tier" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.whole_vehicle_tier }}</strong><em>U</em></div></label>
+          <label class="investment-field"><span>USDT 最低投资</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.usdt_minimum_investment_amount" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.usdt_minimum_investment_amount }}</strong><em>USDT</em></div><small class="investment-tip">纯 USDT 参与时，金额必须为该最低额的整数倍。</small></div></label>
+          <label class="investment-field"><span>RUSDT 最低投资</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.rusdt_minimum_investment_amount" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.rusdt_minimum_investment_amount }}</strong><em>RUSDT</em></div><small class="investment-tip">纯 RUSDT 参与时，金额必须为该最低额的整数倍。</small></div></label>
+          <label class="investment-field"><span>混合最低投资</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_minimum_investment_amount" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.mixed_minimum_investment_amount }}</strong><em>U</em></div><small class="investment-tip">USDT+RUSDT 混合参与时，金额必须为该最低额的整数倍。</small></div></label>
+          <label class="investment-field"><span>等待期</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.waiting_period_days" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ investment.waiting_period_days }}</strong><em>天</em></div></label>
+          <label class="investment-field"><span>分红周期</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_cycle_days" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.dividend_cycle_days }}</strong><em>天</em></div></label>
+          <label class="investment-field"><span>分红百分比</span><div class="range-inputs"><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.min_percent }}</strong><em>%</em></div><span class="range-separator">~</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.max_percent }}</strong><em>%</em></div></div></label>
+          <label class="investment-field"><span>USDT 出局倍数</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.usdt_exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.usdt_exit_multiple }}</strong><em>倍</em></div><small class="investment-tip">纯 USDT 订单按此倍数出局，只计算分红，不算本金。</small></div></label>
+          <label class="investment-field"><span>RUSDT 出局倍数</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.rusdt_exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.rusdt_exit_multiple }}</strong><em>倍</em></div><small class="investment-tip">纯 RUSDT 订单按此倍数出局，只计算分红，不算本金。</small></div></label>
+          <label class="investment-field"><span>混合出局倍数</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.mixed_exit_multiple }}</strong><em>倍</em></div><small class="investment-tip">USDT+RUSDT 混合订单按此倍数出局，只计算分红，不算本金。</small></div></label>
+          <div class="investment-field investment-field--dividend"><span>分红规则</span><div class="dividend-config"><div class="dividend-threshold"><span>当分红达到</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.dividend_multiple }}</strong><em>倍</em></div></div><span class="dividend-percent-label">，分红百分比</span><div class="range-inputs"><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.dividend_min_percent }}</strong><em>%</em></div><span class="range-separator">~</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.dividend_max_percent }}</strong><em>%</em></div></div></div></div>
+          <label class="investment-field"><span>保底分红</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.guaranteed_dividend_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.guaranteed_dividend_percent }}</strong><em>%</em></div><small class="investment-tip">单次投资金额达到或累计金额达到 <strong>{{ investment.whole_vehicle_tier }} U</strong>，保底获得 <strong>{{ investment.guaranteed_dividend_percent }}%</strong> 分红，即 <strong>{{ investment.guaranteed_dividend_percent }}%</strong> 至 <strong>{{ investment.max_percent }}%</strong> 的分红规则。</small></div></label>
+          <label class="investment-field"><span>RUSDT 参与</span><div><label v-if="canUpdate" class="config-check"><input v-model="investment.rusdt_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 RUSDT</span></label><strong v-else>{{ investment.rusdt_investment_enabled === '1' ? '允许' : '禁止' }}</strong></div></label>
+          <label class="investment-field"><span>混合支付</span><div><label v-if="canUpdate" class="config-check"><input v-model="investment.mixed_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 USDT+RUSDT</span></label><strong v-else>{{ investment.mixed_investment_enabled === '1' ? '允许' : '禁止' }}</strong></div></label>
+          <label class="investment-field"><span>混合投资比例</span><div><div class="range-inputs"><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_usdt_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.mixed_usdt_percent }}</strong><em>% USDT</em></div><span class="range-separator">+</span><div class="input-with-unit"><strong>{{ Math.max(0, 100 - Number(investment.mixed_usdt_percent || 0)) }}</strong><em>% RUSDT</em></div></div><small class="investment-tip">用户选择 USDT+RUSDT 参与时，按该比例拆分扣款。</small></div></label>
         </div>
       </template>
       <template v-else>
         <div v-if="loading" class="investment-loading">正在加载...</div>
         <div v-else class="investment-form">
-          <label class="investment-field">
-            <span>平台运营车辆</span>
-            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="other.platform_operated_vehicles" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ other.platform_operated_vehicles }}</strong><em>台</em></div>
-          </label>
-          <label class="investment-field">
-            <span>虚拟用户</span>
-            <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="other.virtual_users" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ other.virtual_users }}</strong><em>人</em></div>
-          </label>
+          <label class="investment-field"><span>平台运营车辆</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="other.platform_operated_vehicles" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ other.platform_operated_vehicles }}</strong><em>台</em></div></label>
+          <label class="investment-field"><span>虚拟用户</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="other.virtual_users" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ other.virtual_users }}</strong><em>人</em></div></label>
         </div>
       </template>
       <div v-if="canUpdate" class="level-config-actions"><button class="submit-button" type="button" :disabled="saving || loading || (activeTab === 'investment' && !investmentLoaded) || (activeTab === 'other' && !otherLoaded)" @click="save">{{ saving ? '保存中...' : '保存配置' }}</button></div>

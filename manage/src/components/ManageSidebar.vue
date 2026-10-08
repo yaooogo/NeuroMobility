@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { getUser } from '../lib/auth.js';
 import { can } from '../lib/permissions.js';
 
@@ -14,6 +14,7 @@ const user = getUser();
     <nav class="menu-list">
       <router-link v-if="can(user, 'overview')" class="menu-item" active-class="menu-item--active" to="/overview">首页总览</router-link>
       <router-link v-if="can(user, 'investment-orders')" class="menu-item" active-class="menu-item--active" to="/investment-orders">投资订单</router-link>
+      <router-link v-if="can(user, 'team-investment-config')" class="menu-item" active-class="menu-item--active" to="/team-investment-config">团队分红配置</router-link>
       <router-link v-if="can(user, 'position-salary-records')" class="menu-item" active-class="menu-item--active" to="/position-salary-records">岗位工资记录</router-link>
       <router-link v-if="can(user, 'wallets')" class="menu-item" active-class="menu-item--active" to="/wallets">钱包管理</router-link>
       <router-link v-if="can(user, 'wallet-network')" class="menu-item" active-class="menu-item--active" to="/wallet-network">网体图</router-link>

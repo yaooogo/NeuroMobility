@@ -1,7 +1,6 @@
-import ApiResult from "./ApiResult.js";
+﻿import ApiResult from "./ApiResult.js";
 import DB from "./database/DB.js";
 
-// 当前后台已实现的功能权限项
 const MANAGE_MENU_PERMISSIONS = [
   { key: "overview", label: "首页总览" },
   { key: "asset-tokens", label: "资产类型" },
@@ -13,6 +12,8 @@ const MANAGE_MENU_PERMISSIONS = [
   { key: "withdrawal-orders-export", label: "提现订单-导出" },
   { key: "withdrawal-orders-cancel", label: "提现订单-取消" },
   { key: "investment-orders", label: "投资订单" },
+  { key: "team-investment-config", label: "团队分红配置" },
+  { key: "team-investment-config-update", label: "团队分红配置-编辑" },
   { key: "position-salary-records", label: "岗位工资记录" },
   { key: "wallets", label: "钱包管理" },
   { key: "wallet-network", label: "网体图" },
@@ -98,6 +99,9 @@ const ROUTE_PERMISSION_RULES = [
   { path: "/withdrawal-order/cancel", permissions: ["withdrawal-orders-cancel"], exact: true },
   { path: "/withdrawal-order", permissions: ["withdrawal-orders"] },
   { path: "/investment-order", permissions: ["investment-orders"] },
+  { path: "/team-investment-config/save", permissions: ["team-investment-config-update"], exact: true },
+  { path: "/team-investment-config/delete", permissions: ["team-investment-config-update"], exact: true },
+  { path: "/team-investment-config", permissions: ["team-investment-config"] },
   { path: "/position-salary-record", permissions: ["position-salary-records"] },
   { path: "/wallet/update", permissions: ["wallets-update"], exact: true },
   { path: "/wallet/create", permissions: ["wallets-create"], exact: true },
@@ -123,99 +127,42 @@ function normalizePath(value) {
 
 function normalizePermissions(value) {
   let raw = value;
-
   if (typeof raw === "string") {
     const text = raw.trim();
-
-    if (!text) {
-      raw = [];
-    } else if (text.startsWith("[")) {
-      try {
-        raw = JSON.parse(text);
-      } catch {
-        raw = text.split(",");
-      }
-    } else {
-      raw = text.split(",");
-    }
+    if (!text) raw = [];
+    else if (text.startsWith("[")) {
+      try { raw = JSON.parse(text); } catch { raw = text.split(","); }
+    } else raw = text.split(",");
   }
-
-  if (!Array.isArray(raw)) {
-    raw = [];
-  }
-
-  return [...new Set(
-    raw
-      .map((item) => String(item || "").trim())
-      .filter((item) => PERMISSION_KEYS.has(item))
-  )];
+  if (!Array.isArray(raw)) raw = [];
+  return [...new Set(raw.map((item) => String(item || "").trim()).filter((item) => PERMISSION_KEYS.has(item)))];
 }
 
-function serializePermissions(value) {
-  return JSON.stringify(normalizePermissions(value));
-}
-
+function serializePermissions(value) { return JSON.stringify(normalizePermissions(value)); }
 function isEnabledStatus(status) {
-  if (status === null || typeof status === "undefined" || status === "") {
-    return true;
-  }
-
-  return ["1", "true", "enabled", "enable", "normal", "active"].includes(
-    String(status).toLowerCase()
-  );
+  if (status === null || typeof status === "undefined" || status === "") return true;
+  return ["1", "true", "enabled", "enable", "normal", "active"].includes(String(status).toLowerCase());
 }
-
-function isSuperAdmin(admin) {
-  return Number(admin?.is_super || 0) === 1;
-}
-
-function permissionLabels(permissions) {
-  return normalizePermissions(permissions).map((key) => PERMISSION_LABEL_MAP.get(key) || key);
-}
-
-function hasPermission(admin, permission) {
-  if (isSuperAdmin(admin)) {
-    return true;
-  }
-
-  const profile = buildAdminPermissionProfile(admin);
-  return profile.permissions.includes(permission);
-}
-
+function isSuperAdmin(admin) { return Number(admin?.is_super || 0) === 1; }
+function permissionLabels(permissions) { return normalizePermissions(permissions).map((key) => PERMISSION_LABEL_MAP.get(key) || key); }
+function hasPermission(admin, permission) { return isSuperAdmin(admin) || buildAdminPermissionProfile(admin).permissions.includes(permission); }
 function canGrantPermissions(granter, permissions) {
-  if (isSuperAdmin(granter)) {
-    return true;
-  }
-
+  if (isSuperAdmin(granter)) return true;
   const granterPermissions = buildAdminPermissionProfile(granter).permissions;
   return normalizePermissions(permissions).every((permission) => granterPermissions.includes(permission));
 }
 
 async function getAdminTypeById(id, enabledOnly = false) {
   const typeId = Number(id || 0);
-
-  if (!typeId) {
-    return null;
-  }
-
-  const query = DB.query()
-    .table("admin_type")
-    .where("id", typeId);
-
-  if (enabledOnly) {
-    query.where("status", 1);
-  }
-
+  if (!typeId) return null;
+  const query = DB.query().table("admin_type").where("id", typeId);
+  if (enabledOnly) query.where("status", 1);
   return query.first();
 }
 
 async function attachAdminTypeInfo(admin) {
-  if (!admin) {
-    return null;
-  }
-
+  if (!admin) return null;
   const adminType = await getAdminTypeById(admin.admin_type_id, false);
-
   return {
     ...admin,
     admin_type_name: adminType?.name || "",
@@ -232,7 +179,6 @@ function buildAdminPermissionProfile(admin) {
     : normalizePermissions(hasType
       ? (Number(admin?.admin_type_status || 0) === 1 ? admin?.admin_type_permissions : [])
       : admin?.permissions);
-
   return {
     is_super: isSuper ? 1 : 0,
     role: isSuper ? "super_admin" : "admin",
@@ -245,63 +191,26 @@ function buildAdminPermissionProfile(admin) {
 
 function resolveRuleForPath(pathValue) {
   const path = normalizePath(pathValue);
-
-  if (PUBLIC_PATHS.has(path)) {
-    return null;
-  }
-
-  return ROUTE_PERMISSION_RULES.find((rule) => {
-    if (rule.exact) {
-      return path === rule.path;
-    }
-
-    return path === rule.path || path.startsWith(`${rule.path}/`);
-  }) || { permissions: [] };
+  if (PUBLIC_PATHS.has(path)) return null;
+  return ROUTE_PERMISSION_RULES.find((rule) => rule.exact ? path === rule.path : (path === rule.path || path.startsWith(`${rule.path}/`))) || { permissions: [] };
 }
 
 async function verifyRequestPermission(req, res, next) {
   try {
     const rule = resolveRuleForPath(req.path || req._parsedOriginalUrl?.pathname || "");
-
-    if (!rule) {
-      return next();
-    }
-
-    const adminRow = await DB.query()
-      .table("admin")
-      .where("id", req.auth?.id() || 0)
-      .first();
+    if (!rule) return next();
+    const adminRow = await DB.query().table("admin").where("id", req.auth?.id() || 0).first();
     const admin = await attachAdminTypeInfo(adminRow);
-
-    if (!admin || !isEnabledStatus(admin.status)) {
-      return res.send(ApiResult.error(403, "No permission"));
-    }
-
+    if (!admin || !isEnabledStatus(admin.status)) return res.send(ApiResult.error(403, "No permission"));
     const profile = buildAdminPermissionProfile(admin);
-    req.auth.user = {
-      ...(req.auth.user || {}),
-      ...profile
-    };
-
-    if (profile.is_super) {
-      return next();
-    }
-
-    if (rule.superOnly) {
-      return res.send(ApiResult.error(403, "No permission"));
-    }
-
+    req.auth.user = { ...(req.auth.user || {}), ...profile };
+    if (profile.is_super) return next();
+    if (rule.superOnly) return res.send(ApiResult.error(403, "No permission"));
     const requiredPermissions = req.path === "/admin-type/save"
       ? [Number(req.body?.id || 0) > 0 ? "admin-types-update" : "admin-types-create"]
       : (rule.permissions || []);
-    const allowed = requiredPermissions.some((permission) =>
-      profile.permissions.includes(permission)
-    );
-
-    if (!allowed) {
-      return res.send(ApiResult.error(403, "No permission"));
-    }
-
+    const allowed = requiredPermissions.some((permission) => profile.permissions.includes(permission));
+    if (!allowed) return res.send(ApiResult.error(403, "No permission"));
     return next();
   } catch (error) {
     return res.send(ApiResult.exception(error, "ManagePermission.verifyRequestPermission"));

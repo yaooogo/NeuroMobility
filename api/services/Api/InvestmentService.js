@@ -51,6 +51,18 @@ function isInvestmentTokenEnabled(token, config) {
   return false;
 }
 
+function minimumInvestmentAmountForToken(token, config) {
+  if (token === R_TOKEN) return Number(config?.rusdt_minimum_investment_amount || 0);
+  if (token === MIXED_TOKEN) return Number(config?.mixed_minimum_investment_amount || 0);
+  return Number(config?.usdt_minimum_investment_amount || config?.minimum_investment_amount || 0);
+}
+
+function exitMultipleForToken(token, config) {
+  if (token === R_TOKEN) return Number(config?.rusdt_exit_multiple || config?.exit_multiple || 0);
+  if (token === MIXED_TOKEN) return Number(config?.mixed_exit_multiple || config?.exit_multiple || 0);
+  return Number(config?.usdt_exit_multiple || config?.exit_multiple || 0);
+}
+
 function normalizePercent(value, fallback = 0) {
   const percent = Number(value);
   if (!Number.isFinite(percent)) return fallback;
@@ -248,11 +260,13 @@ async function create(req, res) {
     if (!isInvestmentTokenEnabled(investmentToken, investmentConfig)) {
       return res.send(ApiResult.error(400, `${investmentToken} investment is currently unavailable`));
     }
+    const minimumInvestmentAmount = minimumInvestmentAmountForToken(investmentToken, investmentConfig);
+    const exitMultiple = exitMultipleForToken(investmentToken, investmentConfig);
     const mixedUsdtPercent = mixedPercentForToken(investmentToken, investmentConfig.mixed_usdt_percent);
     const amountRaw = BigInt(parseAssetAmount(amountText, INVESTMENT_DECIMALS));
-    const minimumRaw = BigInt(parseAssetAmount(String(investmentConfig.minimum_investment_amount), INVESTMENT_DECIMALS));
+    const minimumRaw = BigInt(parseAssetAmount(String(minimumInvestmentAmount), INVESTMENT_DECIMALS));
     const wholeRaw = BigInt(parseAssetAmount(String(investmentConfig.whole_vehicle_tier), INVESTMENT_DECIMALS));
-    if (amountRaw < minimumRaw) return res.send(ApiResult.error(400, `The minimum investment amount is ${investmentConfig.minimum_investment_amount} U`));
+    if (amountRaw < minimumRaw) return res.send(ApiResult.error(400, `The minimum investment amount is ${minimumInvestmentAmount} U`));
     if (amountRaw !== wholeRaw && amountRaw % minimumRaw !== 0n) {
       return res.send(ApiResult.error(400, 'The investment amount must be an integer multiple of the minimum investment amount'));
     }
@@ -321,7 +335,7 @@ async function create(req, res) {
         dividend_multiple: investmentConfig.dividend_multiple,
         dividend_min_percent: investmentConfig.dividend_min_percent,
         dividend_max_percent: investmentConfig.dividend_max_percent,
-        exit_multiple: investmentConfig.exit_multiple,
+        exit_multiple: exitMultiple,
         guaranteed_percent: investmentConfig.guaranteed_dividend_percent,
         guaranteed_eligible: investsAfter >= wholeRaw ? 1 : 0,
         whole_vehicle: amountRaw >= wholeRaw ? 1 : 0,

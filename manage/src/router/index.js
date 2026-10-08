@@ -22,6 +22,7 @@ import OverviewPage from '../views/OverviewPage.vue';
 import WalletNetworkPage from '../views/WalletNetworkPage.vue';
 import InvestmentOrdersPage from '../views/InvestmentOrdersPage.vue';
 import PositionSalaryRecordsPage from '../views/PositionSalaryRecordsPage.vue';
+import TeamInvestmentConfigPage from '../views/TeamInvestmentConfigPage.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -39,6 +40,7 @@ const router = createRouter({
     { path: '/deposit-orders', component: DepositOrdersPage, meta: { permission: 'deposit-orders' } },
     { path: '/withdrawal-orders', component: WithdrawalOrdersPage, meta: { permission: 'withdrawal-orders' } },
     { path: '/investment-orders', component: InvestmentOrdersPage, meta: { permission: 'investment-orders' } },
+    { path: '/team-investment-config', component: TeamInvestmentConfigPage, meta: { permission: 'team-investment-config' } },
     { path: '/position-salary-records', component: PositionSalaryRecordsPage, meta: { permission: 'position-salary-records' } },
     { path: '/announcements', component: AnnouncementsPage, meta: { permission: 'announcements' } },
     { path: '/help-articles', component: HelpArticlesPage, meta: { permission: 'help-articles' } },

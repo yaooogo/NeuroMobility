@@ -14,6 +14,9 @@ const router = useRouter();
 
 const investmentConfig = ref({
   minimum_investment_amount: 1000,
+  usdt_minimum_investment_amount: 1000,
+  rusdt_minimum_investment_amount: 100,
+  mixed_minimum_investment_amount: 500,
   whole_vehicle_tier: 50000,
   waiting_period_days: 15,
   dividend_cycle_days: 30,
@@ -33,8 +36,13 @@ const participationModes = computed(() => [
   ...(configLoaded.value && Number(investmentConfig.value.rusdt_investment_enabled ?? 0) === 1 ? [{ value: "RUSDT", label: "RUSDT" }] : []),
   ...(configLoaded.value && Number(investmentConfig.value.mixed_investment_enabled ?? 0) === 1 ? [{ value: "USDT+RUSDT", label: "USDT+RUSDT" }] : [])
 ]);
+const currentMinimumAmount = computed(() => {
+  if (selectedToken.value === "RUSDT") return Number(investmentConfig.value.rusdt_minimum_investment_amount) || 100;
+  if (selectedToken.value === "USDT+RUSDT") return Number(investmentConfig.value.mixed_minimum_investment_amount) || 500;
+  return Number(investmentConfig.value.usdt_minimum_investment_amount || investmentConfig.value.minimum_investment_amount) || 1000;
+});
 const amountOptions = computed(() => {
-  const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
+  const minimum = currentMinimumAmount.value;
   const wholeVehicle = Number(investmentConfig.value.whole_vehicle_tier) || 50000;
   return [1, 2, 5, 10, 20].map((multiple) => ({
     key: `multiple-${multiple}`,
@@ -55,7 +63,7 @@ const mixedSplit = computed(() => {
   };
 });
 const canSubmit = computed(() => {
-  const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
+  const minimum = currentMinimumAmount.value;
   const amount = finalAmount.value;
   if (!participationModes.value.some((mode) => mode.value === selectedToken.value)) return false;
   if (!Number.isFinite(amount) || amount < minimum) return false;
@@ -98,6 +106,12 @@ function selectAmount(amount) {
   customAmount.value = "";
 }
 
+function selectToken(token) {
+  selectedToken.value = token;
+  selectedAmount.value = currentMinimumAmount.value;
+  customAmount.value = "";
+}
+
 function amount(value) {
   return Number(value || 0).toLocaleString(undefined, {
     minimumFractionDigits: 0,
@@ -114,6 +128,7 @@ function syncSelectedToken() {
   if (!participationModes.value.some((mode) => mode.value === selectedToken.value)) {
     selectedToken.value = participationModes.value[0]?.value || "USDT";
   }
+  if (!customAmount.value) selectedAmount.value = currentMinimumAmount.value;
 }
 
 async function submit() {
@@ -137,6 +152,9 @@ onMounted(async () => {
   try {
     const data = await requestInvestmentConfig();
     const minimum = Number(data?.minimum_investment_amount);
+    const usdtMinimum = Number(data?.usdt_minimum_investment_amount ?? data?.minimum_investment_amount);
+    const rusdtMinimum = Number(data?.rusdt_minimum_investment_amount);
+    const mixedMinimum = Number(data?.mixed_minimum_investment_amount);
     const wholeVehicle = Number(data?.whole_vehicle_tier);
     const waitingDays = Number(data?.waiting_period_days);
     const dividendCycleDays = Number(data?.dividend_cycle_days);
@@ -146,6 +164,9 @@ onMounted(async () => {
     const mixedInvestmentEnabled = Number(data?.mixed_investment_enabled ?? 1);
     const mixedUsdtPercent = Number(data?.mixed_usdt_percent);
     if (Number.isInteger(minimum) && minimum > 0) investmentConfig.value.minimum_investment_amount = minimum;
+    if (Number.isInteger(usdtMinimum) && usdtMinimum > 0) investmentConfig.value.usdt_minimum_investment_amount = usdtMinimum;
+    if (Number.isInteger(rusdtMinimum) && rusdtMinimum > 0) investmentConfig.value.rusdt_minimum_investment_amount = rusdtMinimum;
+    if (Number.isInteger(mixedMinimum) && mixedMinimum > 0) investmentConfig.value.mixed_minimum_investment_amount = mixedMinimum;
     if (Number.isFinite(wholeVehicle) && wholeVehicle > 0) investmentConfig.value.whole_vehicle_tier = wholeVehicle;
     if (Number.isInteger(waitingDays) && waitingDays >= 0) investmentConfig.value.waiting_period_days = waitingDays;
     if (Number.isInteger(dividendCycleDays) && dividendCycleDays > 0) investmentConfig.value.dividend_cycle_days = dividendCycleDays;
@@ -156,7 +177,6 @@ onMounted(async () => {
     if (Number.isFinite(mixedUsdtPercent) && mixedUsdtPercent >= 0 && mixedUsdtPercent <= 100) investmentConfig.value.mixed_usdt_percent = mixedUsdtPercent;
     configLoaded.value = true;
     syncSelectedToken();
-    if (!customAmount.value) selectedAmount.value = investmentConfig.value.minimum_investment_amount;
   } catch {
     configLoaded.value = true;
     syncSelectedToken();
@@ -187,13 +207,13 @@ onMounted(async () => {
           :key="mode.value"
           type="button"
           :class="{ active: selectedToken === mode.value }"
-          @click="selectedToken = mode.value"
+          @click="selectToken(mode.value)"
         >
           {{ mode.label }}
         </button>
         </div>
       </template>
-      <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ investmentConfig.minimum_investment_amount.toLocaleString() }} U)</small></h2>
+      <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ currentMinimumAmount.toLocaleString() }} U)</small></h2>
       <div class="amount-grid">
         <button
           v-for="option in amountOptions"
