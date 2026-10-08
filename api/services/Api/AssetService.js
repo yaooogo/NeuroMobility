@@ -11,6 +11,7 @@ import Helper from '../../Util/Helper.js';
 import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 
 const TOKEN = 'USDT';
+const ASSET_TOKENS = ['USDT', 'RUSDT'];
 const WITHDRAW_TTL_SECONDS = 15 * 60;
 
 function address(value) {
@@ -37,11 +38,13 @@ function tokenPublic(item) {
   };
 }
 
-async function getContext(req) {
+async function getContext(req, tokenSymbol = TOKEN) {
   const wallet = address(req.auth?.address());
   if (!isWallet(wallet)) throw new Error('Invalid wallet address');
-  const token = await AssetToken.getTokenItem(TOKEN);
-  if (!token || !isWallet(token.contract)) throw new Error('USDT asset configuration is incomplete');
+  const symbol = String(tokenSymbol || TOKEN).trim().toUpperCase() || TOKEN;
+  if (!ASSET_TOKENS.includes(symbol)) throw new Error(`${symbol} asset is not supported`);
+  const token = await AssetToken.getTokenItem(symbol);
+  if (!token || !isWallet(token.contract)) throw new Error(`${symbol} asset configuration is incomplete`);
   return { wallet, token, decimals: Number(token.decimals || AssetToken.DEFAULT_DECIMALS) };
 }
 
@@ -141,14 +144,30 @@ async function overview(req, res) {
     const { wallet, token, decimals } = await getContext(req);
     await releaseExpiredWithdrawals(wallet);
     const asset = await ensureWalletAsset(wallet, TOKEN);
+    const assets = [];
+    for (const symbol of ASSET_TOKENS) {
+      const item = await AssetToken.getTokenItem(symbol);
+      if (!item) continue;
+      const itemDecimals = Number(item.decimals || AssetToken.DEFAULT_DECIMALS);
+      const walletAsset = await ensureWalletAsset(wallet, symbol);
+      assets.push({
+        token: tokenPublic(item),
+        balance: formatAssetAmount(walletAsset?.balance || '0', itemDecimals),
+        frozen_balance: formatAssetAmount(walletAsset?.frozen_balance || '0', itemDecimals),
+        raw_balance: String(walletAsset?.balance || '0')
+      });
+    }
+    const totalBalance = assets.reduce((sum, item) => sum + Number(item.balance || 0) + Number(item.frozen_balance || 0), 0);
     return res.send(ApiResult.success({
       wallet,
       token: tokenPublic(token),
+      assets,
       receiver_contract: ChainConfig.getContract('TokenReceiver').address || '',
       withdrawal_contract: ChainConfig.getContract('TokenWithdrawal').address || '',
       balance: formatAssetAmount(asset?.balance || '0', decimals),
       frozen_balance: formatAssetAmount(asset?.frozen_balance || '0', decimals),
-      raw_balance: String(asset?.balance || '0')
+      raw_balance: String(asset?.balance || '0'),
+      total_balance: totalBalance.toString()
     }, 'Asset information retrieved successfully'));
   } catch (error) {
     return res.send(ApiResult.exception(toDappApiError(error), 'AssetService.overview'));
@@ -158,7 +177,8 @@ async function overview(req, res) {
 async function prepareWithdrawal(req, res) {
   try {
     await ensureAssetTransferTables();
-    const { wallet, token, decimals } = await getContext(req);
+    const symbol = String(req.body?.token || TOKEN).trim().toUpperCase() || TOKEN;
+    const { wallet, token, decimals } = await getContext(req, symbol);
     await releaseExpiredWithdrawals(wallet);
     const target = address(req.body?.address || wallet);
     if (target !== wallet) return res.send(ApiResult.error(400, 'The withdrawal address must match the connected wallet'));
@@ -172,7 +192,7 @@ async function prepareWithdrawal(req, res) {
 
     const rawDebit = BigInt(parseAssetAmount(req.body?.amount, decimals));
     const rawMinimum = BigInt(parseAssetAmount(String(token.withdraw_min_amount || '0'), decimals));
-    if (rawDebit <= 0n || rawDebit < rawMinimum) return res.send(ApiResult.error(400, `The minimum withdrawal amount is ${token.withdraw_min_amount} USDT`));
+    if (rawDebit <= 0n || rawDebit < rawMinimum) return res.send(ApiResult.error(400, `The minimum withdrawal amount is ${token.withdraw_min_amount} ${symbol}`));
     const rawFee = calculateFee(rawDebit, token, decimals);
     if (rawFee >= rawDebit) return res.send(ApiResult.error(400, 'The withdrawal amount must be greater than the service fee'));
     const rawClaim = rawDebit - rawFee;
@@ -197,7 +217,7 @@ async function prepareWithdrawal(req, res) {
     const prefix = Database.prefix('default') || '';
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
     await DB.transaction(async (config, connection) => {
-      const asset = await ensureWalletAsset(wallet, TOKEN, config, connection);
+      const asset = await ensureWalletAsset(wallet, symbol, config, connection);
       const rows = await DB.query(config, connection).exec(
         `SELECT * FROM ${prefix}wallet_assets WHERE id=? LIMIT 1 FOR UPDATE`, [asset.id]
       );
@@ -210,7 +230,7 @@ async function prepareWithdrawal(req, res) {
         const today = Helper.dateFormat('YYYY-mm-dd', new Date());
         const totals = await DB.query(config, connection).exec(
           `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE LOWER(wallet)=? AND token=? AND status IN (0,1,2) AND created_at>=?`,
-          [wallet, TOKEN, `${today} 00:00:00`]
+          [wallet, symbol, `${today} 00:00:00`]
         );
         if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > dailyLimit) throw new Error('Daily withdrawal limit exceeded');
       }
@@ -219,18 +239,18 @@ async function prepareWithdrawal(req, res) {
         balance: (before - rawDebit).toString(), frozen_balance: (frozenBefore + rawDebit).toString(), updated_at: now
       });
       await DB.query(config, connection).table('withdrawal_order').insert({
-        order_id: orderId, wallet, token: TOKEN, token_contract: token.contract,
+        order_id: orderId, wallet, token: symbol, token_contract: token.contract,
         amount: rawClaim.toString(), service_amount: rawFee.toString(), debit_amount: rawDebit.toString(),
         deadline, status: 0, tx_hash: null, created_at: now, updated_at: now
       });
       await DB.query(config, connection).table('wallet_assets_logs').insert({
-        biz_id: orderId, wallet, token: TOKEN, balance: rawDebit.toString(), before_balance: before.toString(),
-        after_balance: (before - rawDebit).toString(), scene: 'token_withdrawal', reason: 'USDT withdrawal reserved',
+        biz_id: orderId, wallet, token: symbol, balance: rawDebit.toString(), before_balance: before.toString(),
+        after_balance: (before - rawDebit).toString(), scene: 'token_withdrawal', reason: `${symbol} withdrawal reserved`,
         type: 'out', created_at: now, updated_at: now
       });
       await DB.query(config, connection).table('wallet_frozen_assets_logs').insert({
-        biz_id: orderId, wallet, token: TOKEN, balance: rawDebit.toString(), before_balance: frozenBefore.toString(),
-        after_balance: (frozenBefore + rawDebit).toString(), scene: 'token_withdrawal', reason: 'USDT withdrawal reserved',
+        biz_id: orderId, wallet, token: symbol, balance: rawDebit.toString(), before_balance: frozenBefore.toString(),
+        after_balance: (frozenBefore + rawDebit).toString(), scene: 'token_withdrawal', reason: `${symbol} withdrawal reserved`,
         type: 'in', created_at: now, updated_at: now
       });
     });
@@ -292,6 +312,7 @@ async function records(req, res) {
     await ensureAssetTransferTables();
     const { wallet, token, decimals } = await getContext(req);
     await releaseExpiredWithdrawals(wallet);
+    const requestedToken = String(req.query?.token || '').trim().toUpperCase();
     const tokenDecimals = new Map([[TOKEN, decimals]]);
     async function decimalsFor(value) {
       const symbol = String(value || TOKEN).trim().toUpperCase() || TOKEN;
@@ -300,12 +321,23 @@ async function records(req, res) {
       }
       return tokenDecimals.get(symbol);
     }
-    const deposits = await DB.query().table('receiver_order').whereRaw('LOWER(wallet)=?', [wallet]).orderBy('id', 'desc').take(100).get();
-    const withdrawals = await DB.query().table('withdrawal_order').whereRaw('LOWER(wallet)=?', [wallet]).orderBy('id', 'desc').take(100).get();
-    const apiDeposits = await DB.query().table('wallet_assets_logs')
+    const depositQuery = DB.query().table('receiver_order').whereRaw('LOWER(wallet)=?', [wallet]);
+    const withdrawalQuery = DB.query().table('withdrawal_order').whereRaw('LOWER(wallet)=?', [wallet]);
+    const apiDepositQuery = DB.query().table('wallet_assets_logs')
       .whereRaw('LOWER(wallet)=?', [wallet])
-      .where('type', 'in').where('scene', 'open_api_recharge')
-      .orderBy('id', 'desc').take(100).get();
+      .where('type', 'in').where('scene', 'open_api_recharge');
+    if (requestedToken) {
+      if (requestedToken === TOKEN) {
+        depositQuery.whereRaw('(token IS NULL OR token=?)', [requestedToken]);
+      } else {
+        depositQuery.where('token', requestedToken);
+      }
+      withdrawalQuery.where('token', requestedToken);
+      apiDepositQuery.where('token', requestedToken);
+    }
+    const deposits = await depositQuery.orderBy('id', 'desc').take(100).get();
+    const withdrawals = await withdrawalQuery.orderBy('id', 'desc').take(100).get();
+    const apiDeposits = await apiDepositQuery.orderBy('id', 'desc').take(100).get();
     const items = [
       ...(await Promise.all((deposits || []).map(async row => {
         const rowToken = row.token || TOKEN;

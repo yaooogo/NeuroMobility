@@ -15,6 +15,7 @@ const MULTIPLE_DECIMALS = 8;
 const PERCENT_DENOMINATOR = 100n * (10n ** BigInt(PERCENT_DECIMALS));
 const MULTIPLE_DENOMINATOR = 10n ** BigInt(MULTIPLE_DECIMALS);
 const BATCH_SIZE = 100;
+const DIVIDEND_TOKEN = 'USDT';
 
 function scaledDecimal(value, decimals) {
   const text = String(value ?? '0').trim();
@@ -121,10 +122,10 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
     if (assetReward <= 0n) continue;
     const assetRows = await DB.query(configName, connection).exec(
       `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
-      [reward.wallet, order.token || 'USDT']
+      [reward.wallet, DIVIDEND_TOKEN]
     );
     const asset = assetRows?.[0];
-    if (!asset) throw new Error(`毛利分成资产账户不存在: ${reward.wallet} ${order.token || 'USDT'}`);
+    if (!asset) throw new Error(`毛利分成资产账户不存在: ${reward.wallet} ${DIVIDEND_TOKEN}`);
     const before = BigInt(String(asset.balance || '0'));
     const after = before + assetReward;
     await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
@@ -133,7 +134,7 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
     await DB.query(configName, connection).table('wallet_assets_logs').insert({
       biz_id: `${dividendId}L${reward.level}`,
       wallet: reward.wallet,
-      token: order.token || 'USDT',
+      token: DIVIDEND_TOKEN,
       balance: assetReward.toString(),
       before_balance: before.toString(),
       after_balance: after.toString(),
@@ -178,7 +179,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
         dividend_id: dividendId,
         order_id: order.order_id,
         wallet: String(order.wallet || '').toLowerCase(),
-        token: order.token || 'USDT',
+        token: DIVIDEND_TOKEN,
         cycle_at: cycleAt,
         percent: (Number(calculation.percent) / (10 ** PERCENT_DECIMALS)).toFixed(PERCENT_DECIMALS),
         amount: payout.toString(),
@@ -189,10 +190,10 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
       if (assetPayout > 0n) {
         const assetRows = await DB.query(configName, connection).exec(
           `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
-          [String(order.wallet || '').toLowerCase(), order.token || 'USDT']
+          [String(order.wallet || '').toLowerCase(), DIVIDEND_TOKEN]
         );
         const asset = assetRows?.[0];
-        if (!asset) throw new Error(`分红资产账户不存在: ${order.wallet} ${order.token || 'USDT'}`);
+        if (!asset) throw new Error(`分红资产账户不存在: ${order.wallet} ${DIVIDEND_TOKEN}`);
         const before = BigInt(String(asset.balance || '0'));
         const after = before + assetPayout;
         await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
@@ -201,7 +202,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
         await DB.query(configName, connection).table('wallet_assets_logs').insert({
           biz_id: dividendId,
           wallet: String(order.wallet || '').toLowerCase(),
-          token: order.token || 'USDT',
+          token: DIVIDEND_TOKEN,
           balance: assetPayout.toString(),
           before_balance: before.toString(),
           after_balance: after.toString(),
@@ -271,12 +272,11 @@ async function distribute() {
   const decimals = new Map();
   let processed = 0;
   for (const order of orders || []) {
-    const token = String(order.token || 'USDT').toUpperCase();
-    if (!decimals.has(token)) {
-      const item = await AssetToken.getTokenItem(token);
-      decimals.set(token, Number(item?.decimals ?? AssetToken.DEFAULT_DECIMALS));
+    if (!decimals.has(DIVIDEND_TOKEN)) {
+      const item = await AssetToken.getTokenItem(DIVIDEND_TOKEN);
+      decimals.set(DIVIDEND_TOKEN, Number(item?.decimals ?? AssetToken.DEFAULT_DECIMALS));
     }
-    if (await processOrder(order, decimals.get(token), levelRules)) processed += 1;
+    if (await processOrder(order, decimals.get(DIVIDEND_TOKEN), levelRules)) processed += 1;
   }
   if (processed > 0) console.log(`[InvestmentDividend] processed=${processed}`);
   return { matched: (orders || []).length, processed };
@@ -289,8 +289,7 @@ export async function distributeOrderNow(orderId) {
   if (!order) return { status: 'not_found', processed: false };
   if (![0, 1].includes(Number(order.status || 0))) return { status: 'not_active', processed: false };
 
-  const token = String(order.token || 'USDT').toUpperCase();
-  const item = await AssetToken.getTokenItem(token);
+  const item = await AssetToken.getTokenItem(DIVIDEND_TOKEN);
   const tokenDecimals = Number(item?.decimals ?? AssetToken.DEFAULT_DECIMALS);
   const levelRules = await CacheData.getWalletLevelRules();
   const processed = await processOrder(order, tokenDecimals, levelRules, { force: true });

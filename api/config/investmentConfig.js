@@ -11,7 +11,8 @@ const DEFAULT_INVESTMENT_CONFIG = Object.freeze({
   dividend_min_percent: 0,
   dividend_max_percent: 100,
   exit_multiple: 1,
-  guaranteed_dividend_percent: 3
+  guaranteed_dividend_percent: 3,
+  mixed_usdt_percent: 70
 });
 
 export function getDefaultInvestmentConfig() {
@@ -31,6 +32,7 @@ export function normalizeInvestmentConfig(config) {
   const dividendMaxPercent = Number(config?.dividend_max_percent ?? config?.dividendMaxPercent);
   const exitMultiple = Number(config?.exit_multiple ?? config?.exitMultiple);
   const guaranteedDividendPercent = Number(config?.guaranteed_dividend_percent ?? config?.guaranteedDividendPercent);
+  const mixedUsdtPercent = Number(config?.mixed_usdt_percent ?? config?.mixedUsdtPercent);
 
   const normalized = {
     whole_vehicle_tier: Number.isFinite(wholeVehicleTier) && wholeVehicleTier > 0
@@ -66,7 +68,10 @@ export function normalizeInvestmentConfig(config) {
     guaranteed_dividend_percent: Number.isFinite(guaranteedDividendPercent)
       && guaranteedDividendPercent >= 0 && guaranteedDividendPercent <= 100
       ? guaranteedDividendPercent
-      : defaults.guaranteed_dividend_percent
+      : defaults.guaranteed_dividend_percent,
+    mixed_usdt_percent: Number.isFinite(mixedUsdtPercent) && mixedUsdtPercent >= 0 && mixedUsdtPercent <= 100
+      ? mixedUsdtPercent
+      : defaults.mixed_usdt_percent
   };
 
   if (normalized.min_percent > normalized.max_percent) {
@@ -93,7 +98,8 @@ export function validateInvestmentConfig(config) {
     config?.dividend_min_percent ?? config?.dividendMinPercent,
     config?.dividend_max_percent ?? config?.dividendMaxPercent,
     config?.exit_multiple ?? config?.exitMultiple,
-    config?.guaranteed_dividend_percent ?? config?.guaranteedDividendPercent
+    config?.guaranteed_dividend_percent ?? config?.guaranteedDividendPercent,
+    config?.mixed_usdt_percent ?? config?.mixedUsdtPercent
   ].some(value => value === null || typeof value === 'undefined' || String(value).trim() === '');
   if (hasEmptyValue) throw new Error('投资配置项不能为空');
 
@@ -108,6 +114,7 @@ export function validateInvestmentConfig(config) {
   const dividendMaxPercent = Number(config?.dividend_max_percent ?? config?.dividendMaxPercent);
   const exitMultiple = Number(config?.exit_multiple ?? config?.exitMultiple);
   const guaranteedDividendPercent = Number(config?.guaranteed_dividend_percent ?? config?.guaranteedDividendPercent);
+  const mixedUsdtPercent = Number(config?.mixed_usdt_percent ?? config?.mixedUsdtPercent);
 
   if (!Number.isFinite(wholeVehicleTier) || wholeVehicleTier <= 0) {
     throw new Error('整车挡位必须大于 0');
@@ -146,6 +153,9 @@ export function validateInvestmentConfig(config) {
     || guaranteedDividendPercent < 0 || guaranteedDividendPercent > 100) {
     throw new Error('保底分红必须在 0% 到 100% 之间');
   }
+  if (!Number.isFinite(mixedUsdtPercent) || mixedUsdtPercent < 0 || mixedUsdtPercent > 100) {
+    throw new Error('混合投资 USDT 比例必须在 0% 到 100% 之间');
+  }
 
   return {
     whole_vehicle_tier: wholeVehicleTier,
@@ -158,6 +168,7 @@ export function validateInvestmentConfig(config) {
     dividend_min_percent: dividendMinPercent,
     dividend_max_percent: dividendMaxPercent,
     exit_multiple: exitMultiple,
-    guaranteed_dividend_percent: guaranteedDividendPercent
+    guaranteed_dividend_percent: guaranteedDividendPercent,
+    mixed_usdt_percent: mixedUsdtPercent
   };
 }

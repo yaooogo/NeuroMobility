@@ -22,6 +22,7 @@ const stage = ref("");
 const preparedWithdrawal = ref(null);
 
 const token = computed(() => props.overview?.token || {});
+const tokenSymbol = computed(() => token.value.symbol || token.value.value || "USDT");
 const isDeposit = computed(() => props.mode === "deposit");
 const configuredDecimals = computed(() => Number(token.value.decimals ?? 18));
 const decimals = computed(() => isDeposit.value && chainDecimals.value !== null
@@ -99,7 +100,7 @@ async function deposit(rawAmount) {
     address: tokenAddress, abi: erc20Abi, functionName: "allowance", args: [wallet.account, receiver]
   });
   if (allowance < rawAmount) {
-    stage.value = lang("请确认 USDT 授权");
+    stage.value = `${lang("请确认")} ${tokenSymbol.value} ${lang("授权")}`;
     const approveHash = await writeContract(wagmiAdapter.wagmiConfig, {
       ...wallet, address: tokenAddress, abi: erc20Abi, functionName: "approve", args: [receiver, rawAmount]
     });
@@ -117,7 +118,7 @@ async function withdraw() {
   const wallet = walletContext();
   if (!preparedWithdrawal.value) {
     stage.value = lang("正在创建提现订单");
-    preparedWithdrawal.value = await requestPrepareWithdrawal(amount.value, wallet.account);
+    preparedWithdrawal.value = await requestPrepareWithdrawal(amount.value, wallet.account, tokenSymbol.value);
   }
   const order = preparedWithdrawal.value;
   stage.value = lang("请确认提现交易");
@@ -140,7 +141,7 @@ async function submit() {
     if (!isDeposit.value && Number(token.value.withdrawable || 0) !== 1) throw new Error(lang("当前资产暂不支持提现"));
     const rawAmount = parseUnits(String(amount.value || ""), decimals.value);
     const rawMinimum = parseUnits(String(minimum.value || "0"), decimals.value);
-    if (rawAmount <= 0n || rawAmount < rawMinimum) throw new Error(`${lang("最低输入")} ${minimum.value || 0} USDT`);
+    if (rawAmount <= 0n || rawAmount < rawMinimum) throw new Error(`${lang("最低输入")} ${minimum.value || 0} ${tokenSymbol.value}`);
     busy.value = true;
     if (isDeposit.value) await deposit(rawAmount);
     else await withdraw();
@@ -159,12 +160,12 @@ async function submit() {
       <header><h2>{{ title }}</h2><button type="button" :disabled="busy" @click="emit('close')">×</button></header>
       <div v-if="!isDeposit" class="address-box">{{ address }}</div>
       <label class="amount-box">
-        <input v-model.trim="amount" inputmode="decimal" :disabled="busy" :placeholder="`${lang('最低输入')} ${minimum || 0} USDT`" />
-        <b>USDT</b>
+        <input v-model.trim="amount" inputmode="decimal" :disabled="busy" :placeholder="`${lang('最低输入')} ${minimum || 0} ${tokenSymbol}`" />
+        <b>{{ tokenSymbol }}</b>
       </label>
-      <p class="balance">Balance: {{ balanceText }} USDT</p>
+      <p class="balance">Balance: {{ balanceText }} {{ tokenSymbol }}</p>
       <p v-if="!isDeposit && Number(token.withdraw_service_fee || 0) > 0" class="fee">
-        {{ lang("手续费") }}: {{ token.withdraw_service_fee }}{{ Number(token.withdraw_service_type) === 1 ? "%" : " USDT" }}
+        {{ lang("手续费") }}: {{ token.withdraw_service_fee }}{{ Number(token.withdraw_service_type) === 1 ? "%" : ` ${tokenSymbol}` }}
       </p>
       <button class="confirm" type="button" :disabled="busy || !amount" @click="submit">
         {{ busy ? (stage || lang("处理中")) : (isDeposit ? lang("确认充值") : lang("确认提现")) }}

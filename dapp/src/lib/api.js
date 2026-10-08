@@ -106,8 +106,8 @@ export async function requestPlatformStats() {
   return unwrap(await http.get("/content/platform-stats"));
 }
 
-export async function requestCreateInvestment(amount) {
-  return unwrap(await http.post("/investment/create", { amount }));
+export async function requestCreateInvestment(amount, token = "USDT") {
+  return unwrap(await http.post("/investment/create", { amount, token }));
 }
 
 export async function requestInvestmentOrders() {
@@ -126,8 +126,8 @@ export async function requestAssetOverview() {
   return unwrap(await http.get("/asset/overview"));
 }
 
-export async function requestPrepareWithdrawal(amount, address) {
-  return unwrap(await http.post("/asset/withdraw/prepare", { amount, address }));
+export async function requestPrepareWithdrawal(amount, address, token = "") {
+  return unwrap(await http.post("/asset/withdraw/prepare", { amount, address, token }));
 }
 
 export async function requestWithdrawalSubmitted(orderId, txHash) {
@@ -137,7 +137,7 @@ export async function requestWithdrawalSubmitted(orderId, txHash) {
   }));
 }
 
-export async function requestAssetRecords() {
-  const data = unwrap(await http.get("/asset/records"));
+export async function requestAssetRecords(token = "") {
+  const data = unwrap(await http.get("/asset/records", { params: token ? { token } : {} }));
   return Array.isArray(data?.items) ? data.items : [];
 }

@@ -27,6 +27,11 @@ function decimal(value, scale, label) {
   return `${integer}.${fraction.padEnd(scale, '0').slice(0, scale)}`;
 }
 
+function boolFlag(value, defaultValue = 0) {
+  if (value === undefined || value === null || value === '') return defaultValue === 1 ? 1 : 0;
+  return Number(value) === 1 ? 1 : 0;
+}
+
 async function list(req, res) {
   try {
     await AssetToken.ensureAssetTokenColumns();
@@ -72,13 +77,13 @@ async function update(req, res) {
       contract: contract || null,
       icon: String(req.body?.icon || '').trim() || null,
       recharge_min_amount: decimal(req.body?.recharge_min_amount, 8, '最少充值金额'),
-      rechargeable: Helper.parseInt(req.body?.rechargeable, 1) === 1 ? 1 : 0,
-      withdrawable: Helper.parseInt(req.body?.withdrawable, 0) === 1 ? 1 : 0,
+      rechargeable: boolFlag(req.body?.rechargeable, 1),
+      withdrawable: boolFlag(req.body?.withdrawable, 0),
       withdraw_service_type: serviceType,
       withdraw_service_fee: fee,
       withdraw_min_amount: decimal(req.body?.withdraw_min_amount, 2, '最小提现金额'),
       withdraw_daily_limit: decimal(req.body?.withdraw_daily_limit, 8, '每日提现限额'),
-      status: Helper.parseInt(req.body?.status, 1) === 1 ? 1 : 0,
+      status: boolFlag(req.body?.status, 1),
       sort: Math.max(0, Helper.parseInt(req.body?.sort, 0))
     });
     await CacheData.removeAssetsTokens();

@@ -20,7 +20,8 @@ const investment = ref({
   dividend_min_percent: '0',
   dividend_max_percent: '100',
   exit_multiple: '1',
-  guaranteed_dividend_percent: '3'
+  guaranteed_dividend_percent: '3',
+  mixed_usdt_percent: '70'
 });
 const other = ref({ platform_operated_vehicles: '1258', virtual_users: '56320' });
 const investmentLoaded = ref(false);
@@ -66,7 +67,8 @@ async function loadInvestment() {
       dividend_min_percent: String(data.dividend_min_percent),
       dividend_max_percent: String(data.dividend_max_percent),
       exit_multiple: String(data.exit_multiple),
-      guaranteed_dividend_percent: String(data.guaranteed_dividend_percent)
+      guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
+      mixed_usdt_percent: String(data.mixed_usdt_percent)
     };
     investmentLoaded.value = true;
   } catch (err) { error.value = err.message || '加载投资配置失败'; }
@@ -148,6 +150,7 @@ function validateInvestment() {
   const dividendMaxPercent = Number(investment.value.dividend_max_percent);
   const exitMultiple = Number(investment.value.exit_multiple);
   const guaranteedDividendPercent = Number(investment.value.guaranteed_dividend_percent);
+  const mixedUsdtPercent = Number(investment.value.mixed_usdt_percent);
   if (!Number.isFinite(wholeVehicleTier) || wholeVehicleTier <= 0) return '整车挡位必须大于 0';
   if (!Number.isInteger(minimumInvestmentAmount) || minimumInvestmentAmount <= 0) return '最低投资金额必须为正整数';
   if (!Number.isInteger(waitingPeriodDays) || waitingPeriodDays < 0) return '等待期必须为非负整数';
@@ -159,6 +162,7 @@ function validateInvestment() {
   if (dividendMinPercent > dividendMaxPercent) return '分红百分比区间起始值不能大于结束值';
   if (!Number.isFinite(exitMultiple) || exitMultiple <= 0) return '出局倍数必须大于 0';
   if (!Number.isFinite(guaranteedDividendPercent) || guaranteedDividendPercent < 0 || guaranteedDividendPercent > 100) return '保底分红必须在 0% 到 100% 之间';
+  if (!Number.isFinite(mixedUsdtPercent) || mixedUsdtPercent < 0 || mixedUsdtPercent > 100) return '混合投资 USDT 比例必须在 0% 到 100% 之间';
   return '';
 }
 
@@ -205,7 +209,8 @@ async function save() {
         dividend_min_percent: String(data.dividend_min_percent),
         dividend_max_percent: String(data.dividend_max_percent),
         exit_multiple: String(data.exit_multiple),
-        guaranteed_dividend_percent: String(data.guaranteed_dividend_percent)
+        guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
+        mixed_usdt_percent: String(data.mixed_usdt_percent)
       };
       success.value = '投资配置已保存';
     } else {
@@ -347,6 +352,17 @@ onMounted(loadLevels);
             <div>
               <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.guaranteed_dividend_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.guaranteed_dividend_percent }}</strong><em>%</em></div>
               <small class="investment-tip">单次投资金额达到或累计金额达到 <strong>{{ investment.whole_vehicle_tier }} U</strong>，保底获得 <strong>{{ investment.guaranteed_dividend_percent }}%</strong> 分红，即 <strong>{{ investment.guaranteed_dividend_percent }}%</strong> 至 <strong>{{ investment.max_percent }}%</strong> 的分红规则。</small>
+            </div>
+          </label>
+          <label class="investment-field">
+            <span>混合投资比例</span>
+            <div>
+              <div class="range-inputs">
+                <div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_usdt_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.mixed_usdt_percent }}</strong><em>% USDT</em></div>
+                <span class="range-separator">+</span>
+                <div class="input-with-unit"><strong>{{ Math.max(0, 100 - Number(investment.mixed_usdt_percent || 0)) }}</strong><em>% RUSDT</em></div>
+              </div>
+              <small class="investment-tip">用户选择 USDT+RUSDT 参与时，按该比例拆分扣款。</small>
             </div>
           </label>
         </div>

@@ -7,7 +7,18 @@ import { formatFixedAmount } from '../lib/amount.js';
 
 const query = reactive({ wallet: '', search_team: 0, order_id: '', status: '', page: 1, page_size: 20 });
 const list = ref([]); const total = ref(0); const lastPage = ref(1); const loading = ref(false); const error = ref('');
-const summary = reactive({ order_count: 0, amount: '0', distributed_amount: '0', total_dividend: '0' });
+const emptySummary = {
+  order_count: 0,
+  amount: '0',
+  usdt_amount: '0',
+  rusdt_amount: '0',
+  usdt_order_count: 0,
+  rusdt_order_count: 0,
+  mixed_order_count: 0,
+  distributed_amount: '0',
+  total_dividend: '0'
+};
+const summary = reactive({ ...emptySummary });
 const dividendVisible = ref(false); const dividendOrder = ref(null); const dividendList = ref([]);
 const dividendQuery = reactive({ order_id: '', page: 1, page_size: 20 });
 const dividendTotal = ref(0); const dividendLastPage = ref(1); const dividendLoading = ref(false); const dividendError = ref('');
@@ -19,7 +30,7 @@ async function load() {
   try {
     const data = await post('/investment-order/list', query);
     list.value = data.items || []; total.value = Number(data.total || 0); lastPage.value = Number(data.last_page || 1);
-    Object.assign(summary, data.summary || { order_count: 0, amount: '0', distributed_amount: '0', total_dividend: '0' });
+    Object.assign(summary, emptySummary, data.summary || {});
   } catch (err) { error.value = err.message || '加载投资订单失败'; }
   finally { loading.value = false; }
 }
@@ -63,6 +74,17 @@ async function dividendNow(row) {
     distributingOrderId.value = '';
   }
 }
+function paymentText(row) {
+  const parts = Array.isArray(row?.payment_parts) && row.payment_parts.length
+    ? row.payment_parts
+    : [{ token: row?.token || 'USDT', amount: row?.amount || '0' }];
+  return parts.map((part) => `${formatFixedAmount(part.amount)} ${part.token || 'USDT'}`).join(' + ');
+}
+function tokenLabel(row) {
+  const token = String(row?.token || 'USDT').toUpperCase();
+  if (token !== 'USDT+RUSDT') return token;
+  return `${token} (${Number(row?.mixed_usdt_percent || 0)}% USDT)`;
+}
 onMounted(load);
 </script>
 
@@ -79,15 +101,15 @@ onMounted(load);
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div class="investment-summary">
         <div class="investment-summary-card"><span>筛选订单数</span><strong>{{ summary.order_count }}</strong></div>
-        <div class="investment-summary-card"><span>投资总额</span><strong>{{ formatFixedAmount(summary.amount) }} U</strong></div>
-        <div class="investment-summary-card"><span>已分红总额</span><strong>{{ formatFixedAmount(summary.distributed_amount) }} U</strong></div>
-        <div class="investment-summary-card"><span>计划分红总额</span><strong>{{ formatFixedAmount(summary.total_dividend) }} U</strong></div>
+        <div class="investment-summary-card"><span>投资总额</span><strong>{{ formatFixedAmount(summary.amount) }} U</strong><em>{{ formatFixedAmount(summary.usdt_amount) }} USDT + {{ formatFixedAmount(summary.rusdt_amount) }} RUSDT</em></div>
+        <div class="investment-summary-card"><span>订单类型</span><strong>{{ summary.usdt_order_count }} / {{ summary.rusdt_order_count }} / {{ summary.mixed_order_count }}</strong><em>USDT / RUSDT / 混合</em></div>
+        <div class="investment-summary-card"><span>分红总额</span><strong>{{ formatFixedAmount(summary.distributed_amount) }} USDT</strong><em>计划 {{ formatFixedAmount(summary.total_dividend) }} USDT</em></div>
       </div>
-      <div class="table-wrap"><table class="data-table" style="min-width: 1880px">
-        <thead><tr><th>ID</th><th>订单号</th><th>钱包</th><th>投资金额</th><th>已分红</th><th>总分红</th><th>等待期</th><th>分红周期</th><th>分红范围</th><th>保底分红</th><th>整车</th><th>状态</th><th>等待截止</th><th>下次分红</th><th>投资时间</th><th>操作</th></tr></thead>
+      <div class="table-wrap"><table class="data-table" style="min-width: 2020px">
+        <thead><tr><th>ID</th><th>订单号</th><th>钱包</th><th>参与方式</th><th>投资金额</th><th>已分红</th><th>总分红</th><th>等待期</th><th>分红周期</th><th>分红范围</th><th>保底分红</th><th>整车</th><th>状态</th><th>等待截止</th><th>下次分红</th><th>投资时间</th><th>操作</th></tr></thead>
         <tbody>
-          <tr v-if="loading || !list.length"><td colspan="16" class="empty-cell">{{ loading ? '正在加载...' : '暂无投资订单' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ formatFixedAmount(row.amount) }} U</td><td>{{ formatFixedAmount(row.distributed_amount) }} U</td><td>{{ formatFixedAmount(row.total_dividend) }} U</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.min_percent }}% ~ {{ row.max_percent }}%</td><td>{{ row.guaranteed_percent }}%</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && row.status !== 2" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button></td></tr>
+          <tr v-if="loading || !list.length"><td colspan="17" class="empty-cell">{{ loading ? '正在加载...' : '暂无投资订单' }}</td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ tokenLabel(row) }}</td><td>{{ paymentText(row) }}</td><td>{{ formatFixedAmount(row.distributed_amount) }} USDT</td><td>{{ formatFixedAmount(row.total_dividend) }} USDT</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.min_percent }}% ~ {{ row.max_percent }}%</td><td>{{ row.guaranteed_percent }}%</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && row.status !== 2" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
@@ -118,6 +140,7 @@ onMounted(load);
 .investment-summary-card { min-width: 0; padding: 16px; border: 1px solid rgba(142, 168, 241, 0.14); border-radius: 14px; background: rgba(8, 15, 29, 0.58); }
 .investment-summary-card span { display: block; margin-bottom: 10px; color: var(--muted); font-size: 13px; }
 .investment-summary-card strong { display: block; overflow-wrap: anywhere; font-size: 22px; line-height: 1.2; }
+.investment-summary-card em { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; font-style: normal; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .investment-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .investment-summary { grid-template-columns: 1fr; } }
 </style>

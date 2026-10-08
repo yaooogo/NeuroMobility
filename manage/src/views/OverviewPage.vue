@@ -84,10 +84,9 @@ onMounted(refresh);
           <p class="mono-cell">{{ contractBalance?.withdrawal_contract || '-' }}</p>
         </div>
         <div class="contract-balance-list">
-          <article v-for="item in contractBalance?.balances || []" :key="item.token" class="contract-balance-card">
+          <article v-for="item in contractBalance?.balances.filter(item=>item.configured) || []" :key="item.token" class="contract-balance-card" >
             <span>{{ item.token }}</span>
             <strong>{{ formatAmount(item.balance) }}</strong>
-            <p v-if="!item.configured" class="overview-note">未配置</p>
           </article>
           <p v-if="!balanceLoading && !(contractBalance?.balances || []).length" class="overview-empty">暂无已配置资产</p>
           <button class="contract-balance-button" :disabled="balanceLoading" @click="loadContractBalance">{{ balanceLoading ? '查询中...' : '查询余额' }}</button>
@@ -170,7 +169,7 @@ onMounted(refresh);
 .contract-balance-copy h2 { margin: 0 0 10px; font-size: 20px; }
 .contract-balance-copy p { margin: 0; color: var(--muted); font-size: 13px; }
 .contract-balance-list { display: flex; align-items: stretch; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
-.contract-balance-card {  display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 12px 14px; border-radius: 12px; background: rgba(6, 15, 31, 0.72); }
+.contract-balance-card {  display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 12px 14px; border-radius: 12px; background: rgba(6, 15, 31, 0.72); min-width:150px ; }
 .contract-balance-card span { color: var(--muted); font-size: 14px; }
 .contract-balance-card strong { color: var(--text); font-size: 22px; line-height: 1; white-space: nowrap; }
 .contract-balance-card .overview-note { color: #ff99bf; }

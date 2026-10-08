@@ -7,18 +7,63 @@ import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
 import { distributeOrderNow } from '../../cron/investmentDividend.js';
 
+const USDT = 'USDT';
+const RUSDT = 'RUSDT';
+const MIXED_TOKEN = 'USDT+RUSDT';
+const INVESTMENT_DECIMALS = 18;
+
 function manualDividendEnabled() {
   const environments = [Config.APP_ENV, Config.NODE_ENV, Config.CHAIN_NET]
     .map(value => String(value || '').trim().toLowerCase());
   return environments.some(value => ['development', 'dev', 'local', 'localdev', 'test'].includes(value));
 }
 
+function normalizeOrderToken(value) {
+  const token = String(value || USDT).trim().toUpperCase();
+  return [USDT, RUSDT, MIXED_TOKEN].includes(token) ? token : USDT;
+}
+
+function normalizePercent(value, fallback = 0) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return fallback;
+  return Math.min(100, Math.max(0, percent));
+}
+
+function mixedPercentForToken(token, value) {
+  if (token === USDT) return 100;
+  if (token === RUSDT) return 0;
+  return normalizePercent(value, 70);
+}
+
+function splitMixedRaw(amountRaw, percent) {
+  const raw = BigInt(String(amountRaw || '0'));
+  const usdtRaw = raw * BigInt(Math.round(normalizePercent(percent, 70) * 10000)) / 1000000n;
+  return { usdtRaw, rusdtRaw: raw - usdtRaw };
+}
+
+function paymentParts(row) {
+  const token = normalizeOrderToken(row.token);
+  const amountRaw = BigInt(String(row.amount || '0'));
+  if (token !== MIXED_TOKEN) {
+    return [{ token, amount: formatAssetAmount(amountRaw.toString(), INVESTMENT_DECIMALS) }];
+  }
+  const { usdtRaw, rusdtRaw } = splitMixedRaw(amountRaw, mixedPercentForToken(token, row.mixed_usdt_percent));
+  return [
+    { token: USDT, amount: formatAssetAmount(usdtRaw.toString(), INVESTMENT_DECIMALS) },
+    { token: RUSDT, amount: formatAssetAmount(rusdtRaw.toString(), INVESTMENT_DECIMALS) }
+  ].filter(item => Number(item.amount) > 0);
+}
+
 function normalize(row) {
+  const token = normalizeOrderToken(row.token);
+  const mixedUsdtPercent = mixedPercentForToken(token, row.mixed_usdt_percent);
   return {
-    id: Number(row.id || 0), order_id: row.order_id || '', wallet: row.wallet || '', token: row.token || 'USDT',
-    amount: formatAssetAmount(row.amount || '0', 18),
-    distributed_amount: formatAssetAmount(row.distributed_amount || '0', 18),
-    total_dividend: formatAssetAmount(row.total_dividend || '0', 18),
+    id: Number(row.id || 0), order_id: row.order_id || '', wallet: row.wallet || '', token,
+    amount: formatAssetAmount(row.amount || '0', INVESTMENT_DECIMALS),
+    mixed_usdt_percent: mixedUsdtPercent,
+    payment_parts: paymentParts(row),
+    distributed_amount: formatAssetAmount(row.distributed_amount || '0', INVESTMENT_DECIMALS),
+    total_dividend: formatAssetAmount(row.total_dividend || '0', INVESTMENT_DECIMALS),
     waiting_days: Number(row.waiting_days || 0), cycle_days: Number(row.cycle_days || 0),
     min_percent: Number(row.min_percent || 0), max_percent: Number(row.max_percent || 0),
     dividend_multiple: Number(row.dividend_multiple || 0),
@@ -118,6 +163,11 @@ async function list(req, res) {
       DB.query().exec(
         `SELECT COUNT(*) AS order_count,
                 COALESCE(SUM(amount), 0) AS amount,
+                COALESCE(SUM(CASE WHEN token='USDT' THEN amount WHEN token='USDT+RUSDT' THEN FLOOR(amount * mixed_usdt_percent / 100) ELSE 0 END), 0) AS usdt_amount,
+                COALESCE(SUM(CASE WHEN token='RUSDT' THEN amount WHEN token='USDT+RUSDT' THEN amount - FLOOR(amount * mixed_usdt_percent / 100) ELSE 0 END), 0) AS rusdt_amount,
+                COALESCE(SUM(CASE WHEN token='USDT' THEN 1 ELSE 0 END), 0) AS usdt_order_count,
+                COALESCE(SUM(CASE WHEN token='RUSDT' THEN 1 ELSE 0 END), 0) AS rusdt_order_count,
+                COALESCE(SUM(CASE WHEN token='USDT+RUSDT' THEN 1 ELSE 0 END), 0) AS mixed_order_count,
                 COALESCE(SUM(distributed_amount), 0) AS distributed_amount,
                 COALESCE(SUM(total_dividend), 0) AS total_dividend
          FROM ${prefix}investment_order
@@ -132,6 +182,11 @@ async function list(req, res) {
       summary: {
         order_count: Number(summary.order_count || 0),
         amount: formatAssetAmount(summary.amount || '0', 18),
+        usdt_amount: formatAssetAmount(summary.usdt_amount || '0', 18),
+        rusdt_amount: formatAssetAmount(summary.rusdt_amount || '0', 18),
+        usdt_order_count: Number(summary.usdt_order_count || 0),
+        rusdt_order_count: Number(summary.rusdt_order_count || 0),
+        mixed_order_count: Number(summary.mixed_order_count || 0),
         distributed_amount: formatAssetAmount(summary.distributed_amount || '0', 18),
         total_dividend: formatAssetAmount(summary.total_dividend || '0', 18)
       }

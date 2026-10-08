@@ -7,6 +7,22 @@ const requireAsset = (assetPath) => globalThis.require(assetPath);
 const route = useRoute(); const router = useRouter(); const { lang } = useLocale();
 const order = ref(null); const error = ref('');
 function amount(value) { return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 5 }); }
+function orderPaymentParts(value) {
+  const parts = Array.isArray(value?.payment_parts) ? value.payment_parts : [];
+  if (parts.length) return parts;
+  const token = String(value?.token || 'USDT').toUpperCase();
+  if (token !== 'USDT+RUSDT') return [{ token, amount: value?.amount || '0' }];
+  const total = Number(value?.amount || 0);
+  const usdtPercent = Math.min(100, Math.max(0, Number(value?.mixed_usdt_percent ?? 0)));
+  const usdt = total * usdtPercent / 100;
+  return [
+    { token: 'USDT', amount: String(usdt) },
+    { token: 'RUSDT', amount: String(total - usdt) }
+  ].filter((part) => Number(part.amount) > 0);
+}
+function orderAmountText(value) {
+  return orderPaymentParts(value).map((part) => `${amount(part.amount)} ${part.token || 'USDT'}`).join(' + ');
+}
 onMounted(async () => {
   try { order.value = await requestInvestmentOrder(String(route.query.order_id || '')); }
   catch (err) { error.value = err.message || lang('加载投资订单失败'); }
@@ -20,7 +36,7 @@ onMounted(async () => {
     <div v-if="error" class="state-error">{{ error }}</div>
     <dl v-else-if="order" class="order-info">
       <div><dt>{{ lang('订单编号') }}</dt><dd>{{ order.order_id }}</dd></div>
-      <div><dt>{{ lang('参与金额') }}</dt><dd>{{ amount(order.amount) }} USDT</dd></div>
+      <div><dt>{{ lang('参与金额') }}</dt><dd>{{ orderAmountText(order) }}</dd></div>
       <div><dt>{{ lang('参与时间') }}</dt><dd>{{ order.created_at }}</dd></div>
       <div><dt>{{ lang('等待期') }}</dt><dd>{{ order.waiting_until }}</dd></div>
       <div><dt>{{ lang('分红周期') }}</dt><dd>{{ order.cycle_days }}{{ lang('天') }}</dd></div>

@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from "vue";
-import { useRouter } from "vue-router";
+import { computed, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
 import { requestAssetRecords } from "../lib/api.js";
@@ -11,10 +11,12 @@ const props = defineProps({
 });
 const emit = defineEmits(["connect", "notice"]);
 
+const route = useRoute();
 const router = useRouter();
 const { lang } = useLocale();
 const records = ref([]);
 const loading = ref(false);
+const selectedToken = computed(() => String(route.query?.token || "").trim().toUpperCase());
 
 function formatAmount(value) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -35,7 +37,7 @@ async function loadRecords() {
   if (!localStorage.getItem("token")) return;
   loading.value = true;
   try {
-    records.value = await requestAssetRecords();
+    records.value = await requestAssetRecords(selectedToken.value);
   } catch (error) {
     if (Number(error?.code) !== 401) emit("notice", { message: error?.message || lang("加载失败"), type: "error" });
   } finally {
@@ -43,7 +45,7 @@ async function loadRecords() {
   }
 }
 
-watch(() => props.connected, (connected) => {
+watch(() => [props.connected, selectedToken.value], ([connected]) => {
   if (connected) void loadRecords();
   else records.value = [];
 }, { immediate: true });
@@ -55,7 +57,7 @@ watch(() => props.connected, (connected) => {
       <button type="button" :aria-label="lang('返回资产')" @click="router.push({ name: 'assets' })">
         <AppIcon name="chevron" />
       </button>
-      <h1>{{ lang("充提记录") }}</h1>
+      <h1>{{ selectedToken ? `${selectedToken} ${lang("充提记录")}` : lang("充提记录") }}</h1>
       <span></span>
     </header>
 
@@ -80,7 +82,7 @@ watch(() => props.connected, (connected) => {
 <style scoped>
 .records-view { min-height: 100vh; padding: 0 19px 38px; background: linear-gradient(135deg, #fff 0%, #fbf7ff 48%, #f7f1ff 100%); color: #4d4950; }
 .records-header { height: 70px; display: grid; grid-template-columns: 42px 1fr 42px; align-items: end; padding: max(18px, env(safe-area-inset-top)) 0 31px; }
-.records-header h1 { margin: 0; color: #111014; font-size: 18px; line-height: 32px; text-align: center; }
+.records-header h1 { min-width: 0; margin: 0; overflow: hidden; color: #111014; font-size: 18px; line-height: 32px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
 .records-header button { width: 40px; height: 34px; display: grid; place-items: start; padding: 3px 0; border: 0; background: rgba(255,255,255,.75); color: #812bd8; cursor: pointer; }
 .records-header button svg { width: 29px; transform: rotate(180deg); }
 .records-list { display: grid; gap: 13px; }

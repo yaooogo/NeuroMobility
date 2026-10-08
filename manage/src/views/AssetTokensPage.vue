@@ -34,14 +34,33 @@ async function load() {
 function search() { query.page = 1; load(); }
 function changePage(page) { query.page = page; load(); }
 function edit(row) {
-  Object.assign(form, row);
+  Object.assign(form, {
+    ...row,
+    id: Number(row.id || 0),
+    decimals: Number(row.decimals ?? 18),
+    recharge_min_amount: String(row.recharge_min_amount ?? '0'),
+    rechargeable: Number(row.rechargeable ?? 1) === 1 ? 1 : 0,
+    withdrawable: Number(row.withdrawable ?? 0) === 1 ? 1 : 0,
+    withdraw_service_type: Number(row.withdraw_service_type ?? 0) === 1 ? 1 : 0,
+    withdraw_service_fee: String(row.withdraw_service_fee ?? '0'),
+    withdraw_min_amount: String(row.withdraw_min_amount ?? '0'),
+    withdraw_daily_limit: String(row.withdraw_daily_limit ?? '0'),
+    status: Number(row.status ?? 1) === 1 ? 1 : 0,
+    sort: Number(row.sort || 0)
+  });
   modalError.value = ''; modal.value = true;
 }
 async function save() {
   if (saving.value) return;
   saving.value = true; modalError.value = '';
   try {
-    await post('/asset-token/update', form);
+    await post('/asset-token/update', {
+      ...form,
+      rechargeable: Number(form.rechargeable) === 1 ? 1 : 0,
+      withdrawable: Number(form.withdrawable) === 1 ? 1 : 0,
+      withdraw_service_type: Number(form.withdraw_service_type) === 1 ? 1 : 0,
+      status: Number(form.status) === 1 ? 1 : 0
+    });
     modal.value = false; success.value = '资产类型已更新'; await load();
   } catch (err) { modalError.value = err.message; }
   finally { saving.value = false; }

@@ -18,11 +18,18 @@ const investmentConfig = ref({
   waiting_period_days: 15,
   dividend_cycle_days: 30,
   min_percent: 3,
-  max_percent: 10
+  max_percent: 10,
+  mixed_usdt_percent: 70
 });
 const selectedAmount = ref(1000);
+const selectedToken = ref("USDT");
 const customAmount = ref("");
 const submitting = ref(false);
+const participationModes = [
+  { value: "USDT", label: "USDT" },
+  { value: "RUSDT", label: "RUSDT" },
+  { value: "USDT+RUSDT", label: "USDT+RUSDT" }
+];
 const amountOptions = computed(() => {
   const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
   const wholeVehicle = Number(investmentConfig.value.whole_vehicle_tier) || 50000;
@@ -33,6 +40,17 @@ const amountOptions = computed(() => {
   })).concat({ key: "whole-vehicle", amount: wholeVehicle, wholeVehicle: true });
 });
 const finalAmount = computed(() => Number(customAmount.value) || selectedAmount.value);
+const mixedSplit = computed(() => {
+  const amount = Number(finalAmount.value || 0);
+  const usdtPercent = Math.min(100, Math.max(0, Number(investmentConfig.value.mixed_usdt_percent || 0)));
+  const usdtAmount = Math.floor(amount * usdtPercent) / 100;
+  return {
+    usdtPercent,
+    rusdtPercent: 100 - usdtPercent,
+    usdt: usdtAmount,
+    rusdt: amount - usdtAmount
+  };
+});
 const canSubmit = computed(() => {
   const minimum = Number(investmentConfig.value.minimum_investment_amount) || 1000;
   const amount = finalAmount.value;
@@ -76,6 +94,13 @@ function selectAmount(amount) {
   customAmount.value = "";
 }
 
+function amount(value) {
+  return Number(value || 0).toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
+  });
+}
+
 function setCustomAmount(event) {
   customAmount.value = event.target.value.replace(/[^\d.]/g, "");
   if (customAmount.value) selectedAmount.value = 0;
@@ -89,7 +114,7 @@ async function submit() {
   }
   submitting.value = true;
   try {
-    const order = await requestCreateInvestment(String(finalAmount.value));
+    const order = await requestCreateInvestment(String(finalAmount.value), selectedToken.value);
     await router.push({ name: "invest-success", query: { order_id: order.order_id } });
   } catch (error) {
     emit("notice", { message: error?.message || lang("投资失败"), type: "error" });
@@ -107,12 +132,14 @@ onMounted(async () => {
     const dividendCycleDays = Number(data?.dividend_cycle_days);
     const minPercent = Number(data?.min_percent);
     const maxPercent = Number(data?.max_percent);
+    const mixedUsdtPercent = Number(data?.mixed_usdt_percent);
     if (Number.isInteger(minimum) && minimum > 0) investmentConfig.value.minimum_investment_amount = minimum;
     if (Number.isFinite(wholeVehicle) && wholeVehicle > 0) investmentConfig.value.whole_vehicle_tier = wholeVehicle;
     if (Number.isInteger(waitingDays) && waitingDays >= 0) investmentConfig.value.waiting_period_days = waitingDays;
     if (Number.isInteger(dividendCycleDays) && dividendCycleDays > 0) investmentConfig.value.dividend_cycle_days = dividendCycleDays;
     if (Number.isFinite(minPercent) && minPercent >= 0 && minPercent <= 100) investmentConfig.value.min_percent = minPercent;
     if (Number.isFinite(maxPercent) && maxPercent >= 0 && maxPercent <= 100) investmentConfig.value.max_percent = maxPercent;
+    if (Number.isFinite(mixedUsdtPercent) && mixedUsdtPercent >= 0 && mixedUsdtPercent <= 100) investmentConfig.value.mixed_usdt_percent = mixedUsdtPercent;
     if (!customAmount.value) selectedAmount.value = investmentConfig.value.minimum_investment_amount;
   } catch {
     // Keep safe defaults when the public configuration endpoint is unavailable.
@@ -134,6 +161,18 @@ onMounted(async () => {
     </section>
 
     <section class="amount-section">
+      <h2>{{ lang("参与方式") }}</h2>
+      <div class="participation-tabs">
+        <button
+          v-for="mode in participationModes"
+          :key="mode.value"
+          type="button"
+          :class="{ active: selectedToken === mode.value }"
+          @click="selectedToken = mode.value"
+        >
+          {{ mode.label }}
+        </button>
+      </div>
       <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ investmentConfig.minimum_investment_amount.toLocaleString() }} U)</small></h2>
       <div class="amount-grid">
         <button
@@ -155,8 +194,16 @@ onMounted(async () => {
           :aria-label="lang('自定义参与数量')"
           @input="setCustomAmount"
         />
-        <span v-if="customAmount">USDT</span>
+        <span v-if="customAmount">{{ selectedToken }}</span>
       </label>
+      <div v-if="selectedToken === 'USDT+RUSDT'" class="mixed-split">
+        <div><strong>{{ amount(mixedSplit.usdt) }}</strong><span>USDT</span></div>
+        <b>+</b>
+        <div><strong>{{ amount(mixedSplit.rusdt) }}</strong><span>RUSDT</span></div>
+      </div>
+      <p v-if="selectedToken === 'USDT+RUSDT'" class="mixed-note">
+        {{ lang("参与金额分配") }}：{{ mixedSplit.usdtPercent }}% USDT + {{ mixedSplit.rusdtPercent }}% RUSDT
+      </p>
       <button class="participate-button" type="button" :disabled="!canSubmit || submitting" @click="submit">{{ submitting ? lang("提交中...") : lang("立即参与") }}</button>
     </section>
 
@@ -187,16 +234,26 @@ onMounted(async () => {
 .amount-section { margin-top: 20px; }
 .amount-section h2, .instructions > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #a243ee; font-size: 15px; line-height: 23px; }
 .amount-section h2 small { color: #99949d; font-size: 11px; font-weight: 400; }
+.participation-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 0 43px; padding:8px; border-radius: 8px; background: #F1EFFD; }
+.participation-tabs button { min-width: 0; height: 32px; overflow: hidden; border: 0; border-radius: 6px; background: #d9c4f3; color: #918d96; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.participation-tabs button.active { background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; }
 .amount-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px 14px; }
 .amount-grid button { position: relative; height: 44px; padding: 0; border: 1px solid #e1d5f9; border-radius: 8px; background: #f2effa; color: #918d96; font-size: 16px; cursor: pointer; transition: .18s ease; }
 .amount-grid button.active { border-color: transparent; background: linear-gradient(115deg, #ad53f5, #7926d4); color: #fff; font-weight: 700; box-shadow: 0 8px 18px rgba(138,49,218,.16); }
-.amount-grid em { position: absolute; right: -2px; top: -17px; padding: 4px 6px; border-radius: 5px 5px 0 5px; background: #a342ec; color: #fff; font-size: 9px; font-style: normal; line-height: 15px; }
-.custom-amount { height: 44px; display: flex; align-items: center; margin-top: 20px; padding: 0 16px; border: 1px solid #e1d5f9; border-radius: 11px; background: #f2effa; transition: .18s ease; }
+.amount-grid em { position: absolute; right: -2px; top: -17px; max-width: calc(100% + 4px); padding: 4px 6px; overflow: hidden; border-radius: 5px 5px 0 5px; background: #a342ec; color: #fff; font-size: 9px; font-style: normal; line-height: 15px; text-overflow: ellipsis; white-space: nowrap; }
+.custom-amount { height: 44px; display: flex; align-items: center; margin-top: 20px; padding: 0 16px; border: 1px solid #e1d5f9; border-radius: 8px; background: #f2effa; transition: .18s ease; }
 .custom-amount.active { border-color: #a647eb; box-shadow: 0 0 0 3px rgba(166,71,235,.09); }
 .custom-amount input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: #4d4851; font-size: 17px; }
 .custom-amount input::placeholder { color: #bcb7c2; }
 .custom-amount span { color: #9d44e7; font-size: 12px; }
-.participate-button { width: 100%; height: 44px; margin-top: 29px; border: 0; border-radius: 10px; background: linear-gradient(100deg, #ad51f5, #7623d1); color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 10px 23px rgba(134,42,218,.18); cursor: pointer; }
+.mixed-split { display: grid; grid-template-columns: minmax(0, 1fr) 22px minmax(0, 1fr); align-items: center; gap: 15px; margin-top: 30px; }
+.mixed-split div { min-width: 0; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; overflow: hidden; border: 1.5px solid #a64df1; border-radius: 8px; background: #f4f0fb; color: #a54cf0; }
+.mixed-split strong, .mixed-split span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mixed-split strong { color: #918d96; font-size: 17px; font-weight: 400; }
+.mixed-split span { font-size: 17px; }
+.mixed-split b { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: #8c36dd; color: #fff; font-size:20px; line-height: 0.8; }
+.mixed-note { margin: 18px 0 0; color: #8f8a92; font-size: 11px; }
+.participate-button { width: 100%; height: 44px; margin-top: 20px; border: 0; border-radius: 10px; background: linear-gradient(100deg, #ad51f5, #7623d1); color: #fff; font-size: 15px; font-weight: 700; box-shadow: 0 10px 23px rgba(134,42,218,.18); cursor: pointer; }
 .participate-button:disabled { cursor: not-allowed; opacity: .5; }
 .instructions { margin-top: 29px; }
 .instruction-card { padding: 0 15px; border: 1px solid #f2edf7; border-radius: 17px; background: #fff; box-shadow: 0 7px 20px rgba(88,47,129,.07); }

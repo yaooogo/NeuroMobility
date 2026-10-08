@@ -14,6 +14,9 @@ import {
 } from '../../Util/LevelReward.js';
 
 const TOKEN = 'USDT';
+const R_TOKEN = 'RUSDT';
+const MIXED_TOKEN = 'USDT+RUSDT';
+const INVESTMENT_TOKENS = [TOKEN, R_TOKEN, MIXED_TOKEN];
 const INVESTMENT_DECIMALS = 18;
 const DIVIDEND_RECORD_SCENES = [
   'investment_dividend',
@@ -36,6 +39,42 @@ function orderId() {
   return `N${stamp}${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
 }
 
+function normalizeInvestmentToken(value) {
+  const token = String(value || TOKEN).trim().toUpperCase();
+  return INVESTMENT_TOKENS.includes(token) ? token : TOKEN;
+}
+
+function normalizePercent(value, fallback = 0) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return fallback;
+  return Math.min(100, Math.max(0, percent));
+}
+
+function percentBasis(value) {
+  return BigInt(Math.round(normalizePercent(value) * 10000));
+}
+
+function mixedPercentForToken(token, mixedUsdtPercent) {
+  if (token === TOKEN) return 100;
+  if (token === R_TOKEN) return 0;
+  return normalizePercent(mixedUsdtPercent, 70);
+}
+
+function splitMixedRaw(amountRaw, mixedUsdtPercent) {
+  const usdtRaw = BigInt(amountRaw) * percentBasis(mixedUsdtPercent) / 1000000n;
+  return { usdtRaw, rusdtRaw: BigInt(amountRaw) - usdtRaw };
+}
+
+function splitInvestmentAmount(amountRaw, investmentToken, mixedUsdtPercent) {
+  if (investmentToken === TOKEN) return [{ token: TOKEN, amountRaw }];
+  if (investmentToken === R_TOKEN) return [{ token: R_TOKEN, amountRaw }];
+  const { usdtRaw, rusdtRaw } = splitMixedRaw(amountRaw, mixedUsdtPercent);
+  return [
+    { token: TOKEN, amountRaw: usdtRaw },
+    { token: R_TOKEN, amountRaw: rusdtRaw }
+  ].filter(item => item.amountRaw > 0n);
+}
+
 async function activateMatureOrders(wallet = '') {
   const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
   const query = DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now]);
@@ -43,11 +82,28 @@ async function activateMatureOrders(wallet = '') {
   await query.update({ status: 1, updated_at: now });
 }
 
+function paymentParts(row) {
+  const token = normalizeInvestmentToken(row.token);
+  const amountRaw = BigInt(String(row.amount || '0'));
+  if (token !== MIXED_TOKEN) {
+    return [{ token, amount: formatAssetAmount(amountRaw.toString(), INVESTMENT_DECIMALS) }];
+  }
+  const { usdtRaw, rusdtRaw } = splitMixedRaw(amountRaw, mixedPercentForToken(token, row.mixed_usdt_percent));
+  return [
+    { token: TOKEN, amount: formatAssetAmount(usdtRaw.toString(), INVESTMENT_DECIMALS) },
+    { token: R_TOKEN, amount: formatAssetAmount(rusdtRaw.toString(), INVESTMENT_DECIMALS) }
+  ].filter(item => Number(item.amount) > 0);
+}
+
 function publicOrder(row) {
+  const token = normalizeInvestmentToken(row.token);
   return {
     id: Number(row.id || 0),
     order_id: row.order_id || '',
+    token,
     amount: formatAssetAmount(row.amount || '0', INVESTMENT_DECIMALS),
+    mixed_usdt_percent: mixedPercentForToken(token, row.mixed_usdt_percent),
+    payment_parts: paymentParts(row),
     distributed_amount: formatAssetAmount(row.distributed_amount || '0', INVESTMENT_DECIMALS),
     total_dividend: formatAssetAmount(row.total_dividend || '0', INVESTMENT_DECIMALS),
     waiting_days: Number(row.waiting_days || 0),
@@ -181,6 +237,8 @@ async function create(req, res) {
       CacheData.getWalletLevelRules()
     ]);
     const amountText = String(req.body?.amount ?? '').trim();
+    const investmentToken = normalizeInvestmentToken(req.body?.token);
+    const mixedUsdtPercent = mixedPercentForToken(investmentToken, investmentConfig.mixed_usdt_percent);
     const amountRaw = BigInt(parseAssetAmount(amountText, INVESTMENT_DECIMALS));
     const minimumRaw = BigInt(parseAssetAmount(String(investmentConfig.minimum_investment_amount), INVESTMENT_DECIMALS));
     const wholeRaw = BigInt(parseAssetAmount(String(investmentConfig.whole_vehicle_tier), INVESTMENT_DECIMALS));
@@ -188,9 +246,20 @@ async function create(req, res) {
     if (amountRaw !== wholeRaw && amountRaw % minimumRaw !== 0n) {
       return res.send(ApiResult.error(400, 'The investment amount must be an integer multiple of the minimum investment amount'));
     }
-    const token = await AssetToken.getTokenItem(TOKEN);
-    const assetDecimals = Number(token?.decimals ?? AssetToken.DEFAULT_DECIMALS);
-    const debitRaw = BigInt(parseAssetAmount(amountText, assetDecimals));
+    const debitItems = [];
+    for (const item of splitInvestmentAmount(amountRaw, investmentToken, mixedUsdtPercent)) {
+      const token = await AssetToken.getTokenItem(item.token);
+      if (!token) return res.send(ApiResult.error(400, `${item.token} asset is not configured`));
+      const assetDecimals = Number(token.decimals ?? AssetToken.DEFAULT_DECIMALS);
+      debitItems.push({
+        token: item.token,
+        amountRaw: item.amountRaw,
+        assetDecimals,
+        debitRaw: scaleRaw(item.amountRaw, INVESTMENT_DECIMALS, assetDecimals)
+      });
+    }
+    const rewardToken = await AssetToken.getTokenItem(TOKEN);
+    const rewardAssetDecimals = Number(rewardToken?.decimals ?? AssetToken.DEFAULT_DECIMALS);
     const nowDate = new Date();
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nowDate);
     const waitingUntil = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', addDays(nowDate, investmentConfig.waiting_period_days));
@@ -200,20 +269,22 @@ async function create(req, res) {
 
     await DB.transaction(async (configName, connection) => {
       const prefix = Database.prefix(configName) || '';
-      const assetRows = await DB.query(configName, connection).exec(
-        `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`, [wallet, TOKEN]
-      );
-      const asset = assetRows?.[0];
-      if (!asset) throw new Error('USDT asset account not found');
-      const before = BigInt(String(asset.balance || '0'));
-      if (before < debitRaw) throw new Error('Insufficient USDT balance');
-      const after = before - debitRaw;
-      await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({ balance: after.toString(), updated_at: now });
-      await DB.query(configName, connection).table('wallet_assets_logs').insert({
-        biz_id: newOrderId, wallet, token: TOKEN, balance: debitRaw.toString(),
-        before_balance: before.toString(), after_balance: after.toString(), scene: 'investment',
-        reason: `Investment order ${newOrderId}`, type: 'out', created_at: now, updated_at: now
-      });
+      for (const debit of debitItems) {
+        const assetRows = await DB.query(configName, connection).exec(
+          `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`, [wallet, debit.token]
+        );
+        const asset = assetRows?.[0];
+        if (!asset) throw new Error(`${debit.token} asset account not found`);
+        const before = BigInt(String(asset.balance || '0'));
+        if (before < debit.debitRaw) throw new Error(`Insufficient ${debit.token} balance`);
+        const after = before - debit.debitRaw;
+        await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({ balance: after.toString(), updated_at: now });
+        await DB.query(configName, connection).table('wallet_assets_logs').insert({
+          biz_id: newOrderId, wallet, token: debit.token, balance: debit.debitRaw.toString(),
+          before_balance: before.toString(), after_balance: after.toString(), scene: 'investment',
+          reason: `Investment order ${newOrderId}`, type: 'out', created_at: now, updated_at: now
+        });
+      }
       const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, levelRules);
       await distributeExpansionRewards(
         configName,
@@ -221,7 +292,7 @@ async function create(req, res) {
         prefix,
         wallet,
         amountRaw,
-        assetDecimals,
+        rewardAssetDecimals,
         levelRules,
         newOrderId,
         now
@@ -233,7 +304,8 @@ async function create(req, res) {
       }
       const result = { insertId: 0 };
       await DB.query(configName, connection).table('investment_order').insert({
-        order_id: newOrderId, wallet, token: TOKEN, amount: amountRaw.toString(),
+        order_id: newOrderId, wallet, token: investmentToken, amount: amountRaw.toString(),
+        mixed_usdt_percent: mixedUsdtPercent,
         waiting_days: investmentConfig.waiting_period_days, cycle_days: investmentConfig.dividend_cycle_days,
         min_percent: investmentConfig.min_percent, max_percent: investmentConfig.max_percent,
         dividend_multiple: investmentConfig.dividend_multiple,
