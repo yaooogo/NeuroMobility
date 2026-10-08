@@ -97,7 +97,7 @@ export function calculateDividendPayout(order, ruleOrSelectPercent = null, selec
   };
 }
 
-async function nearestInviterDividendRule(configName, connection, prefix, wallet) {
+async function teamDividendRuleForWallet(configName, connection, prefix, wallet) {
   const rows = await DB.query(configName, connection).exec(
     `SELECT config.min_percent,
             config.max_percent,
@@ -105,14 +105,25 @@ async function nearestInviterDividendRule(configName, connection, prefix, wallet
             config.dividend_min_percent,
             config.dividend_max_percent,
             config.guaranteed_percent
-     FROM ${prefix}wallet_relation AS relation
-     INNER JOIN ${prefix}team_investment_config AS config
-       ON LOWER(config.wallet)=LOWER(relation.inviter)
-      AND config.status=1
-     WHERE LOWER(relation.wallet)=?
-       AND relation.lv=1
+     FROM ${prefix}team_investment_config AS config
+     WHERE config.status=1
+       AND (
+         LOWER(config.wallet)=?
+         OR LOWER(config.wallet)=(
+           SELECT LOWER(relation.inviter)
+           FROM ${prefix}wallet_relation AS relation
+           WHERE LOWER(relation.wallet)=?
+             AND relation.lv=1
+           LIMIT 1
+         )
+       )
+     ORDER BY CASE WHEN LOWER(config.wallet)=? THEN 0 ELSE 1 END
      LIMIT 1`,
-    [String(wallet || '').toLowerCase()]
+    [
+      String(wallet || '').toLowerCase(),
+      String(wallet || '').toLowerCase(),
+      String(wallet || '').toLowerCase()
+    ]
   );
   const config = rows?.[0];
   if (!config) return null;
@@ -212,7 +223,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
       const cycleAt = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', cycleDate);
       const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nowDate);
       const dividendId = `D${order.order_id}${Helper.dateFormat('YYYYmmddHHMMSS', cycleDate)}`;
-      const teamDividendRule = await nearestInviterDividendRule(configName, connection, prefix, order.wallet);
+      const teamDividendRule = await teamDividendRuleForWallet(configName, connection, prefix, order.wallet);
       const calculation = calculateDividendPayout(order, teamDividendRule);
       const assetPayout = scaleRaw(calculation.payout, INVESTMENT_DECIMALS, tokenDecimals);
       const payout = scaleRaw(assetPayout, tokenDecimals, INVESTMENT_DECIMALS);
