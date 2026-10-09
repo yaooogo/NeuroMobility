@@ -82,7 +82,7 @@ function paymentText(row) {
 }
 function tokenLabel(row) {
   const token = String(row?.token || 'USDT').toUpperCase();
-  if (token !== 'USDT+RUSDT') return token;
+  if (token !== 'USDT+RUSD') return token;
   return `${token} (${Number(row?.mixed_usdt_percent || 0)}% USDT)`;
 }
 onMounted(load);
@@ -101,8 +101,8 @@ onMounted(load);
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div class="investment-summary">
         <div class="investment-summary-card"><span>筛选订单数</span><strong>{{ summary.order_count }}</strong></div>
-        <div class="investment-summary-card"><span>投资总额</span><strong>{{ formatFixedAmount(summary.amount) }} U</strong><em>{{ formatFixedAmount(summary.usdt_amount) }} USDT + {{ formatFixedAmount(summary.rusdt_amount) }} RUSDT</em></div>
-        <div class="investment-summary-card"><span>订单类型</span><strong>{{ summary.usdt_order_count }} / {{ summary.rusdt_order_count }} / {{ summary.mixed_order_count }}</strong><em>USDT / RUSDT / 混合</em></div>
+        <div class="investment-summary-card"><span>投资总额</span><strong>{{ formatFixedAmount(summary.amount) }} U</strong><em>{{ formatFixedAmount(summary.usdt_amount) }} USDT + {{ formatFixedAmount(summary.rusdt_amount) }} RUSD</em></div>
+        <div class="investment-summary-card"><span>订单类型</span><strong>{{ summary.usdt_order_count }} / {{ summary.rusdt_order_count }} / {{ summary.mixed_order_count }}</strong><em>USDT / RUSD / 混合</em></div>
         <div class="investment-summary-card"><span>分红总额</span><strong>{{ formatFixedAmount(summary.distributed_amount) }} USDT</strong><em>计划 {{ formatFixedAmount(summary.total_dividend) }} USDT</em></div>
       </div>
       <div class="table-wrap"><table class="data-table" style="min-width: 2020px">

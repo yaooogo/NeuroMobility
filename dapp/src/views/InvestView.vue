@@ -33,12 +33,12 @@ const submitting = ref(false);
 const configLoaded = ref(false);
 const participationModes = computed(() => [
   { value: "USDT", label: "USDT" },
-  ...(configLoaded.value && Number(investmentConfig.value.rusdt_investment_enabled ?? 0) === 1 ? [{ value: "RUSDT", label: "RUSDT" }] : []),
-  ...(configLoaded.value && Number(investmentConfig.value.mixed_investment_enabled ?? 0) === 1 ? [{ value: "USDT+RUSDT", label: "USDT+RUSDT" }] : [])
+  ...(configLoaded.value && Number(investmentConfig.value.rusdt_investment_enabled ?? 0) === 1 ? [{ value: "RUSD", label: "RUSD" }] : []),
+  ...(configLoaded.value && Number(investmentConfig.value.mixed_investment_enabled ?? 0) === 1 ? [{ value: "USDT+RUSD", label: "USDT+RUSD" }] : [])
 ]);
 const currentMinimumAmount = computed(() => {
-  if (selectedToken.value === "RUSDT") return Number(investmentConfig.value.rusdt_minimum_investment_amount) || 100;
-  if (selectedToken.value === "USDT+RUSDT") return Number(investmentConfig.value.mixed_minimum_investment_amount) || 500;
+  if (selectedToken.value === "RUSD") return Number(investmentConfig.value.rusdt_minimum_investment_amount) || 100;
+  if (selectedToken.value === "USDT+RUSD") return Number(investmentConfig.value.mixed_minimum_investment_amount) || 500;
   return Number(investmentConfig.value.usdt_minimum_investment_amount || investmentConfig.value.minimum_investment_amount) || 1000;
 });
 const amountOptions = computed(() => {
@@ -236,13 +236,13 @@ onMounted(async () => {
         />
         <span v-if="customAmount">{{ selectedToken }}</span>
       </label>
-      <div v-if="selectedToken === 'USDT+RUSDT'" class="mixed-split">
+      <div v-if="selectedToken === 'USDT+RUSD'" class="mixed-split">
         <div><strong>{{ amount(mixedSplit.usdt) }}</strong><span>USDT</span></div>
         <b>+</b>
-        <div><strong>{{ amount(mixedSplit.rusdt) }}</strong><span>RUSDT</span></div>
+        <div><strong>{{ amount(mixedSplit.rusdt) }}</strong><span>RUSD</span></div>
       </div>
-      <p v-if="selectedToken === 'USDT+RUSDT'" class="mixed-note">
-        {{ lang("参与金额分配") }}：{{ mixedSplit.usdtPercent }}% USDT + {{ mixedSplit.rusdtPercent }}% RUSDT
+      <p v-if="selectedToken === 'USDT+RUSD'" class="mixed-note">
+        {{ lang("参与金额分配") }}：{{ mixedSplit.usdtPercent }}% USDT + {{ mixedSplit.rusdtPercent }}% RUSD
       </p>
       <button class="participate-button" type="button" :disabled="!canSubmit || submitting" @click="submit">{{ submitting ? lang("提交中...") : lang("立即参与") }}</button>
     </section>

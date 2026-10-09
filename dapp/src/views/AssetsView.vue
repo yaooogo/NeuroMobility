@@ -58,13 +58,13 @@ function orderPaymentParts(order) {
   const parts = Array.isArray(order?.payment_parts) ? order.payment_parts : [];
   if (parts.length) return parts;
   const token = String(order?.token || "USDT").toUpperCase();
-  if (token !== "USDT+RUSDT") return [{ token, amount: order?.amount || "0" }];
+  if (token !== "USDT+RUSD") return [{ token, amount: order?.amount || "0" }];
   const total = Number(order?.amount || 0);
   const usdtPercent = Math.min(100, Math.max(0, Number(order?.mixed_usdt_percent ?? 0)));
   const usdt = total * usdtPercent / 100;
   return [
     { token: "USDT", amount: String(usdt) },
-    { token: "RUSDT", amount: String(total - usdt) }
+    { token: "RUSD", amount: String(total - usdt) }
   ].filter((part) => Number(part.amount) > 0);
 }
 
@@ -176,7 +176,7 @@ watch(() => [props.connected, props.authenticated, props.address], () => {
     </header>
 
     <section class="balance-card">
-      <span>{{ lang("总资产 (USDT + RUSDT)") }}</span>
+      <span>{{ lang("总资产 (USDT + RUSD)") }}</span>
       <strong>{{ amount(totalAssetBalance) }}</strong>
       <div class="balance-breakdown">
         <span>{{ lang("参与本金") }}<b>{{ amount(investmentData.principal) }}</b></span>

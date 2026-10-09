@@ -208,6 +208,10 @@ async function openInviteShare() {
 }
 
 function handleHomeAction(item) {
+  if (item?.key === "foundation") {
+    window.open("https://www.neuro-foundations.org/", "_blank", "noopener,noreferrer");
+    return;
+  }
   if (item?.key === "invest") {
     void router.push({ name: "invest" });
     return;

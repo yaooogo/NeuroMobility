@@ -14,8 +14,8 @@ import {
 } from '../../Util/LevelReward.js';
 
 const TOKEN = 'USDT';
-const R_TOKEN = 'RUSDT';
-const MIXED_TOKEN = 'USDT+RUSDT';
+const R_TOKEN = 'RUSD';
+const MIXED_TOKEN = 'USDT+RUSD';
 const INVESTMENT_TOKENS = [TOKEN, R_TOKEN, MIXED_TOKEN];
 const INVESTMENT_DECIMALS = 18;
 const DIVIDEND_RECORD_SCENES = [

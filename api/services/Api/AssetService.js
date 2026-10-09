@@ -11,7 +11,7 @@ import Helper from '../../Util/Helper.js';
 import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 
 const TOKEN = 'USDT';
-const ASSET_TOKENS = ['USDT', 'RUSDT'];
+const ASSET_TOKENS = ['USDT', 'RUSD'];
 const WITHDRAW_TTL_SECONDS = 15 * 60;
 
 function address(value) {

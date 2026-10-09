@@ -8,8 +8,8 @@ import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
 import { distributeOrderNow } from '../../cron/investmentDividend.js';
 
 const USDT = 'USDT';
-const RUSDT = 'RUSDT';
-const MIXED_TOKEN = 'USDT+RUSDT';
+const RUSD = 'RUSD';
+const MIXED_TOKEN = 'USDT+RUSD';
 const INVESTMENT_DECIMALS = 18;
 
 function manualDividendEnabled() {
@@ -20,7 +20,7 @@ function manualDividendEnabled() {
 
 function normalizeOrderToken(value) {
   const token = String(value || USDT).trim().toUpperCase();
-  return [USDT, RUSDT, MIXED_TOKEN].includes(token) ? token : USDT;
+  return [USDT, RUSD, MIXED_TOKEN].includes(token) ? token : USDT;
 }
 
 function normalizePercent(value, fallback = 0) {
@@ -31,7 +31,7 @@ function normalizePercent(value, fallback = 0) {
 
 function mixedPercentForToken(token, value) {
   if (token === USDT) return 100;
-  if (token === RUSDT) return 0;
+  if (token === RUSD) return 0;
   return normalizePercent(value, 70);
 }
 
@@ -50,7 +50,7 @@ function paymentParts(row) {
   const { usdtRaw, rusdtRaw } = splitMixedRaw(amountRaw, mixedPercentForToken(token, row.mixed_usdt_percent));
   return [
     { token: USDT, amount: formatAssetAmount(usdtRaw.toString(), INVESTMENT_DECIMALS) },
-    { token: RUSDT, amount: formatAssetAmount(rusdtRaw.toString(), INVESTMENT_DECIMALS) }
+    { token: RUSD, amount: formatAssetAmount(rusdtRaw.toString(), INVESTMENT_DECIMALS) }
   ].filter(item => Number(item.amount) > 0);
 }
 
@@ -163,11 +163,11 @@ async function list(req, res) {
       DB.query().exec(
         `SELECT COUNT(*) AS order_count,
                 COALESCE(SUM(amount), 0) AS amount,
-                COALESCE(SUM(CASE WHEN token='USDT' THEN amount WHEN token='USDT+RUSDT' THEN FLOOR(amount * mixed_usdt_percent / 100) ELSE 0 END), 0) AS usdt_amount,
-                COALESCE(SUM(CASE WHEN token='RUSDT' THEN amount WHEN token='USDT+RUSDT' THEN amount - FLOOR(amount * mixed_usdt_percent / 100) ELSE 0 END), 0) AS rusdt_amount,
+                COALESCE(SUM(CASE WHEN token='USDT' THEN amount WHEN token='USDT+RUSD' THEN FLOOR(amount * mixed_usdt_percent / 100) ELSE 0 END), 0) AS usdt_amount,
+                COALESCE(SUM(CASE WHEN token='RUSD' THEN amount WHEN token='USDT+RUSD' THEN amount - FLOOR(amount * mixed_usdt_percent / 100) ELSE 0 END), 0) AS rusdt_amount,
                 COALESCE(SUM(CASE WHEN token='USDT' THEN 1 ELSE 0 END), 0) AS usdt_order_count,
-                COALESCE(SUM(CASE WHEN token='RUSDT' THEN 1 ELSE 0 END), 0) AS rusdt_order_count,
-                COALESCE(SUM(CASE WHEN token='USDT+RUSDT' THEN 1 ELSE 0 END), 0) AS mixed_order_count,
+                COALESCE(SUM(CASE WHEN token='RUSD' THEN 1 ELSE 0 END), 0) AS rusdt_order_count,
+                COALESCE(SUM(CASE WHEN token='USDT+RUSD' THEN 1 ELSE 0 END), 0) AS mixed_order_count,
                 COALESCE(SUM(distributed_amount), 0) AS distributed_amount,
                 COALESCE(SUM(total_dividend), 0) AS total_dividend
          FROM ${prefix}investment_order

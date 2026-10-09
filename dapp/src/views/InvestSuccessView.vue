@@ -11,13 +11,13 @@ function orderPaymentParts(value) {
   const parts = Array.isArray(value?.payment_parts) ? value.payment_parts : [];
   if (parts.length) return parts;
   const token = String(value?.token || 'USDT').toUpperCase();
-  if (token !== 'USDT+RUSDT') return [{ token, amount: value?.amount || '0' }];
+  if (token !== 'USDT+RUSD') return [{ token, amount: value?.amount || '0' }];
   const total = Number(value?.amount || 0);
   const usdtPercent = Math.min(100, Math.max(0, Number(value?.mixed_usdt_percent ?? 0)));
   const usdt = total * usdtPercent / 100;
   return [
     { token: 'USDT', amount: String(usdt) },
-    { token: 'RUSDT', amount: String(total - usdt) }
+    { token: 'RUSD', amount: String(total - usdt) }
   ].filter((part) => Number(part.amount) > 0);
 }
 function orderAmountText(value) {

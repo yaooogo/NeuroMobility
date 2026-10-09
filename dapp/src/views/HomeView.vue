@@ -56,6 +56,15 @@ onMounted(loadPlatformStats);
         </button>
       </div>
 
+      <button class="foundation-link" type="button" @click="emit('action', { key: 'foundation' })">
+        <span class="foundation-link__icon"><AppIcon name="globe" /></span>
+        <span class="foundation-link__text">
+          <strong>{{ lang('基金会官网') }}</strong>
+          <small>{{ lang('了解 Neuro Foundation 官方资讯与生态介绍') }}</small>
+        </span>
+        <span class="foundation-link__arrow"><AppIcon name="chevron" /></span>
+      </button>
+
       <div class="stats-grid">
         <article><span>{{ lang('平台运营车辆') }}</span><strong>{{ formatCount(platformStats.platform_operated_vehicles) }} <small>{{ lang('台') }}</small></strong><i><img :src='requireAsset("@assets/images/icons/car.png")' /></i></article>
         <article><span>{{ lang('累计用户') }}</span><strong>{{ formatCount(platformStats.cumulative_users) }} <small>{{ lang('人') }}</small></strong><i><img :src='requireAsset("@assets/images/icons/user.png")' /></i></article>

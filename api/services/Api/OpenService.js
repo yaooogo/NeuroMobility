@@ -10,7 +10,7 @@ import Helper from '../../Util/Helper.js';
 import { ensureOpenDepositTable } from '../../Util/OpenDepositSchema.js';
 import { toDappApiError } from '../../Util/DappApiMessage.js';
 
-const TOKEN = 'RUSDT';
+const TOKEN = 'RUSD';
 const DEPOSIT_SCENE = 'open_api_recharge';
 
 function normalizeWallet(value) {

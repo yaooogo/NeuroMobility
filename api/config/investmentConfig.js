@@ -142,7 +142,7 @@ export function validateInvestmentConfig(config) {
 
   if (!Number.isFinite(wholeVehicleTier) || wholeVehicleTier <= 0) throw new Error("Whole vehicle tier must be greater than 0");
   if (!Number.isInteger(usdtMinimumInvestmentAmount) || usdtMinimumInvestmentAmount <= 0) throw new Error("USDT minimum investment amount must be a positive integer");
-  if (!Number.isInteger(rusdtMinimumInvestmentAmount) || rusdtMinimumInvestmentAmount <= 0) throw new Error("RUSDT minimum investment amount must be a positive integer");
+  if (!Number.isInteger(rusdtMinimumInvestmentAmount) || rusdtMinimumInvestmentAmount <= 0) throw new Error("RUSD minimum investment amount must be a positive integer");
   if (!Number.isInteger(mixedMinimumInvestmentAmount) || mixedMinimumInvestmentAmount <= 0) throw new Error("Mixed minimum investment amount must be a positive integer");
   if (!Number.isInteger(waitingPeriodDays) || waitingPeriodDays < 0) throw new Error("Waiting period must be a non-negative integer");
   if (!Number.isInteger(dividendCycleDays) || dividendCycleDays <= 0) throw new Error("Dividend cycle must be a positive integer");
@@ -157,7 +157,7 @@ export function validateInvestmentConfig(config) {
   }
   if (dividendMinPercent > dividendMaxPercent) throw new Error("Dividend range minimum percent cannot exceed maximum percent");
   if (!Number.isFinite(usdtExitMultiple) || usdtExitMultiple <= 0) throw new Error("USDT exit multiple must be greater than 0");
-  if (!Number.isFinite(rusdtExitMultiple) || rusdtExitMultiple <= 0) throw new Error("RUSDT exit multiple must be greater than 0");
+  if (!Number.isFinite(rusdtExitMultiple) || rusdtExitMultiple <= 0) throw new Error("RUSD exit multiple must be greater than 0");
   if (!Number.isFinite(mixedExitMultiple) || mixedExitMultiple <= 0) throw new Error("Mixed exit multiple must be greater than 0");
   if (!Number.isFinite(guaranteedDividendPercent) || guaranteedDividendPercent < 0 || guaranteedDividendPercent > 100) {
     throw new Error("Guaranteed dividend percent must be between 0 and 100");
