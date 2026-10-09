@@ -29,9 +29,9 @@ const progress = computed(() => profileProgress.value?.percent
   ?? Math.min(100, Math.max(0, (props.currentAmount / props.targetAmount) * 100)));
 const levelMap = {
   0: { label: "普通会员", icon: "" },
-  1: { label: "战略合伙人", icon: requireAsset("@assets/images/level/1.png") },
+  1: { label: "区域合伙人", icon: requireAsset("@assets/images/level/1.png") },
   2: { label: "城市合伙人", icon: requireAsset("@assets/images/level/2.png") },
-  3: { label: "区域合伙人", icon: requireAsset("@assets/images/level/3.png") }
+  3: { label: "战略合伙人", icon: requireAsset("@assets/images/level/3.png") }
 };
 function getLevelInfo(level) {
   const numericLevel = Number(level);
