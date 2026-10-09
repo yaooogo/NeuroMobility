@@ -266,7 +266,7 @@ watch(() => [props.connected, props.authenticated, props.address], () => {
 .asset-action--deposit { border: 0; background: #a94ff0; color: #fff; }
 .asset-actions svg { width: 19px; height: 19px; padding: 4px; border-radius: 50%; background: #F6EDFF;color: #a94ff0; box-sizing: content-box; }
 .asset-action--deposit svg { color: #a94ff0;  background: #fff;}
-.orders-section { margin-top: 17px; }
+.orders-section { margin-top: 20px; }
 .orders-section > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #9f3fe9; font-size: 15px; line-height: 23px; }
 .order-card { margin-top: 14px; padding: 15px; border: 1px solid #f1edf5; border-radius: 12px; background: #fff; box-shadow: 0 7px 21px rgba(88,48,125,.07); }
 .empty-orders { padding: 36px 15px; border: 1px solid #f1edf5; border-radius: 12px; color: #aaa3ad; text-align: center; }

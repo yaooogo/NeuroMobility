@@ -7,7 +7,6 @@ import Helper from '../Util/Helper.js';
 import { ensureAssetTransferTables } from '../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../Util/InvestmentSchema.js';
 import { ensureTeamInvestmentConfigTable } from '../Util/TeamInvestmentConfigSchema.js';
-import { calculateLevelRewardRates } from '../Util/LevelReward.js';
 import growthSnapshot from './growthSnapshot.js';
 
 const INVESTMENT_DECIMALS = 18;
@@ -138,11 +137,38 @@ async function teamDividendRuleForWallet(configName, connection, prefix, wallet)
 }
 
 export function calculateDifferentialRewardRates(ancestors, levelRules) {
-  return calculateLevelRewardRates(ancestors, levelRules, 'differential_percent');
+  const rulesByLevel = new Map((levelRules || []).map(rule => [
+    Number(rule.level || 0),
+    scaledDecimal(rule.differential_percent || '0', PERCENT_DECIMALS)
+  ]));
+  const recipientsByLevel = new Map();
+  for (const ancestor of ancestors || []) {
+    const level = Number(ancestor.is_manual_level) === 1
+      ? Number(ancestor.manual_level || 0)
+      : Number(ancestor.level || 0);
+    if (!rulesByLevel.has(level) || recipientsByLevel.has(level)) continue;
+    const growthPercent = scaledDecimal(ancestor.growth_percent || '0', PERCENT_DECIMALS);
+    recipientsByLevel.set(level, {
+      wallet: String(ancestor.wallet || ancestor.inviter || '').trim().toLowerCase(),
+      level,
+      effectivePercent: (rulesByLevel.get(level) || 0n) + growthPercent
+    });
+  }
+
+  let lowerEffectivePercent = 0n;
+  const rewards = [];
+  for (const recipient of [...recipientsByLevel.values()].sort((a, b) => a.level - b.level)) {
+    const rewardPercent = recipient.effectivePercent > lowerEffectivePercent
+      ? recipient.effectivePercent - lowerEffectivePercent
+      : 0n;
+    if (recipient.effectivePercent > lowerEffectivePercent) lowerEffectivePercent = recipient.effectivePercent;
+    if (recipient.wallet) rewards.push({ wallet: recipient.wallet, level: recipient.level, percent: rewardPercent });
+  }
+  return rewards;
 }
 
-export function calculateGrossRewardAmount(payout, differentialPercent, growthPercent) {
-  return BigInt(payout) * (BigInt(differentialPercent) + BigInt(growthPercent)) / PERCENT_DENOMINATOR;
+export function calculateGrossRewardAmount(payout, rewardPercent) {
+  return BigInt(payout) * BigInt(rewardPercent) / PERCENT_DENOMINATOR;
 }
 
 async function distributeDifferentialRewards(configName, connection, prefix, order, payout, tokenDecimals, levelRules, dividendId, now) {
@@ -166,13 +192,8 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
     [snapshotMonth, String(order.wallet || '').toLowerCase()]
   );
   const rewards = calculateDifferentialRewardRates(ancestors, levelRules);
-  const growthPercentByWallet = new Map((ancestors || []).map(item => [
-    String(item.wallet || '').trim().toLowerCase(),
-    scaledDecimal(item.growth_percent || '0', PERCENT_DECIMALS)
-  ]));
   for (const reward of rewards) {
-    const growthPercent = growthPercentByWallet.get(reward.wallet) || 0n;
-    const investmentReward = calculateGrossRewardAmount(payout, reward.percent, growthPercent);
+    const investmentReward = calculateGrossRewardAmount(payout, reward.percent);
     const assetReward = scaleRaw(investmentReward, INVESTMENT_DECIMALS, tokenDecimals);
     if (assetReward <= 0n) continue;
     const assetRows = await DB.query(configName, connection).exec(
