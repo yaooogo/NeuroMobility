@@ -388,8 +388,9 @@ async function detail(req, res) {
     await ensureInvestmentOrderTable();
     const wallet = address(req.auth?.address());
     await activateMatureOrders(wallet);
+    const orderId = String(req.body?.order_id ?? req.query?.order_id ?? '');
     const order = await DB.query().table('investment_order')
-      .where('order_id', String(req.query?.order_id || '')).whereRaw('LOWER(wallet)=?', [wallet]).first();
+      .where('order_id', orderId).whereRaw('LOWER(wallet)=?', [wallet]).first();
     if (!order) return res.send(ApiResult.error(404, 'Investment order not found'));
     return res.send(ApiResult.success(publicOrder(order)));
   } catch (error) { return res.send(ApiResult.exception(toDappApiError(error), 'InvestmentService.detail')); }

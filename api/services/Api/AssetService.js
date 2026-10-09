@@ -312,7 +312,7 @@ async function records(req, res) {
     await ensureAssetTransferTables();
     const { wallet, token, decimals } = await getContext(req);
     await releaseExpiredWithdrawals(wallet);
-    const requestedToken = String(req.query?.token || '').trim().toUpperCase();
+    const requestedToken = String(req.body?.token ?? req.query?.token ?? '').trim().toUpperCase();
     const tokenDecimals = new Map([[TOKEN, decimals]]);
     async function decimalsFor(value) {
       const symbol = String(value || TOKEN).trim().toUpperCase() || TOKEN;

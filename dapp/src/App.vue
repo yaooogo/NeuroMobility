@@ -33,6 +33,7 @@ const isConnected = computed(() => Boolean(connectedAddress.value && (accountSta
 const isAuthenticated = computed(() => Boolean(ownInviteCode.value && hasAuthenticatedSession(connectedAddress.value)));
 let wagmiUnwatch = null;
 let hasObservedWalletConnection = false;
+let walletDisconnectTimer = null;
 const walletLabel = computed(() => {
   const address = connectedAddress.value;
   return address ? `${address.slice(0, 5)}...${address.slice(-4)}` : lang("连接钱包");
@@ -102,6 +103,29 @@ function clearStoredAuthSession() {
   ownInviteCode.value = "";
 }
 
+function clearWalletDisconnectTimer() {
+  if (!walletDisconnectTimer) return;
+  window.clearTimeout(walletDisconnectTimer);
+  walletDisconnectTimer = null;
+}
+
+function scheduleDisconnectedSessionClear() {
+  clearWalletDisconnectTimer();
+  walletDisconnectTimer = window.setTimeout(() => {
+    walletDisconnectTimer = null;
+    if (document.visibilityState !== "visible") {
+      scheduleDisconnectedSessionClear();
+      return;
+    }
+    const accountData = getAccount(wagmiAdapter.wagmiConfig);
+    const address = String(accountData?.address || accountState.value.address || "").toLowerCase();
+    const stillConnected = Boolean(address && (accountData?.isConnected || accountState.value.isConnected));
+    if (stillConnected || loggingIn.value) return;
+    hasObservedWalletConnection = false;
+    clearStoredAuthSession();
+  }, 1500);
+}
+
 function isUserRejectedError(error) {
   const code = Number(error?.code ?? error?.cause?.code ?? error?.cause?.cause?.code);
   const text = String(error?.shortMessage || error?.message || error?.cause?.message || "").toLowerCase();
@@ -132,9 +156,10 @@ async function authenticate(address, refCode = "", force = false) {
       message: nonce.signStr
     });
     const session = await requestLogin(normalizedAddress, signature, refCode);
+    const expiresIn = Number(session.expiresIn ?? session.expires_in ?? 24 * 3600);
     localStorage.setItem("token", session.token);
     localStorage.setItem("auth_address", normalizedAddress);
-    localStorage.setItem("auth_expires_at", String(Date.now() + Number(session.expiresIn || 0) * 1000));
+    localStorage.setItem("auth_expires_at", String(Date.now() + expiresIn * 1000));
     ownInviteCode.value = session.ref_code || normalizedAddress;
     localStorage.setItem("auth_ref_code", ownInviteCode.value);
     localStorage.removeItem("invite_ref_code");
@@ -336,11 +361,11 @@ wagmiUnwatch = watchAccount(wagmiAdapter.wagmiConfig, {
     // wallet that was actually connected is explicitly disconnected.
     if (!accountData?.isConnected || !address) {
       if (hasObservedWalletConnection) {
-        hasObservedWalletConnection = false;
-        clearStoredAuthSession();
+        scheduleDisconnectedSessionClear();
       }
       return;
     }
+    clearWalletDisconnectTimer();
     hasObservedWalletConnection = true;
     void authenticate(address);
   }
@@ -350,6 +375,7 @@ window.addEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
 
 onBeforeUnmount(() => {
   window.removeEventListener(AUTH_EXPIRED_EVENT, handleAuthExpired);
+  clearWalletDisconnectTimer();
   wagmiUnwatch?.();
   wagmiUnwatch = null;
 });

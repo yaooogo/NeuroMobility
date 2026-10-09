@@ -71,39 +71,39 @@ export async function requestLogout() {
 }
 
 export async function requestProfile() {
-  return unwrap(await http.get("/profile"));
+  return unwrap(await http.post("/profile", {}));
 }
 
 export async function requestTeam() {
-  return unwrap(await http.get("/team"));
+  return unwrap(await http.post("/team", {}));
 }
 
 export async function requestAnnouncements(language = "zh") {
-  const data = unwrap(await http.get("/content/announcements", { params: { language } }));
+  const data = unwrap(await http.post("/content/announcements", { language }));
   return Array.isArray(data?.items) ? data.items : [];
 }
 
 export async function requestHelpArticles(language = "zh") {
-  const data = unwrap(await http.get("/content/help-articles", { params: { language } }));
+  const data = unwrap(await http.post("/content/help-articles", { language }));
   return Array.isArray(data?.items) ? data.items : [];
 }
 
 export async function requestAboutArticles(language = "zh") {
-  const data = unwrap(await http.get("/content/about", { params: { language } }));
+  const data = unwrap(await http.post("/content/about", { language }));
   return Array.isArray(data?.items) ? data.items : [];
 }
 
 export async function requestVehicles(language = "zh") {
-  const data = unwrap(await http.get("/content/vehicles", { params: { language } }));
+  const data = unwrap(await http.post("/content/vehicles", { language }));
   return Array.isArray(data?.items) ? data.items : [];
 }
 
 export async function requestInvestmentConfig() {
-  return unwrap(await http.get("/content/investment-config"));
+  return unwrap(await http.post("/content/investment-config", {}));
 }
 
 export async function requestPlatformStats() {
-  return unwrap(await http.get("/content/platform-stats"));
+  return unwrap(await http.post("/content/platform-stats", {}));
 }
 
 export async function requestCreateInvestment(amount, token = "USDT") {
@@ -111,19 +111,19 @@ export async function requestCreateInvestment(amount, token = "USDT") {
 }
 
 export async function requestInvestmentOrders() {
-  return unwrap(await http.get("/investment/orders"));
+  return unwrap(await http.post("/investment/orders", {}));
 }
 
 export async function requestInvestmentOrder(orderId) {
-  return unwrap(await http.get("/investment/order", { params: { order_id: orderId } }));
+  return unwrap(await http.post("/investment/order", { order_id: orderId }));
 }
 
 export async function requestDividendRecords() {
-  return unwrap(await http.get("/investment/dividends"));
+  return unwrap(await http.post("/investment/dividends", {}));
 }
 
 export async function requestAssetOverview() {
-  return unwrap(await http.get("/asset/overview"));
+  return unwrap(await http.post("/asset/overview", {}));
 }
 
 export async function requestPrepareWithdrawal(amount, address, token = "") {
@@ -138,6 +138,6 @@ export async function requestWithdrawalSubmitted(orderId, txHash) {
 }
 
 export async function requestAssetRecords(token = "") {
-  const data = unwrap(await http.get("/asset/records", { params: token ? { token } : {} }));
+  const data = unwrap(await http.post("/asset/records", token ? { token } : {}));
   return Array.isArray(data?.items) ? data.items : [];
 }

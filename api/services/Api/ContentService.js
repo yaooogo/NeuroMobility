@@ -38,10 +38,14 @@ function normalizeHelpArticle(row) {
   };
 }
 
+function requestValue(req, key) {
+  return req.body?.[key] ?? req.query?.[key];
+}
+
 async function announcements(req, res) {
   try {
     await ensureAnnouncementTable();
-    const language = normalizeContentLanguage(req.query?.language);
+    const language = normalizeContentLanguage(requestValue(req, 'language'));
     const rows = await DB.query()
       .table('announcement')
       .where('status', 1)
@@ -61,7 +65,7 @@ async function announcements(req, res) {
 async function helpArticles(req, res) {
   try {
     await ensureHelpArticleTable();
-    const language = normalizeContentLanguage(req.query?.language);
+    const language = normalizeContentLanguage(requestValue(req, 'language'));
     const rows = await DB.query()
       .table('help_article')
       .where('status', 1)
@@ -81,7 +85,7 @@ async function helpArticles(req, res) {
 async function about(req, res) {
   try {
     await ensureAboutContentTable();
-    const language = normalizeContentLanguage(req.query?.language);
+    const language = normalizeContentLanguage(requestValue(req, 'language'));
     const rows = await DB.query()
       .table('about_content')
       .where('language', language)
@@ -104,7 +108,7 @@ async function about(req, res) {
 async function vehicles(req, res) {
   try {
     await ensureVehicleTable();
-    const language = normalizeContentLanguage(req.query?.language);
+    const language = normalizeContentLanguage(requestValue(req, 'language'));
     const rows = await DB.query()
       .table('vehicle')
       .where('language', language)
