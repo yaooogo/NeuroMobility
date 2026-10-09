@@ -30,7 +30,7 @@ const activeTab = computed(() => String(route.meta.navKey || "home"));
 const accountState = computed(() => unref(account) || {});
 const connectedAddress = computed(() => String(accountState.value.address || getWagmiAddress()).toLowerCase());
 const isConnected = computed(() => Boolean(connectedAddress.value && (accountState.value.isConnected || getWagmiAddress())));
-const isAuthenticated = computed(() => Boolean(ownInviteCode.value && hasAuthenticatedSession(connectedAddress.value)));
+const isAuthenticated = computed(() => hasAuthenticatedSession(connectedAddress.value));
 let wagmiUnwatch = null;
 let hasObservedWalletConnection = false;
 let walletDisconnectTimer = null;
