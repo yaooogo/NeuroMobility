@@ -15,7 +15,7 @@ defineProps({
 
 const emit = defineEmits(["wallet-click", "notification-click", "action"]);
 const { lang } = useLocale();
-const platformStats = ref({ platform_operated_vehicles: 1258, cumulative_users: 56320 });
+const platformStats = ref({ platform_operated_vehicles: 0, cumulative_users: 0 });
 function formatCount(value) { return Number(value || 0).toLocaleString(); }
 async function loadPlatformStats() {
   try { platformStats.value = await requestPlatformStats(); }

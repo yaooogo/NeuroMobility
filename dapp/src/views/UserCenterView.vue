@@ -13,7 +13,7 @@ const props = defineProps({
   currentLevel: { type: Number, default: 0 },
   nextLevel: { type: Number, default: 1 },
   currentAmount: { type: Number, default: 0 },
-  targetAmount: { type: Number, default: 20000 }
+  targetAmount: { type: Number, default: 0 }
 });
 
 const emit = defineEmits(["connect", "copy", "logout", "action"]);
