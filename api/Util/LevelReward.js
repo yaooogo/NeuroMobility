@@ -25,14 +25,14 @@ export function calculateLevelRewardRates(ancestors, levelRules, percentField) {
     });
   }
 
-  let lowerLevelPercentTotal = 0n;
+  let lowerLevelPercent = 0n;
   const rewards = [];
   for (const recipient of [...recipientsByLevel.values()].sort((a, b) => a.level - b.level)) {
     const configuredPercent = rulesByLevel.get(recipient.level) || 0n;
-    const rewardPercent = configuredPercent > lowerLevelPercentTotal
-      ? configuredPercent - lowerLevelPercentTotal
+    const rewardPercent = configuredPercent > lowerLevelPercent
+      ? configuredPercent - lowerLevelPercent
       : 0n;
-    lowerLevelPercentTotal += configuredPercent;
+    if (configuredPercent > lowerLevelPercent) lowerLevelPercent = configuredPercent;
     if (recipient.wallet) rewards.push({ ...recipient, percent: rewardPercent });
   }
   return rewards;
