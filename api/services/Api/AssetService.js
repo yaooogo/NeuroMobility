@@ -321,38 +321,26 @@ async function records(req, res) {
       }
       return tokenDecimals.get(symbol);
     }
-    const depositQuery = DB.query().table('receiver_order').whereRaw('LOWER(wallet)=?', [wallet]);
-    const withdrawalQuery = DB.query().table('withdrawal_order').whereRaw('LOWER(wallet)=?', [wallet]);
-    const apiDepositQuery = DB.query().table('wallet_assets_logs')
-      .whereRaw('LOWER(wallet)=?', [wallet])
-      .where('type', 'in').where('scene', 'open_api_recharge');
+    const logQuery = DB.query().table('wallet_assets_logs').whereRaw('LOWER(wallet)=?', [wallet]);
     if (requestedToken) {
-      if (requestedToken === TOKEN) {
-        depositQuery.whereRaw('(token IS NULL OR token=?)', [requestedToken]);
-      } else {
-        depositQuery.where('token', requestedToken);
-      }
-      withdrawalQuery.where('token', requestedToken);
-      apiDepositQuery.where('token', requestedToken);
+      logQuery.where('token', requestedToken);
     }
-    const deposits = await depositQuery.orderBy('id', 'desc').take(100).get();
-    const withdrawals = await withdrawalQuery.orderBy('id', 'desc').take(100).get();
-    const apiDeposits = await apiDepositQuery.orderBy('id', 'desc').take(100).get();
-    const items = [
-      ...(await Promise.all((deposits || []).map(async row => {
-        const rowToken = row.token || TOKEN;
-        return { id: `deposit-${row.id}`, type: 'deposit', amount: formatAssetAmount(row.amount || '0', await decimalsFor(rowToken)), token: rowToken, status: 2, tx_hash: row.tx_hash || '', time: row.created_at || '' };
-      }))),
-      ...(await Promise.all((withdrawals || []).map(async row => {
-        const rowToken = row.token || TOKEN;
-        return { id: `withdraw-${row.id}`, type: 'withdraw', amount: formatAssetAmount(row.debit_amount || '0', await decimalsFor(rowToken)), token: rowToken, status: Number(row.status || 0), tx_hash: row.tx_hash || '', time: row.created_at || '' };
-      }))),
-      ...(await Promise.all((apiDeposits || []).map(async row => {
-        const rowToken = row.token || TOKEN;
-        return { id: `api-deposit-${row.id}`, type: 'deposit', source: 'api', amount: formatAssetAmount(row.balance || '0', await decimalsFor(rowToken)), token: rowToken, status: 2, tx_hash: '', time: row.created_at || '' };
-      })))
-    ].sort((a, b) => String(b.time).localeCompare(String(a.time))).slice(0, 100);
-    return res.send(ApiResult.success({ items, token: tokenPublic(token) }, 'Deposit and withdrawal records retrieved successfully'));
+    const logs = await logQuery.orderBy('id', 'desc').take(100).get();
+    const items = await Promise.all((logs || []).map(async row => {
+      const rowToken = row.token || TOKEN;
+      return {
+        id: `asset-log-${row.id}`,
+        type: row.type === 'out' ? 'out' : 'in',
+        amount: formatAssetAmount(row.balance || '0', await decimalsFor(rowToken)),
+        token: rowToken,
+        status: 2,
+        scene: row.scene || '',
+        reason: row.reason || '',
+        biz_id: row.biz_id || '',
+        time: row.created_at || ''
+      };
+    }));
+    return res.send(ApiResult.success({ items, token: tokenPublic(token) }, 'Asset records retrieved successfully'));
   } catch (error) {
     return res.send(ApiResult.exception(toDappApiError(error), 'AssetService.records'));
   }

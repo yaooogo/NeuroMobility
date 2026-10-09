@@ -25,11 +25,23 @@ function formatAmount(value) {
   });
 }
 
-function statusText(status) {
-  if (Number(status) === 2) return lang("已完成");
-  if (Number(status) === 3) return lang("已过期并退回");
-  if (Number(status) === 1) return lang("链上确认中");
-  return lang("待处理");
+function sceneText(scene, type) {
+  const sceneMap = {
+    token_recharge: "链上充值",
+    open_api_recharge: "API 充值",
+    token_withdrawal: "提现",
+    token_withdrawal_expired: "提现超时退回",
+    token_withdrawal_cancel: "提现取消退回",
+    investment: "投资",
+    investment_dividend: "投资分红",
+    investment_expansion_reward: "投资拓展奖励",
+    investment_differential_income: "投资级差收益",
+    position_salary: "岗位工资",
+    admin_change: "后台调整"
+  };
+  if (sceneMap[scene]) return lang(sceneMap[scene]);
+  if (scene) return scene;
+  return type === "in" ? lang("收入") : lang("支出");
 }
 
 async function loadRecords() {
@@ -57,23 +69,23 @@ watch(() => [props.connected, selectedToken.value], ([connected]) => {
       <button type="button" :aria-label="lang('返回资产')" @click="router.push({ name: 'assets' })">
         <AppIcon name="chevron" />
       </button>
-      <h1>{{ selectedToken ? `${selectedToken} ${lang("充提记录")}` : lang("充提记录") }}</h1>
+      <h1>{{ selectedToken ? `${selectedToken} ${lang("记录")}` : lang("记录") }}</h1>
       <span></span>
     </header>
 
     <div class="records-list">
       <article v-for="record in records" :key="record.id" class="transaction-record">
         <i :class="`transaction-icon transaction-icon--${record.type}`">
-          <AppIcon :name="record.type === 'deposit' ? 'download' : 'upload'" />
+          <AppIcon :name="record.type === 'in' ? 'download' : 'upload'" />
         </i>
-        <div class="transaction-meta"><time>{{ record.time }}</time><small>{{ record.source === "api" ? `API ${lang("充值")} · ${statusText(record.status)}` : statusText(record.status) }}</small></div>
+        <div class="transaction-meta"><time>{{ record.time }}</time><small>{{ sceneText(record.scene, record.type) }}</small></div>
         <strong :class="`transaction-amount transaction-amount--${record.type}`">
-          {{ record.type === "deposit" ? "+" : "-" }} {{ formatAmount(record.amount) }} {{ record.token }}
+          {{ record.type === "in" ? "+" : "-" }} {{ formatAmount(record.amount) }} {{ record.token }}
         </strong>
       </article>
       <p v-if="loading" class="records-empty">{{ lang("加载中") }}</p>
       <p v-else-if="!records.length" class="records-empty">
-        {{ connected ? lang("暂无充提记录") : lang("请先连接钱包") }}
+        {{ connected ? lang("暂无记录") : lang("请先连接钱包") }}
       </p>
     </div>
   </section>
@@ -89,14 +101,14 @@ watch(() => [props.connected, selectedToken.value], ([connected]) => {
 .transaction-record { min-height: 92px; display: grid; grid-template-columns: 35px minmax(0,1fr) auto; align-items: center; gap: 18px; padding: 17px 19px; border: 1px solid rgba(232,221,241,.68); border-radius: 12px; background: rgba(255,255,255,.96); box-shadow: 0 8px 23px rgba(100,55,137,.07); }
 .transaction-icon { width: 35px; height: 35px; display: grid; place-items: center; border-radius: 50%; }
 .transaction-icon svg { width: 18px; height: 18px; stroke-width: 1.8; }
-.transaction-icon--withdraw { background: #ffe0d2; color: #ff5815; }
-.transaction-icon--deposit { background: #cdf7d5; color: #00cb26; }
+.transaction-icon--out { background: #ffe0d2; color: #ff5815; }
+.transaction-icon--in { background: #cdf7d5; color: #00cb26; }
 .transaction-record time { font-size: 14px; white-space: nowrap; }
 .transaction-meta { min-width: 0; display: grid; gap: 6px; }
 .transaction-meta small { color: #9b94a0; font-size: 11px; }
 .transaction-amount { font-size: 15px; white-space: nowrap; }
-.transaction-amount--withdraw { color: #ff4d08; }
-.transaction-amount--deposit { color: #00c924; }
+.transaction-amount--out { color: #ff4d08; }
+.transaction-amount--in { color: #00c924; }
 .records-empty { margin: 80px 0 0; color: #a39ca8; font-size: 14px; text-align: center; }
 @media (max-width: 420px) {
   .records-view { padding-left: 12px; padding-right: 12px; }

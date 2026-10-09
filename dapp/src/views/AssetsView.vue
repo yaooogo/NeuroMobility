@@ -187,7 +187,7 @@ watch(() => [props.connected, props.authenticated, props.address], () => {
 
     <section class="asset-list">
       <article v-for="asset in assetCards" :key="asset.symbol" class="asset-card">
-        <button class="asset-record-link" type="button" :aria-label="`${asset.symbol} ${lang('充提记录')}`" @click="openAssetRecords(asset)">
+        <button class="asset-record-link" type="button" :aria-label="`${asset.symbol} ${lang('记录')}`" @click="openAssetRecords(asset)">
           <span class="asset-token">
             <img :src="dividendToken">
             <b>{{ asset.symbol }}</b>

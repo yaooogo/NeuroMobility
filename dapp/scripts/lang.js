@@ -12,6 +12,15 @@ const preservedTexts = [
   "投资拓展奖励",
   "投资级差收益",
   "岗位工资",
+  "记录",
+  "暂无记录",
+  "收入",
+  "支出",
+  "链上充值",
+  "API 充值",
+  "提现超时退回",
+  "提现取消退回",
+  "后台调整",
   "首页",
   "投资",
   "资产",
@@ -28,11 +37,96 @@ const seedEn = {
   "投资分红": "Investment Dividend",
   "投资拓展奖励": "Investment Expansion Reward",
   "投资级差收益": "Investment Differential Income",
-  "岗位工资": "Position Salary"
+  "岗位工资": "Position Salary",
+  "记录": "Records",
+  "暂无记录": "No records yet",
+  "收入": "Income",
+  "支出": "Expense",
+  "链上充值": "On-chain Recharge",
+  "API 充值": "API Recharge",
+  "提现超时退回": "Withdrawal Timeout Refund",
+  "提现取消退回": "Withdrawal Cancellation Refund",
+  "后台调整": "Admin Adjustment"
 };
 
 const insuranceLocaleSeeds = {
-  
+  en: {
+    "记录": "Records",
+    "暂无记录": "No records yet",
+    "收入": "Income",
+    "支出": "Expense",
+    "链上充值": "On-chain Recharge",
+    "API 充值": "API Recharge",
+    "提现超时退回": "Withdrawal Timeout Refund",
+    "提现取消退回": "Withdrawal Cancellation Refund",
+    "后台调整": "Admin Adjustment"
+  },
+  id: {
+    "记录": "Catatan",
+    "暂无记录": "Belum ada catatan",
+    "收入": "Pemasukan",
+    "支出": "Pengeluaran",
+    "链上充值": "Isi ulang on-chain",
+    "API 充值": "Isi ulang API",
+    "提现超时退回": "Pengembalian penarikan kedaluwarsa",
+    "提现取消退回": "Pengembalian penarikan dibatalkan",
+    "后台调整": "Penyesuaian admin"
+  },
+  ko: {
+    "记录": "기록",
+    "暂无记录": "아직 기록이 없습니다",
+    "收入": "수입",
+    "支出": "지출",
+    "链上充值": "온체인 충전",
+    "API 充值": "API 충전",
+    "提现超时退回": "출금 시간 초과 환불",
+    "提现取消退回": "출금 취소 환불",
+    "后台调整": "관리자 조정"
+  },
+  ja: {
+    "记录": "記録",
+    "暂无记录": "記録はまだありません",
+    "收入": "収入",
+    "支出": "支出",
+    "链上充值": "オンチェーン入金",
+    "API 充值": "API 入金",
+    "提现超时退回": "出金タイムアウト返金",
+    "提现取消退回": "出金キャンセル返金",
+    "后台调整": "管理者調整"
+  },
+  th: {
+    "记录": "บันทึก",
+    "暂无记录": "ยังไม่มีบันทึก",
+    "收入": "รายรับ",
+    "支出": "รายจ่าย",
+    "链上充值": "เติมเงินบนเชน",
+    "API 充值": "เติมเงิน API",
+    "提现超时退回": "คืนเงินถอนหมดเวลา",
+    "提现取消退回": "คืนเงินถอนที่ยกเลิก",
+    "后台调整": "ปรับโดยแอดมิน"
+  },
+  hi: {
+    "记录": "रिकॉर्ड",
+    "暂无记录": "अभी कोई रिकॉर्ड नहीं",
+    "收入": "आय",
+    "支出": "व्यय",
+    "链上充值": "ऑन-चेन रिचार्ज",
+    "API 充值": "API रिचार्ज",
+    "提现超时退回": "निकासी टाइमआउट रिफंड",
+    "提现取消退回": "निकासी रद्द रिफंड",
+    "后台调整": "एडमिन समायोजन"
+  },
+  vi: {
+    "记录": "Bản ghi",
+    "暂无记录": "Chưa có bản ghi",
+    "收入": "Thu nhập",
+    "支出": "Chi phí",
+    "链上充值": "Nạp on-chain",
+    "API 充值": "Nạp API",
+    "提现超时退回": "Hoàn tiền rút quá hạn",
+    "提现取消退回": "Hoàn tiền rút đã hủy",
+    "后台调整": "Điều chỉnh quản trị"
+  }
 };
 
 const stakingLocaleSeeds = {
