@@ -5,9 +5,12 @@ import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
 import Wallet from '../../Util/Wallet.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
+import { ensurePositionSalaryTable } from '../../Util/PositionSalarySchema.js';
 
 const WALLET_TABLE = 'wallet';
 const WALLET_ASSET_TABLE = 'wallet_assets';
+const POSITION_SALARY_TOKEN = 'USDT';
+const POSITION_SALARY_RECORD_DECIMALS = 18;
 
 function normalizeWallet(row) {
   return {
@@ -665,6 +668,13 @@ function normalizeWalletAsset(row, tokenMap) {
   };
 }
 
+function scaleRawAmount(value, fromDecimals, toDecimals) {
+  const raw = BigInt(value);
+  if (fromDecimals === toDecimals) return raw;
+  const factor = 10n ** BigInt(Math.abs(toDecimals - fromDecimals));
+  return toDecimals > fromDecimals ? raw * factor : raw / factor;
+}
+
 async function walletAssetList(req, res) {
   try {
     const page = Helper.parseInt(req.body?.page, 1);
@@ -765,4 +775,116 @@ async function walletAssetChange(req, res) {
   }
 }
 
-export default { walletList, walletTree, walletCreate, walletUpdate, walletImport: walletImportBatch, walletAssetList, walletAssetChange };
+async function walletPositionSalaryPay(req, res) {
+  try {
+    await ensurePositionSalaryTable();
+    const wallet = String(req.body?.wallet || '').trim().toLowerCase();
+    if (!/^0x[a-f0-9]{40}$/u.test(wallet)) return res.send(ApiResult.error(400, '钱包地址格式不正确'));
+    const salaryMonth = String(req.body?.salary_month || Helper.dateFormat('YYYY-mm', new Date())).trim();
+    if (!/^\d{4}-\d{2}$/u.test(salaryMonth)) return res.send(ApiResult.error(400, '请选择正确的发放月份'));
+
+    const tokenItem = await AssetToken.getTokenItem(POSITION_SALARY_TOKEN);
+    if (!tokenItem) return res.send(ApiResult.error(404, '岗位工资资产类型不存在'));
+    const tokenDecimals = Helper.parseInt(tokenItem?.decimals, AssetToken.DEFAULT_DECIMALS);
+    const recordAmount = parseAssetAmount(req.body?.amount, POSITION_SALARY_RECORD_DECIMALS);
+    const assetAmount = scaleRawAmount(recordAmount, POSITION_SALARY_RECORD_DECIMALS, tokenDecimals);
+    if (BigInt(recordAmount) <= 0n || assetAmount <= 0n) return res.send(ApiResult.error(400, '岗位工资必须大于 0'));
+
+    const prefix = Database.prefix('default') || '';
+    const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+    const salaryId = `MPS${salaryMonth.replace('-', '')}${wallet.replace(/^0x/u, '')}`;
+    let savedRecordId = 0;
+
+    await DB.transaction(async (config, connection) => {
+      const walletRows = await DB.query(config, connection).exec(
+        `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`,
+        [wallet]
+      );
+      const walletRow = Array.isArray(walletRows) ? walletRows[0] : null;
+      if (!walletRow) throw new Error('钱包不存在');
+      const walletAddress = String(walletRow.wallet || '').trim().toLowerCase();
+      const level = Number(walletRow.is_manual_level) === 1
+        ? Number(walletRow.manual_level || 0)
+        : Number(walletRow.level || 0);
+
+      const existingRows = await DB.query(config, connection).exec(
+        `SELECT id FROM ${prefix}position_salary_record WHERE salary_month=? AND wallet=? LIMIT 1`,
+        [salaryMonth, walletAddress]
+      );
+      if (existingRows?.length) throw new Error('该钱包本月已发放岗位工资');
+
+      await DB.query(config, connection).exec(
+        `INSERT IGNORE INTO ${prefix}wallet_assets (wallet, token, balance, frozen_balance, updated_at) VALUES (?, ?, 0, 0, ?)`,
+        [walletRow.wallet, POSITION_SALARY_TOKEN, now]
+      );
+      const assetRows = await DB.query(config, connection).exec(
+        `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
+        [walletAddress, POSITION_SALARY_TOKEN]
+      );
+      const asset = Array.isArray(assetRows) ? assetRows[0] : null;
+      if (!asset) throw new Error('钱包资产不存在');
+
+      const insertResult = { insertId: 0 };
+      await DB.query(config, connection).table('position_salary_record').insert({
+        salary_id: salaryId,
+        salary_month: salaryMonth,
+        wallet: walletAddress,
+        level,
+        token: POSITION_SALARY_TOKEN,
+        amount: recordAmount,
+        paid_at: now,
+        created_at: now,
+        updated_at: now
+      }, insertResult);
+      savedRecordId = Number(insertResult.insertId || 0);
+
+      const before = BigInt(String(asset.balance || '0'));
+      const after = before + assetAmount;
+      await DB.query(config, connection).table(WALLET_ASSET_TABLE).where('id', asset.id).update({
+        balance: after.toString(),
+        updated_at: now
+      });
+      await DB.query(config, connection).table('wallet_assets_logs').insert({
+        biz_id: salaryId,
+        wallet: walletAddress,
+        token: POSITION_SALARY_TOKEN,
+        balance: assetAmount.toString(),
+        before_balance: before.toString(),
+        after_balance: after.toString(),
+        scene: 'position_salary',
+        reason: `Manual position salary ${salaryMonth}`,
+        type: 'in',
+        created_at: now,
+        updated_at: now
+      });
+    });
+
+    const saved = await DB.query().table('position_salary_record').where('id', savedRecordId).first();
+    return res.send(ApiResult.success({
+      id: Number(saved?.id || 0),
+      salary_id: saved?.salary_id || salaryId,
+      salary_month: saved?.salary_month || salaryMonth,
+      wallet: saved?.wallet || wallet,
+      token: saved?.token || POSITION_SALARY_TOKEN,
+      amount: formatAssetAmount(saved?.amount || recordAmount, POSITION_SALARY_RECORD_DECIMALS),
+      paid_at: saved?.paid_at || now
+    }, '岗位工资发放成功'));
+  } catch (error) {
+    if (error?.code === 'ER_DUP_ENTRY') return res.send(ApiResult.error(400, '该钱包本月已发放岗位工资'));
+    if (/资产金额|钱包不存在|钱包资产不存在|岗位工资必须|已发放岗位工资/u.test(error.message || '')) {
+      return res.send(ApiResult.error(400, error.message));
+    }
+    return res.send(ApiResult.exception(error, 'WalletService.walletPositionSalaryPay'));
+  }
+}
+
+export default {
+  walletList,
+  walletTree,
+  walletCreate,
+  walletUpdate,
+  walletImport: walletImportBatch,
+  walletAssetList,
+  walletAssetChange,
+  walletPositionSalaryPay
+};

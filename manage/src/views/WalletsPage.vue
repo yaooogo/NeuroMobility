@@ -18,6 +18,10 @@ const modal = ref(false);
 const error = ref('');
 const modalError = ref('');
 const success = ref('');
+const salaryModal = ref(false);
+const salarySaving = ref(false);
+const salaryError = ref('');
+const salaryForm = reactive({ wallet: '', salary_month: '', amount: '' });
 const importModal = ref(false);
 const importFileInput = ref(null);
 const importFile = ref(null);
@@ -53,6 +57,11 @@ async function load() {
 function search() { query.page = 1; load(); }
 function changePage(page) { query.page = page; load(); }
 function openCreate() { Object.assign(form, defaultForm()); modalError.value = ''; modal.value = true; }
+function openSalaryPay() {
+  Object.assign(salaryForm, { wallet: '', salary_month: new Date().toISOString().slice(0, 7), amount: '' });
+  salaryError.value = '';
+  salaryModal.value = true;
+}
 function edit(row) {
   Object.assign(form, {
     ...defaultForm(),
@@ -62,6 +71,25 @@ function edit(row) {
     remark_system: row.remark_system, remark_name: row.remark_name, remark_community: row.remark_community
   });
   modalError.value = ''; modal.value = true;
+}
+
+async function payPositionSalary() {
+  if (salarySaving.value) return;
+  const wallet = salaryForm.wallet.trim();
+  const salaryMonth = salaryForm.salary_month.trim();
+  const amount = salaryForm.amount.trim();
+  if (!/^0x[a-fA-F0-9]{40}$/u.test(wallet)) { salaryError.value = '请输入正确的钱包地址'; return; }
+  if (!/^\d{4}-\d{2}$/u.test(salaryMonth)) { salaryError.value = '请选择发放月份'; return; }
+  if (!/^\d+(?:\.\d+)?$/u.test(amount) || Number(amount) <= 0) { salaryError.value = '请输入大于 0 的岗位工资'; return; }
+  if (!window.confirm(`确认给 ${wallet} 发放 ${salaryMonth} 月 ${amount} USDT 岗位工资？`)) return;
+  salarySaving.value = true; salaryError.value = '';
+  try {
+    const data = await post('/wallet/position-salary/pay', { wallet, salary_month: salaryMonth, amount });
+    salaryModal.value = false;
+    success.value = `岗位工资已发放：${data.salary_month} ${data.amount} ${data.token}`;
+    await load();
+  } catch (err) { salaryError.value = err.message; }
+  finally { salarySaving.value = false; }
 }
 
 async function save() {
@@ -280,6 +308,7 @@ onUnmounted(clearImportTaskTimer);
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="1">启用</option><option value="0">禁用</option></select>
         <button class="primary-button" @click="search">查询</button>
       </div><div class="toolbar-actions">
+        <button v-if="can(user, 'wallets-position-salary')" class="ghost-button" @click="openSalaryPay">发放岗位工资</button>
         <button v-if="can(user, 'wallets-import') || can(user, 'wallets-create')" class="ghost-button" @click="openImport">CSV 导入</button>
         <button v-if="can(user, 'wallets-create')" class="primary-button" @click="openCreate">新增钱包</button>
       </div></div>
@@ -340,6 +369,15 @@ onUnmounted(clearImportTaskTimer);
         <p v-if="importRows.length > 10" class="muted-text">仅预览前 10 条，提交时会导入全部 {{ importRows.length }} 条。</p>
       </div>
       <button class="submit-button" :disabled="importing || !importRows.length || currentImportTask?.status === 'running' || currentImportTask?.status === 'pending'" @click="submitImport">{{ importing ? '创建中...' : '创建导入任务' }}</button>
+    </section></div>
+    <div v-if="salaryModal" class="modal-mask" @click="!salarySaving && (salaryModal = false)"><section class="modal-card" style="width: min(100%, 560px)" @click.stop>
+      <div class="modal-head"><h2>发放岗位工资</h2><button class="ghost-button" :disabled="salarySaving" @click="salaryModal = false">关闭</button></div>
+      <div v-if="salaryError" class="alert-box alert-box--error">{{ salaryError }}</div>
+      <label class="field-block"><span>钱包地址</span><input v-model.trim="salaryForm.wallet" class="text-input" maxlength="42" placeholder="请输入 0x 钱包地址" /></label>
+      <label class="field-block"><span>发放月份</span><input v-model="salaryForm.salary_month" class="text-input" type="month" /></label>
+      <label class="field-block"><span>岗位工资（USDT）</span><input v-model.trim="salaryForm.amount" class="text-input" type="text" inputmode="decimal" placeholder="请输入发放金额" /></label>
+      <div class="alert-box">确认后会立即增加该钱包 USDT 可用余额，并写入所选月份的岗位工资记录和资产流水。同一钱包同一月份只能发放一次岗位工资。</div>
+      <button class="submit-button" :disabled="salarySaving" @click="payPositionSalary">{{ salarySaving ? '发放中...' : '确认发放' }}</button>
     </section></div>
     <div v-if="modal" class="modal-mask" @click="!saving && (modal = false)"><section class="modal-card operation-log-modal" @click.stop>
       <div class="modal-head"><h2>{{ form.id ? '编辑钱包' : '新增钱包' }}</h2><button class="ghost-button" :disabled="saving" @click="modal = false">关闭</button></div>
