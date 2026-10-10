@@ -195,6 +195,36 @@ export function calculateGrossRewardAmount(payout, rewardPercent) {
   return BigInt(payout) * BigInt(rewardPercent) / PERCENT_DENOMINATOR;
 }
 
+async function creditAssetBalance(configName, connection, prefix, walletValue, token, amount, now, scene, reason, bizId) {
+  const wallet = String(walletValue || '').toLowerCase();
+  const rawAmount = BigInt(amount);
+  if (!wallet || rawAmount <= 0n) return;
+  const assetRows = await DB.query(configName, connection).exec(
+    `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
+    [wallet, token]
+  );
+  const asset = assetRows?.[0];
+  if (!asset) throw new Error(`${reason} asset account not found: ${wallet} ${token}`);
+  const before = BigInt(String(asset.balance || '0'));
+  const after = before + rawAmount;
+  await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
+    balance: after.toString(), updated_at: now
+  });
+  await DB.query(configName, connection).table('wallet_assets_logs').insert({
+    biz_id: bizId,
+    wallet,
+    token,
+    balance: rawAmount.toString(),
+    before_balance: before.toString(),
+    after_balance: after.toString(),
+    scene,
+    reason,
+    type: 'in',
+    created_at: now,
+    updated_at: now
+  });
+}
+
 async function distributeDifferentialRewards(configName, connection, prefix, order, payout, tokenDecimals, levelRules, dividendId, now) {
   if (payout <= 0n) return;
   const snapshotMonth = String(now || '').slice(0, 7);
@@ -222,30 +252,18 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
     const investmentReward = calculateGrossRewardAmount(payout, reward.percent);
     const assetReward = scaleRaw(investmentReward, INVESTMENT_DECIMALS, tokenDecimals);
     if (assetReward <= 0n) continue;
-    const assetRows = await DB.query(configName, connection).exec(
-      `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
-      [reward.wallet, DIVIDEND_TOKEN]
+    await creditAssetBalance(
+      configName,
+      connection,
+      prefix,
+      reward.wallet,
+      DIVIDEND_TOKEN,
+      assetReward,
+      now,
+      'investment_differential_income',
+      `Investment differential income ${order.order_id} level ${reward.level}`,
+      `${dividendId}L${reward.level}`
     );
-    const asset = assetRows?.[0];
-    if (!asset) throw new Error(`毛利分成资产账户不存在: ${reward.wallet} ${DIVIDEND_TOKEN}`);
-    const before = BigInt(String(asset.balance || '0'));
-    const after = before + assetReward;
-    await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
-      balance: after.toString(), updated_at: now
-    });
-    await DB.query(configName, connection).table('wallet_assets_logs').insert({
-      biz_id: `${dividendId}L${reward.level}`,
-      wallet: reward.wallet,
-      token: DIVIDEND_TOKEN,
-      balance: assetReward.toString(),
-      before_balance: before.toString(),
-      after_balance: after.toString(),
-      scene: 'investment_differential_income',
-      reason: `Investment differential income ${order.order_id} level ${reward.level}`,
-      type: 'in',
-      created_at: now,
-      updated_at: now
-    });
   }
 }
 
@@ -291,30 +309,18 @@ async function processOrder(candidate, tokenDecimals, levelRules, investmentConf
       });
 
       if (assetPayout > 0n) {
-        const assetRows = await DB.query(configName, connection).exec(
-          `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`,
-          [String(order.wallet || '').toLowerCase(), DIVIDEND_TOKEN]
+        await creditAssetBalance(
+          configName,
+          connection,
+          prefix,
+          order.wallet,
+          DIVIDEND_TOKEN,
+          assetPayout,
+          now,
+          'investment_dividend',
+          `Investment dividend ${order.order_id}`,
+          dividendId
         );
-        const asset = assetRows?.[0];
-        if (!asset) throw new Error(`分红资产账户不存在: ${order.wallet} ${DIVIDEND_TOKEN}`);
-        const before = BigInt(String(asset.balance || '0'));
-        const after = before + assetPayout;
-        await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
-          balance: after.toString(), updated_at: now
-        });
-        await DB.query(configName, connection).table('wallet_assets_logs').insert({
-          biz_id: dividendId,
-          wallet: String(order.wallet || '').toLowerCase(),
-          token: DIVIDEND_TOKEN,
-          balance: assetPayout.toString(),
-          before_balance: before.toString(),
-          after_balance: after.toString(),
-          scene: 'investment_dividend',
-          reason: `Investment dividend ${order.order_id}`,
-          type: 'in',
-          created_at: now,
-          updated_at: now
-        });
       }
 
       await distributeDifferentialRewards(
@@ -328,6 +334,22 @@ async function processOrder(candidate, tokenDecimals, levelRules, investmentConf
         dividendId,
         now
       );
+
+      if (exited) {
+        const principalReturn = scaleRaw(BigInt(String(order.amount || '0')), INVESTMENT_DECIMALS, tokenDecimals);
+        await creditAssetBalance(
+          configName,
+          connection,
+          prefix,
+          order.wallet,
+          DIVIDEND_TOKEN,
+          principalReturn,
+          now,
+          'investment_principal_return',
+          `Investment principal return ${order.order_id}`,
+          `${dividendId}P`
+        );
+      }
 
       await DB.query(configName, connection).table('investment_order').where('id', order.id).update({
         distributed_amount: (BigInt(String(order.distributed_amount || '0')) + payout).toString(),

@@ -17,6 +17,7 @@ const SCENE_OPTIONS = [
   { value: 'investment', label: '投资扣款' },
   { value: 'investment_expansion_reward', label: '投资拓展奖励' },
   { value: 'investment_dividend', label: '投资分红' },
+  { value: 'investment_principal_return', label: '本金返还' },
   { value: 'investment_differential_income', label: '投资级差收益' },
   { value: 'position_salary', label: '岗位工资' }
 ];

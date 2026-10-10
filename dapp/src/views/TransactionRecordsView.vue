@@ -34,6 +34,7 @@ function sceneText(scene, type) {
     token_withdrawal_cancel: "提现取消退回",
     investment: "投资",
     investment_dividend: "投资分红",
+    investment_principal_return: "本金返还",
     investment_expansion_reward: "投资拓展奖励",
     investment_differential_income: "投资级差收益",
     position_salary: "岗位工资",
