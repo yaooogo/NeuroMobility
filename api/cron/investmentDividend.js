@@ -18,6 +18,8 @@ const DIVIDEND_PERCENT_DENOMINATOR = 100n * (10n ** BigInt(DIVIDEND_PERCENT_DECI
 const MULTIPLE_DENOMINATOR = 10n ** BigInt(MULTIPLE_DECIMALS);
 const BATCH_SIZE = 100;
 const DIVIDEND_TOKEN = 'USDT';
+const RUSD_TOKEN = 'RUSD';
+const MIXED_TOKEN = 'USDT+RUSD';
 
 function scaledDecimal(value, decimals) {
   const text = String(value ?? '0').trim();
@@ -38,6 +40,24 @@ function scaleRaw(value, fromDecimals, toDecimals) {
   if (fromDecimals === toDecimals) return raw;
   const factor = 10n ** BigInt(Math.abs(toDecimals - fromDecimals));
   return toDecimals > fromDecimals ? raw * factor : raw / factor;
+}
+
+function normalizePercent(value, fallback = 0) {
+  const percent = Number(value);
+  if (!Number.isFinite(percent)) return fallback;
+  return Math.min(100, Math.max(0, percent));
+}
+
+function percentBasis(value, fallback = 0) {
+  return BigInt(Math.round(normalizePercent(value, fallback) * 10000));
+}
+
+function principalReturnAmount(order) {
+  const token = String(order?.token || DIVIDEND_TOKEN).trim().toUpperCase();
+  const amount = BigInt(String(order?.amount || '0'));
+  if (token === RUSD_TOKEN) return 0n;
+  if (token === MIXED_TOKEN) return amount * percentBasis(order?.mixed_usdt_percent, 70) / 1000000n;
+  return amount;
 }
 
 function addDays(value, days) {
@@ -336,7 +356,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, investmentConf
       );
 
       if (exited) {
-        const principalReturn = scaleRaw(BigInt(String(order.amount || '0')), INVESTMENT_DECIMALS, tokenDecimals);
+        const principalReturn = scaleRaw(principalReturnAmount(order), INVESTMENT_DECIMALS, tokenDecimals);
         await creditAssetBalance(
           configName,
           connection,
