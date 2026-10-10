@@ -53,6 +53,26 @@ function dividendRuleValue(rule, key, fallback) {
   return value === null || typeof value === 'undefined' || String(value).trim() === '' ? fallback : value;
 }
 
+function exitMultipleForOrder(order, investmentConfig) {
+  const token = String(order?.token || 'USDT').trim().toUpperCase();
+  if (token === 'RUSD') return investmentConfig.rusdt_exit_multiple;
+  if (token === 'USDT+RUSD') return investmentConfig.mixed_exit_multiple;
+  return investmentConfig.usdt_exit_multiple ?? investmentConfig.exit_multiple;
+}
+
+function dividendRuleForOrder(order, investmentConfig, teamDividendRule = null) {
+  return {
+    min_percent: investmentConfig.min_percent,
+    max_percent: investmentConfig.max_percent,
+    dividend_multiple: investmentConfig.dividend_multiple,
+    dividend_min_percent: investmentConfig.dividend_min_percent,
+    dividend_max_percent: investmentConfig.dividend_max_percent,
+    guaranteed_percent: investmentConfig.guaranteed_dividend_percent,
+    exit_multiple: exitMultipleForOrder(order, investmentConfig),
+    ...(teamDividendRule || {})
+  };
+}
+
 export function calculateDividendPayout(order, ruleOrSelectPercent = null, selectPercentOverride = null) {
   const rule = typeof ruleOrSelectPercent === 'function' ? null : ruleOrSelectPercent;
   const selectPercent = typeof ruleOrSelectPercent === 'function'
@@ -61,7 +81,7 @@ export function calculateDividendPayout(order, ruleOrSelectPercent = null, selec
   const amount = BigInt(String(order.amount || '0'));
   const totalDividend = BigInt(String(order.total_dividend || '0'));
   const dividendMultiple = scaledDecimal(dividendRuleValue(rule, 'dividend_multiple', order.dividend_multiple || '1'), MULTIPLE_DECIMALS);
-  const exitMultiple = scaledDecimal(order.exit_multiple || '1', MULTIPLE_DECIMALS);
+  const exitMultiple = scaledDecimal(dividendRuleValue(rule, 'exit_multiple', order.exit_multiple || '1'), MULTIPLE_DECIMALS);
   const threshold = amount * dividendMultiple / MULTIPLE_DENOMINATOR;
   const exitTarget = amount * exitMultiple / MULTIPLE_DENOMINATOR;
   const useLaterRule = totalDividend >= threshold;
@@ -223,7 +243,7 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
   }
 }
 
-async function processOrder(candidate, tokenDecimals, levelRules, options = {}) {
+async function processOrder(candidate, tokenDecimals, levelRules, investmentConfig, options = {}) {
   let paid = false;
   try {
     await DB.transaction(async (configName, connection) => {
@@ -245,7 +265,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
       const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nowDate);
       const dividendId = `D${order.order_id}${Helper.dateFormat('YYYYmmddHHMMSS', cycleDate)}`;
       const teamDividendRule = await teamDividendRuleForWallet(configName, connection, prefix, order.wallet);
-      const calculation = calculateDividendPayout(order, teamDividendRule);
+      const calculation = calculateDividendPayout(order, dividendRuleForOrder(order, investmentConfig, teamDividendRule));
       const assetPayout = scaleRaw(calculation.payout, INVESTMENT_DECIMALS, tokenDecimals);
       const payout = scaleRaw(assetPayout, tokenDecimals, INVESTMENT_DECIMALS);
       const previousTotal = BigInt(String(order.total_dividend || '0'));
@@ -339,7 +359,10 @@ async function processOrder(candidate, tokenDecimals, levelRules, options = {}) 
 async function distribute() {
   await growthSnapshot.capture();
   await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable()]);
-  const levelRules = await CacheData.getWalletLevelRules();
+  const [levelRules, investmentConfig] = await Promise.all([
+    CacheData.getWalletLevelRules(),
+    CacheData.getInvestmentConfig()
+  ]);
   const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
   await DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now])
     .update({ status: 1, updated_at: now });
@@ -353,7 +376,7 @@ async function distribute() {
       const item = await AssetToken.getTokenItem(DIVIDEND_TOKEN);
       decimals.set(DIVIDEND_TOKEN, Number(item?.decimals ?? AssetToken.DEFAULT_DECIMALS));
     }
-    if (await processOrder(order, decimals.get(DIVIDEND_TOKEN), levelRules)) processed += 1;
+    if (await processOrder(order, decimals.get(DIVIDEND_TOKEN), levelRules, investmentConfig)) processed += 1;
   }
   if (processed > 0) console.log(`[InvestmentDividend] processed=${processed}`);
   return { matched: (orders || []).length, processed };
@@ -368,8 +391,11 @@ export async function distributeOrderNow(orderId) {
 
   const item = await AssetToken.getTokenItem(DIVIDEND_TOKEN);
   const tokenDecimals = Number(item?.decimals ?? AssetToken.DEFAULT_DECIMALS);
-  const levelRules = await CacheData.getWalletLevelRules();
-  const processed = await processOrder(order, tokenDecimals, levelRules, { force: true });
+  const [levelRules, investmentConfig] = await Promise.all([
+    CacheData.getWalletLevelRules(),
+    CacheData.getInvestmentConfig()
+  ]);
+  const processed = await processOrder(order, tokenDecimals, levelRules, investmentConfig, { force: true });
   return { status: processed ? 'processed' : 'skipped', processed };
 }
 
