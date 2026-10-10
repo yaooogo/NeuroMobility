@@ -165,6 +165,8 @@ export function calculateDifferentialRewardRates(ancestors, levelRules) {
   ]));
   const recipientsByLevel = new Map();
   for (const ancestor of ancestors || []) {
+    if (Object.prototype.hasOwnProperty.call(ancestor, 'invests')
+      && BigInt(String(ancestor.invests || '0')) <= 0n) continue;
     const level = Number(ancestor.is_manual_level) === 1
       ? Number(ancestor.manual_level || 0)
       : Number(ancestor.level || 0);
@@ -199,6 +201,7 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
   const ancestors = await DB.query(configName, connection).exec(
     `SELECT relation.inviter AS wallet,
             relation.lv,
+            member.invests,
             member.level,
             member.manual_level,
             member.is_manual_level,
@@ -210,6 +213,7 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
        ON growth.wallet=LOWER(relation.inviter)
       AND growth.snapshot_month=?
      WHERE LOWER(relation.wallet)=?
+       AND CAST(member.invests AS DECIMAL(65,0)) > 0
      ORDER BY relation.lv ASC`,
     [snapshotMonth, String(order.wallet || '').toLowerCase()]
   );
