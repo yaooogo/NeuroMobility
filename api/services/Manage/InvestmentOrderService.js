@@ -1,16 +1,20 @@
 import ApiResult from '../../Util/ApiResult.js';
+import CacheData from '../../Util/CacheData.js';
 import Config from '../../Util/Config.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import { ensureTeamInvestmentConfigTable } from '../../Util/TeamInvestmentConfigSchema.js';
 import { distributeOrderNow } from '../../cron/investmentDividend.js';
 
 const USDT = 'USDT';
 const RUSD = 'RUSD';
 const MIXED_TOKEN = 'USDT+RUSD';
 const INVESTMENT_DECIMALS = 18;
+const MULTIPLE_DECIMALS = 8;
+const MULTIPLE_DENOMINATOR = 10n ** BigInt(MULTIPLE_DECIMALS);
 
 function manualDividendEnabled() {
   const environments = [Config.APP_ENV, Config.NODE_ENV, Config.CHAIN_NET]
@@ -41,6 +45,84 @@ function splitMixedRaw(amountRaw, percent) {
   return { usdtRaw, rusdtRaw: raw - usdtRaw };
 }
 
+function scaledDecimal(value, decimals) {
+  const text = String(value ?? '0').trim();
+  if (!/^\d+(?:\.\d+)?$/u.test(text)) return 0n;
+  const [integer, fraction = ''] = text.split('.');
+  return BigInt(`${integer}${fraction.slice(0, decimals).padEnd(decimals, '0')}`);
+}
+
+function exitMultipleForOrder(row, investmentConfig) {
+  const token = normalizeOrderToken(row.token);
+  if (token === RUSD) return investmentConfig.rusdt_exit_multiple;
+  if (token === MIXED_TOKEN) return investmentConfig.mixed_exit_multiple;
+  return investmentConfig.usdt_exit_multiple ?? investmentConfig.exit_multiple;
+}
+
+function activeDividendRange(row, rule) {
+  const amount = BigInt(String(row.amount || '0'));
+  const totalDividend = BigInt(String(row.total_dividend || '0'));
+  const dividendMultiple = scaledDecimal(rule?.dividend_multiple ?? row.dividend_multiple ?? '1', MULTIPLE_DECIMALS);
+  const threshold = amount * dividendMultiple / MULTIPLE_DENOMINATOR;
+  const useLaterRule = totalDividend >= threshold;
+  const minPercent = useLaterRule ? rule?.dividend_min_percent : rule?.min_percent;
+  const maxPercent = useLaterRule ? rule?.dividend_max_percent : rule?.max_percent;
+  return {
+    min_percent: Number(minPercent ?? row.min_percent ?? 0),
+    max_percent: Number(maxPercent ?? row.max_percent ?? 0)
+  };
+}
+
+async function teamDividendRuleForWallet(prefix, wallet) {
+  const normalizedWallet = String(wallet || '').toLowerCase();
+  const rows = await DB.query().exec(
+    `SELECT config.min_percent,
+            config.max_percent,
+            config.dividend_multiple,
+            config.dividend_min_percent,
+            config.dividend_max_percent,
+            config.guaranteed_percent
+     FROM ${prefix}team_investment_config AS config
+     WHERE config.status=1
+       AND (
+         LOWER(config.wallet)=?
+         OR LOWER(config.wallet)=(
+           SELECT LOWER(relation.inviter)
+           FROM ${prefix}wallet_relation AS relation
+           WHERE LOWER(relation.wallet)=?
+             AND relation.lv=1
+           LIMIT 1
+         )
+       )
+     ORDER BY CASE WHEN LOWER(config.wallet)=? THEN 0 ELSE 1 END
+     LIMIT 1`,
+    [normalizedWallet, normalizedWallet, normalizedWallet]
+  );
+  const config = rows?.[0];
+  return config ? {
+    min_percent: config.min_percent,
+    max_percent: config.max_percent,
+    dividend_multiple: config.dividend_multiple,
+    dividend_min_percent: config.dividend_min_percent,
+    dividend_max_percent: config.dividend_max_percent,
+    guaranteed_percent: config.guaranteed_percent
+  } : null;
+}
+
+async function currentDividendRuleForOrder(row, investmentConfig, prefix) {
+  const teamRule = await teamDividendRuleForWallet(prefix, row.wallet);
+  return {
+    min_percent: investmentConfig.min_percent,
+    max_percent: investmentConfig.max_percent,
+    dividend_multiple: investmentConfig.dividend_multiple,
+    dividend_min_percent: investmentConfig.dividend_min_percent,
+    dividend_max_percent: investmentConfig.dividend_max_percent,
+    guaranteed_percent: investmentConfig.guaranteed_dividend_percent,
+    exit_multiple: exitMultipleForOrder(row, investmentConfig),
+    ...(teamRule || {})
+  };
+}
+
 function paymentParts(row) {
   const token = normalizeOrderToken(row.token);
   const amountRaw = BigInt(String(row.amount || '0'));
@@ -54,9 +136,10 @@ function paymentParts(row) {
   ].filter(item => Number(item.amount) > 0);
 }
 
-function normalize(row) {
+function normalize(row, rule = null) {
   const token = normalizeOrderToken(row.token);
   const mixedUsdtPercent = mixedPercentForToken(token, row.mixed_usdt_percent);
+  const activeRange = activeDividendRange(row, rule);
   return {
     id: Number(row.id || 0), order_id: row.order_id || '', wallet: row.wallet || '', token,
     amount: formatAssetAmount(row.amount || '0', INVESTMENT_DECIMALS),
@@ -65,12 +148,12 @@ function normalize(row) {
     distributed_amount: formatAssetAmount(row.distributed_amount || '0', INVESTMENT_DECIMALS),
     total_dividend: formatAssetAmount(row.total_dividend || '0', INVESTMENT_DECIMALS),
     waiting_days: Number(row.waiting_days || 0), cycle_days: Number(row.cycle_days || 0),
-    min_percent: Number(row.min_percent || 0), max_percent: Number(row.max_percent || 0),
-    dividend_multiple: Number(row.dividend_multiple || 0),
-    dividend_min_percent: Number(row.dividend_min_percent || 0),
-    dividend_max_percent: Number(row.dividend_max_percent || 0),
-    exit_multiple: Number(row.exit_multiple || 0),
-    guaranteed_percent: Number(row.guaranteed_percent || 0),
+    min_percent: activeRange.min_percent, max_percent: activeRange.max_percent,
+    dividend_multiple: Number(rule?.dividend_multiple ?? row.dividend_multiple ?? 0),
+    dividend_min_percent: Number(rule?.dividend_min_percent ?? row.dividend_min_percent ?? 0),
+    dividend_max_percent: Number(rule?.dividend_max_percent ?? row.dividend_max_percent ?? 0),
+    exit_multiple: Number(rule?.exit_multiple ?? row.exit_multiple ?? 0),
+    guaranteed_percent: Number(rule?.guaranteed_percent ?? row.guaranteed_percent ?? 0),
     guaranteed_eligible: Number(row.guaranteed_eligible || 0), whole_vehicle: Number(row.whole_vehicle || 0),
     status: Number(row.status || 0), waiting_until: row.waiting_until || '', next_dividend_at: row.next_dividend_at || '',
     created_at: row.created_at || '', updated_at: row.updated_at || ''
@@ -140,7 +223,7 @@ function buildSummaryWhere(filters, prefix) {
 
 async function list(req, res) {
   try {
-    await ensureInvestmentOrderTable();
+    await Promise.all([ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable()]);
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
     await DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now])
       .update({ status: 1, updated_at: now });
@@ -158,7 +241,7 @@ async function list(req, res) {
     const query = applyListFilters(DB.query().table('investment_order'), filters, prefix);
     query.orderBy('id', 'desc');
     const summaryWhere = buildSummaryWhere(filters, prefix);
-    const [result, summaryRows] = await Promise.all([
+    const [result, summaryRows, investmentConfig] = await Promise.all([
       query.paginate(page, pageSize),
       DB.query().exec(
         `SELECT COUNT(*) AS order_count,
@@ -173,11 +256,16 @@ async function list(req, res) {
          FROM ${prefix}investment_order
          ${summaryWhere.sql}`,
         summaryWhere.bindings
-      )
+      ),
+      CacheData.getInvestmentConfig()
     ]);
     const summary = summaryRows?.[0] || {};
+    const items = await Promise.all((result.items || []).map(async (row) => {
+      const rule = await currentDividendRuleForOrder(row, investmentConfig, prefix);
+      return normalize(row, rule);
+    }));
     return res.send(ApiResult.success({
-      items: (result.items || []).map(normalize), total: result.total, page: result.currentPage,
+      items, total: result.total, page: result.currentPage,
       page_size: result.perPage, last_page: result.lastPage,
       summary: {
         order_count: Number(summary.order_count || 0),

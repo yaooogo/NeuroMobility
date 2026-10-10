@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import AssetTransferDialog from "../components/AssetTransferDialog.vue";
@@ -22,6 +22,8 @@ const transferMode = ref("deposit");
 const transferOverview = ref({ balance: "0", frozen_balance: "0", token: {} });
 const overview = ref({ balance: "0", frozen_balance: "0", token: {}, assets: [] });
 const investmentData = ref({ items: [], principal: "0", total_dividend: "0", monthly_dividend: "0" });
+let overviewRequestId = 0;
+let investmentRequestId = 0;
 
 const assetCards = computed(() => {
   const assets = Array.isArray(overview.value?.assets) ? overview.value.assets : [];
@@ -90,8 +92,21 @@ function addDecimalAmounts(...values) {
   return fraction ? `${digits.slice(0, -precision)}.${fraction}` : digits.slice(0, -precision);
 }
 
+function hasActiveSession() {
+  const address = String(props.address || "").toLowerCase();
+  const expiresAt = Number(localStorage.getItem("auth_expires_at") || 0);
+  return Boolean(
+    props.connected
+    && address
+    && localStorage.getItem("token")
+    && localStorage.getItem("auth_address") === address
+    && (!expiresAt || expiresAt > Date.now() + 30_000)
+  );
+}
+
 async function loadOverview(showError = false) {
-  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+  const requestId = ++overviewRequestId;
+  if (!hasActiveSession()) {
     overview.value = { balance: "0", frozen_balance: "0", token: {}, assets: [] };
     return;
   }
@@ -99,18 +114,23 @@ async function loadOverview(showError = false) {
     overview.value = { balance: "0", frozen_balance: "0", token: {}, assets: [] };
   }
   try {
-    overview.value = await requestAssetOverview();
+    const data = await requestAssetOverview();
+    if (requestId === overviewRequestId) overview.value = data;
   } catch (error) {
     if (showError && Number(error?.code) !== 401) emit("notice", { message: error?.message || lang("加载失败"), type: "error" });
   }
 }
 
 async function loadInvestments(showError = false) {
-  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) {
+  const requestId = ++investmentRequestId;
+  if (!hasActiveSession()) {
     investmentData.value = { items: [], principal: "0", total_dividend: "0", monthly_dividend: "0" };
     return;
   }
-  try { investmentData.value = await requestInvestmentOrders(); }
+  try {
+    const data = await requestInvestmentOrders();
+    if (requestId === investmentRequestId) investmentData.value = data;
+  }
   catch (error) {
     if (showError && Number(error?.code) !== 401) emit("notice", { message: error?.message || lang("加载失败"), type: "error" });
   }
@@ -164,9 +184,21 @@ function handleTransferSuccess(result) {
   void loadOverview();
 }
 
+function refreshAfterAuthChange() {
+  window.setTimeout(() => {
+    void loadOverview();
+    void loadInvestments();
+  }, 0);
+}
+
 watch(() => [props.connected, props.authenticated, props.address], () => {
   void loadOverview(); void loadInvestments();
 }, { immediate: true });
+
+window.addEventListener("app-auth-state-changed", refreshAfterAuthChange);
+onBeforeUnmount(() => {
+  window.removeEventListener("app-auth-state-changed", refreshAfterAuthChange);
+});
 </script>
 
 <template>

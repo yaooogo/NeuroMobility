@@ -23,6 +23,7 @@ const inviterWallet = ref("");
 const pendingAddress = ref("");
 const ownInviteCode = ref(localStorage.getItem("auth_ref_code") || "");
 const loggingIn = ref(false);
+const authStateVersion = ref(0);
 const authSuppressedAddress = ref("");
 const notice = ref("");
 const noticeType = ref("success");
@@ -30,7 +31,10 @@ const activeTab = computed(() => String(route.meta.navKey || "home"));
 const accountState = computed(() => unref(account) || {});
 const connectedAddress = computed(() => String(accountState.value.address || getWagmiAddress()).toLowerCase());
 const isConnected = computed(() => Boolean(connectedAddress.value && (accountState.value.isConnected || getWagmiAddress())));
-const isAuthenticated = computed(() => hasAuthenticatedSession(connectedAddress.value));
+const isAuthenticated = computed(() => {
+  authStateVersion.value;
+  return hasAuthenticatedSession(connectedAddress.value);
+});
 let wagmiUnwatch = null;
 let hasObservedWalletConnection = false;
 let walletDisconnectTimer = null;
@@ -101,6 +105,8 @@ function clearStoredAuthSession() {
   localStorage.removeItem("auth_expires_at");
   localStorage.removeItem("auth_ref_code");
   ownInviteCode.value = "";
+  authStateVersion.value += 1;
+  window.dispatchEvent(new CustomEvent("app-auth-state-changed"));
 }
 
 function clearWalletDisconnectTimer() {
@@ -163,6 +169,8 @@ async function authenticate(address, refCode = "", force = false) {
     ownInviteCode.value = session.ref_code || normalizedAddress;
     localStorage.setItem("auth_ref_code", ownInviteCode.value);
     localStorage.removeItem("invite_ref_code");
+    authStateVersion.value += 1;
+    window.dispatchEvent(new CustomEvent("app-auth-state-changed"));
     authSuppressedAddress.value = "";
     inviteVisible.value = false;
     showNotice(lang("登录成功"));
@@ -217,6 +225,7 @@ async function disconnectWallet(callApi = true) {
 }
 
 function handleAuthExpired() {
+  authStateVersion.value += 1;
   const address = String(getWagmiAddress() || connectedAddress.value).toLowerCase();
   if (!address || loggingIn.value) return;
   void authenticate(address, "", true);

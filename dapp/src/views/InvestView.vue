@@ -95,7 +95,7 @@ const instructions = computed(() => {
     },
     {
       icon: requireAsset("@assets/images/icons/data1.png"),
-      title: formatMessage(lang("月度分红 ${minPercent}%-${maxPercent}%"), { minPercent, maxPercent }),
+      title: formatMessage(lang("月度分红 ${minPercent}%-${maxPercent}%"), { minPercent:3, maxPercent:10 }),
       description: lang("根据项目经营情况按区间发放")
     }
   ];

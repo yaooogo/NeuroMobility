@@ -11,8 +11,10 @@ import growthSnapshot from './growthSnapshot.js';
 
 const INVESTMENT_DECIMALS = 18;
 const PERCENT_DECIMALS = 4;
+const DIVIDEND_PERCENT_DECIMALS = 1;
 const MULTIPLE_DECIMALS = 8;
 const PERCENT_DENOMINATOR = 100n * (10n ** BigInt(PERCENT_DECIMALS));
+const DIVIDEND_PERCENT_DENOMINATOR = 100n * (10n ** BigInt(DIVIDEND_PERCENT_DECIMALS));
 const MULTIPLE_DENOMINATOR = 10n ** BigInt(MULTIPLE_DECIMALS);
 const BATCH_SIZE = 100;
 const DIVIDEND_TOKEN = 'USDT';
@@ -89,23 +91,23 @@ export function calculateDividendPayout(order, ruleOrSelectPercent = null, selec
     useLaterRule
       ? dividendRuleValue(rule, 'dividend_min_percent', order.dividend_min_percent)
       : dividendRuleValue(rule, 'min_percent', order.min_percent),
-    PERCENT_DECIMALS
+    DIVIDEND_PERCENT_DECIMALS
   );
   const configuredMaxPercent = scaledDecimal(
     useLaterRule
       ? dividendRuleValue(rule, 'dividend_max_percent', order.dividend_max_percent)
       : dividendRuleValue(rule, 'max_percent', order.max_percent),
-    PERCENT_DECIMALS
+    DIVIDEND_PERCENT_DECIMALS
   );
   const minPercent = configuredMinPercent <= configuredMaxPercent ? configuredMinPercent : configuredMaxPercent;
   const maxPercent = configuredMaxPercent >= configuredMinPercent ? configuredMaxPercent : configuredMinPercent;
   let percent = selectPercent(minPercent, maxPercent);
-  const guaranteed = scaledDecimal(dividendRuleValue(rule, 'guaranteed_percent', order.guaranteed_percent), PERCENT_DECIMALS);
+  const guaranteed = scaledDecimal(dividendRuleValue(rule, 'guaranteed_percent', order.guaranteed_percent), DIVIDEND_PERCENT_DECIMALS);
   const guaranteedFloor = guaranteed < maxPercent ? guaranteed : maxPercent;
   if (Number(order.guaranteed_eligible || 0) === 1 && percent < guaranteedFloor) percent = guaranteedFloor;
 
   const remaining = exitTarget > totalDividend ? exitTarget - totalDividend : 0n;
-  let payout = amount * percent / PERCENT_DENOMINATOR;
+  let payout = amount * percent / DIVIDEND_PERCENT_DENOMINATOR;
   if (payout > remaining) payout = remaining;
   return {
     payout,
@@ -278,7 +280,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, investmentConf
         wallet: String(order.wallet || '').toLowerCase(),
         token: DIVIDEND_TOKEN,
         cycle_at: cycleAt,
-        percent: (Number(calculation.percent) / (10 ** PERCENT_DECIMALS)).toFixed(PERCENT_DECIMALS),
+        percent: (Number(calculation.percent) / (10 ** DIVIDEND_PERCENT_DECIMALS)).toFixed(DIVIDEND_PERCENT_DECIMALS),
         amount: payout.toString(),
         created_at: now,
         updated_at: now
