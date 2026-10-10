@@ -97,22 +97,22 @@ onMounted(loadRoots);
   <ManageLayout title="网体图" description="按钱包逐层展开直属关系，查看个人投资与社区数据。">
     <section class="panel-card">
       <div class="toolbar"><div class="toolbar-group">
-        <input v-model.trim="query.keyword" class="text-input text-input--inline network-search" placeholder="钱包地址、邀请码、邀请人或备注" @keyup.enter="search" />
+        <input v-model.trim="query.keyword" class="text-input text-input--inline network-search" placeholder="钱包地址或邀请码" @keyup.enter="search" />
         <button class="primary-button" @click="search">查询</button><button class="ghost-button" @click="reset">重置</button>
       </div></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div class="table-wrap"><table class="data-table network-table">
-        <thead><tr><th>钱包地址</th><th>个人投资</th><th>社区投资</th><th>社区用户</th><th>直属人数</th><th>团队人数</th><th>层级</th><th>等级</th><th>邀请人</th><th>状态</th><th>备注</th><th>注册时间</th></tr></thead>
+        <thead><tr><th>钱包地址</th><th>个人投资</th><th>社区投资</th><th>社区用户</th><th>直属人数</th><th>团队人数</th><th>层级</th><th>等级</th><th>状态</th><th>备注</th><th>注册时间</th></tr></thead>
         <tbody>
-          <tr v-if="loading"><td colspan="12" class="empty-cell">正在加载...</td></tr>
-          <tr v-else-if="!roots.length"><td colspan="12" class="empty-cell">暂无网体数据</td></tr>
+          <tr v-if="loading"><td colspan="11" class="empty-cell">正在加载...</td></tr>
+          <tr v-else-if="!roots.length"><td colspan="11" class="empty-cell">暂无网体数据</td></tr>
           <template v-for="item in flatRows" v-else :key="item.key">
             <tr v-if="item.type === 'node'" :class="{ 'network-row--child': item.depth > 0 }">
               <td><div class="wallet-tree-cell" :style="{ paddingLeft: `${item.depth * 24}px` }"><button v-if="hasChildren(item.row)" class="tree-toggle" :disabled="isLoading(item.row)" @click="toggle(item.row)">{{ isExpanded(item.row) ? '−' : '+' }}</button><span v-else class="tree-toggle tree-toggle--empty"></span><strong class="mono-cell">{{ item.row.wallet || '-' }}</strong></div></td>
-              <td>{{ formatFixedAmount(item.row.invests) }}</td><td>{{ formatFixedAmount(item.row.community_invests) }}</td><td>{{ formatInteger(item.row.community_users) }}</td><td>{{ formatInteger(item.row.direct_count) }}</td><td>{{ formatInteger(item.row.team_count) }}</td><td>{{ item.row.lv }}</td><td>{{ item.row.effective_level }}</td><td class="mono-cell">{{ item.row.inviter || '-' }}</td><td><span class="status-badge" :class="item.row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ item.row.status === 1 ? '启用' : '禁用' }}</span></td>
+              <td>{{ formatFixedAmount(item.row.invests) }}</td><td>{{ formatFixedAmount(item.row.community_invests) }}</td><td>{{ formatInteger(item.row.community_users) }}</td><td>{{ formatInteger(item.row.direct_count) }}</td><td>{{ formatInteger(item.row.team_count) }}</td><td>{{ item.row.lv }}</td><td>{{ item.row.effective_level }}</td><td><span class="status-badge" :class="item.row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ item.row.status === 1 ? '启用' : '禁用' }}</span></td>
               <td><div class="remark-stack"><span>系统：{{ item.row.remark_system || '-' }}</span><span>名称：{{ item.row.remark_name || '-' }}</span><span>社区：{{ item.row.remark_community || '-' }}</span></div></td><td>{{ item.row.created_at || '-' }}</td>
             </tr>
-            <tr v-else><td colspan="12"><div class="network-inline" :style="{ paddingLeft: `${item.depth * 24}px` }"><span v-if="item.type === 'loading'">正在加载直属下线...</span><button v-else class="table-button" :disabled="isLoading(item.row)" @click="loadChildren(item.row, item.nextPage, true)">{{ isLoading(item.row) ? '加载中...' : '加载更多直属下线' }}</button></div></td></tr>
+            <tr v-else><td colspan="11"><div class="network-inline" :style="{ paddingLeft: `${item.depth * 24}px` }"><span v-if="item.type === 'loading'">正在加载直属下线...</span><button v-else class="table-button" :disabled="isLoading(item.row)" @click="loadChildren(item.row, item.nextPage, true)">{{ isLoading(item.row) ? '加载中...' : '加载更多直属下线' }}</button></div></td></tr>
           </template>
         </tbody>
       </table></div>
@@ -123,10 +123,9 @@ onMounted(loadRoots);
 
 <style scoped>
 .network-search { min-width: 320px; }
-.network-table { min-width: 1750px; }
+.network-table { min-width: 1470px; }
 .network-table th:first-child { width: 310px; }
-.network-table th:nth-child(9) { width: 280px; }
-.network-table th:nth-child(11) { width: 220px; }
+.network-table th:nth-child(10) { width: 220px; }
 .network-table th:last-child { width: 165px; }
 .network-row--child td { background: rgba(255, 255, 255, 0.015); }
 .wallet-tree-cell { display: flex; align-items: center; gap: 10px; min-width: 0; }

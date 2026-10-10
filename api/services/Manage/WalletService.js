@@ -555,9 +555,8 @@ async function walletTree(req, res) {
       bindings.push(parentWallet);
     } else if (keyword) {
       const like = `%${keyword}%`;
-      whereSql = `WHERE w.wallet LIKE ? OR w.ref_code LIKE ? OR w.inviter LIKE ?
-                  OR w.remark_name LIKE ? OR w.remark_community LIKE ?`;
-      bindings.push(like, like, like, like, like);
+      whereSql = `WHERE w.wallet LIKE ? OR w.ref_code LIKE ?`;
+      bindings.push(like, like);
     } else {
       whereSql = `WHERE w.inviter IS NULL OR w.inviter=''`;
     }
