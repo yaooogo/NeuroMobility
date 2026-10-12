@@ -1,4 +1,5 @@
 import ApiResult from '../../Util/ApiResult.js';
+import AssetToken from '../../Util/AssetToken.js';
 import CacheData from '../../Util/CacheData.js';
 import Config from '../../Util/Config.js';
 import Database from '../../Util/Database.js';
@@ -15,6 +16,10 @@ const MIXED_TOKEN = 'USDT+RUSD';
 const INVESTMENT_DECIMALS = 18;
 const MULTIPLE_DECIMALS = 8;
 const MULTIPLE_DENOMINATOR = 10n ** BigInt(MULTIPLE_DECIMALS);
+const STATUS_WAITING = 0;
+const STATUS_ACTIVE = 1;
+const STATUS_EXITED = 2;
+const STATUS_TERMINATED = 3;
 
 function manualDividendEnabled() {
   const environments = [Config.APP_ENV, Config.NODE_ENV, Config.CHAIN_NET]
@@ -43,6 +48,47 @@ function splitMixedRaw(amountRaw, percent) {
   const raw = BigInt(String(amountRaw || '0'));
   const usdtRaw = raw * BigInt(Math.round(normalizePercent(percent, 70) * 10000)) / 1000000n;
   return { usdtRaw, rusdtRaw: raw - usdtRaw };
+}
+
+function scaleRaw(value, fromDecimals, toDecimals) {
+  const raw = BigInt(value);
+  if (fromDecimals === toDecimals) return raw;
+  const factor = 10n ** BigInt(Math.abs(toDecimals - fromDecimals));
+  return toDecimals > fromDecimals ? raw * factor : raw / factor;
+}
+
+function refundableUsdtPrincipal(row) {
+  const token = normalizeOrderToken(row?.token);
+  const amountRaw = BigInt(String(row?.amount || '0'));
+  if (token === RUSD) return 0n;
+  if (token === MIXED_TOKEN) return splitMixedRaw(amountRaw, mixedPercentForToken(token, row?.mixed_usdt_percent)).usdtRaw;
+  return amountRaw;
+}
+
+async function markInvestmentStatsDirty(configName, connection, prefix, walletValue, now) {
+  const wallet = String(walletValue || '').trim().toLowerCase();
+  if (!wallet) return;
+  const ancestorRows = await DB.query(configName, connection).exec(
+    `SELECT DISTINCT LOWER(inviter) AS wallet
+     FROM ${prefix}wallet_relation
+     WHERE LOWER(wallet)=?
+       AND inviter IS NOT NULL
+       AND inviter<>''`,
+    [wallet]
+  );
+  const wallets = [...new Set([
+    wallet,
+    ...(ancestorRows || []).map(row => String(row.wallet || '').trim().toLowerCase()).filter(Boolean)
+  ])];
+  if (!wallets.length) return;
+  const placeholders = wallets.map(() => '?').join(',');
+  await DB.query(configName, connection).exec(
+    `UPDATE ${prefix}wallet
+     SET level_isupdate=1,
+         updated_at=?
+     WHERE LOWER(wallet) IN (${placeholders})`,
+    [now, ...wallets]
+  );
 }
 
 function scaledDecimal(value, decimals) {
@@ -315,4 +361,89 @@ async function dividendNow(req, res) {
   } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.dividendNow')); }
 }
 
-export default { list, dividendList, dividendNow };
+async function terminate(req, res) {
+  try {
+    await ensureInvestmentOrderTable();
+    const id = Helper.parseInt(req.body?.id, 0);
+    const orderId = String(req.body?.order_id || '').trim();
+    if (!id && !orderId) return res.send(ApiResult.error(400, '投资订单ID不能为空'));
+
+    const tokenItem = await AssetToken.getTokenItem(USDT);
+    if (!tokenItem) return res.send(ApiResult.error(404, 'USDT资产类型不存在'));
+    const tokenDecimals = Helper.parseInt(tokenItem?.decimals, AssetToken.DEFAULT_DECIMALS);
+    let response = null;
+
+    await DB.transaction(async (configName, connection) => {
+      const prefix = Database.prefix(configName) || '';
+      const whereSql = id ? 'id=?' : 'order_id=?';
+      const whereValue = id || orderId;
+      const orderRows = await DB.query(configName, connection).exec(
+        `SELECT * FROM ${prefix}investment_order WHERE ${whereSql} LIMIT 1 FOR UPDATE`,
+        [whereValue]
+      );
+      const order = orderRows?.[0];
+      if (!order) throw Object.assign(new Error('投资订单不存在'), { statusCode: 404 });
+      const currentStatus = Number(order.status || 0);
+      if (![STATUS_WAITING, STATUS_ACTIVE].includes(currentStatus)) {
+        throw Object.assign(new Error('只有等待期或分红中的订单可以终止'), { statusCode: 400 });
+      }
+
+      const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+      const investmentRefundRaw = refundableUsdtPrincipal(order);
+      const assetRefundRaw = scaleRaw(investmentRefundRaw, INVESTMENT_DECIMALS, tokenDecimals);
+      if (assetRefundRaw > 0n) {
+        await DB.query(configName, connection).exec(
+          `INSERT IGNORE INTO ${prefix}wallet_assets (wallet, token, balance, frozen_balance, updated_at) VALUES (?, ?, 0, 0, ?)`,
+          [order.wallet, USDT, now]
+        );
+        const assetRows = await DB.query(configName, connection).exec(
+          `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=LOWER(?) AND token=? LIMIT 1 FOR UPDATE`,
+          [order.wallet, USDT]
+        );
+        const asset = assetRows?.[0];
+        if (!asset) throw new Error('钱包USDT资产不存在');
+        const before = BigInt(String(asset.balance || '0'));
+        const after = before + assetRefundRaw;
+        await DB.query(configName, connection).table('wallet_assets').where('id', asset.id).update({
+          balance: after.toString(),
+          updated_at: now
+        });
+        await DB.query(configName, connection).table('wallet_assets_logs').insert({
+          biz_id: order.order_id,
+          wallet: order.wallet,
+          token: USDT,
+          balance: assetRefundRaw.toString(),
+          before_balance: before.toString(),
+          after_balance: after.toString(),
+          scene: 'investment_principal_return',
+          reason: `Admin terminated investment order ${order.order_id}`,
+          type: 'in',
+          created_at: now,
+          updated_at: now
+        });
+      }
+
+      await DB.query(configName, connection).table('investment_order').where('id', order.id).update({
+        status: STATUS_TERMINATED,
+        next_dividend_at: null,
+        updated_at: now
+      });
+
+      await markInvestmentStatsDirty(configName, connection, prefix, order.wallet, now);
+
+      response = {
+        order_id: order.order_id,
+        refunded_token: USDT,
+        refunded_amount: formatAssetAmount(investmentRefundRaw.toString(), INVESTMENT_DECIMALS)
+      };
+    });
+
+    return res.send(ApiResult.success(response, '投资订单已终止，USDT本金已退回'));
+  } catch (error) {
+    if (error?.statusCode) return res.send(ApiResult.error(error.statusCode, error.message));
+    if (/资产|订单|终止/u.test(error.message || '')) return res.send(ApiResult.error(400, error.message));
+    return res.send(ApiResult.exception(error, 'InvestmentOrderService.terminate'));
+  }
+}
+
+export default { list, dividendList, dividendNow, terminate };

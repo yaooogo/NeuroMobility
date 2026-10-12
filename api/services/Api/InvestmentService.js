@@ -361,7 +361,7 @@ async function list(req, res) {
     await activateMatureOrders(wallet);
     const rows = await DB.query().table('investment_order').whereRaw('LOWER(wallet)=?', [wallet]).orderBy('id', 'desc').take(100).get();
     const items = (rows || []).map(publicOrder);
-    const principal = (rows || []).filter(row => Number(row.status || 0) !== 2)
+    const principal = (rows || []).filter(row => [0, 1].includes(Number(row.status || 0)))
       .reduce((sum, row) => sum + BigInt(String(row.amount || 0)), 0n);
     const distributed = (rows || []).reduce((sum, row) => sum + BigInt(String(row.distributed_amount || 0)), 0n);
     const now = new Date();

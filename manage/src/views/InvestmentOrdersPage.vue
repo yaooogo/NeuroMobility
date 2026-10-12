@@ -2,11 +2,15 @@
 import { onMounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
+import { getUser } from '../lib/auth.js';
 import { post } from '../lib/http.js';
 import { formatFixedAmount } from '../lib/amount.js';
+import { can } from '../lib/permissions.js';
 
+const user = getUser();
 const query = reactive({ wallet: '', search_team: 0, order_id: '', status: '', page: 1, page_size: 20 });
 const list = ref([]); const total = ref(0); const lastPage = ref(1); const loading = ref(false); const error = ref('');
+const success = ref('');
 const emptySummary = {
   order_count: 0,
   amount: '0',
@@ -24,7 +28,8 @@ const dividendQuery = reactive({ order_id: '', page: 1, page_size: 20 });
 const dividendTotal = ref(0); const dividendLastPage = ref(1); const dividendLoading = ref(false); const dividendError = ref('');
 const manualDividendEnabled = ['dev', 'localdev'].includes(import.meta.env.MODE);
 const distributingOrderId = ref('');
-const statusLabels = { 0: '等待期', 1: '分红中', 2: '已出局' };
+const terminatingOrderId = ref('');
+const statusLabels = { 0: '等待期', 1: '分红中', 2: '已出局', 3: '已终止' };
 async function load() {
   loading.value = true; error.value = '';
   try {
@@ -35,7 +40,7 @@ async function load() {
   finally { loading.value = false; }
 }
 function search() { query.page = 1; load(); }
-function reset() { Object.assign(query, { wallet: '', search_team: 0, order_id: '', status: '', page: 1 }); load(); }
+function reset() { Object.assign(query, { wallet: '', search_team: 0, order_id: '', status: '', page: 1 }); success.value = ''; load(); }
 function changePage(page) { query.page = page; load(); }
 async function loadDividends() {
   dividendLoading.value = true; dividendError.value = '';
@@ -74,6 +79,23 @@ async function dividendNow(row) {
     distributingOrderId.value = '';
   }
 }
+async function terminateOrder(row) {
+  if (terminatingOrderId.value || ![0, 1].includes(Number(row.status))) return;
+  const refundText = paymentText(row).split(' + ').filter((part) => part.includes('USDT')).join(' + ') || '0 USDT';
+  if (!window.confirm(`确认终止投资订单 ${row.order_id} 吗？\n\n系统只退回本金中的 USDT 部分：${refundText}\nRUSD 部分不会退回。`)) return;
+  terminatingOrderId.value = row.order_id;
+  error.value = '';
+  success.value = '';
+  try {
+    const data = await post('/investment-order/terminate', { id: row.id });
+    success.value = `投资订单已终止，已退回 ${formatFixedAmount(data.refunded_amount || '0')} USDT`;
+    await load();
+  } catch (err) {
+    error.value = err.message || '终止投资订单失败';
+  } finally {
+    terminatingOrderId.value = '';
+  }
+}
 function paymentText(row) {
   const parts = Array.isArray(row?.payment_parts) && row.payment_parts.length
     ? row.payment_parts
@@ -95,10 +117,11 @@ onMounted(load);
         <input v-model.trim="query.wallet" class="text-input text-input--inline" :placeholder="query.search_team ? '上级钱包地址（搜索全部团队）' : '钱包地址'" @keyup.enter="search" />
         <label class="inline-check"><input v-model.number="query.search_team" type="checkbox" :true-value="1" :false-value="0" /><span>搜索团队</span></label>
         <input v-model.trim="query.order_id" class="text-input text-input--inline" placeholder="订单号" @keyup.enter="search" />
-        <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="0">等待期</option><option value="1">分红中</option><option value="2">已出局</option></select>
+        <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="0">等待期</option><option value="1">分红中</option><option value="2">已出局</option><option value="3">已终止</option></select>
         <button class="primary-button" @click="search">查询</button><button class="ghost-button" @click="reset">重置</button>
       </div></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
+      <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="investment-summary">
         <div class="investment-summary-card"><span>筛选订单数</span><strong>{{ summary.order_count }}</strong></div>
         <div class="investment-summary-card"><span>投资总额</span><strong>{{ formatFixedAmount(summary.amount) }} U</strong><em>{{ formatFixedAmount(summary.usdt_amount) }} USDT + {{ formatFixedAmount(summary.rusdt_amount) }} RUSD</em></div>
@@ -109,7 +132,7 @@ onMounted(load);
         <thead><tr><th>ID</th><th>订单号</th><th>钱包</th><th>参与方式</th><th>投资金额</th><th>已分红</th><th>总分红</th><th>等待期</th><th>分红周期</th><th>整车</th><th>状态</th><th>等待截止</th><th>下次分红</th><th>投资时间</th><th>操作</th></tr></thead>
         <tbody>
           <tr v-if="loading || !list.length"><td colspan="15" class="empty-cell">{{ loading ? '正在加载...' : '暂无投资订单' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ tokenLabel(row) }}</td><td>{{ paymentText(row) }}</td><td>{{ formatFixedAmount(row.distributed_amount) }} USDT</td><td>{{ formatFixedAmount(row.total_dividend) }} USDT</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && row.status !== 2" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button></td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ tokenLabel(row) }}</td><td>{{ paymentText(row) }}</td><td>{{ formatFixedAmount(row.distributed_amount) }} USDT</td><td>{{ formatFixedAmount(row.total_dividend) }} USDT</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && [0, 1].includes(Number(row.status))" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button><button v-if="can(user, 'investment-orders-terminate') && [0, 1].includes(Number(row.status))" class="table-button table-button--danger" type="button" :disabled="Boolean(terminatingOrderId)" @click="terminateOrder(row)">{{ terminatingOrderId === row.order_id ? '终止中...' : '终止' }}</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />

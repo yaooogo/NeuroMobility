@@ -140,6 +140,7 @@ router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCan
 router.route('/investment-order/list').post(InvestmentOrderService.list)
 router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
 router.route('/investment-order/dividend-now').post(InvestmentOrderService.dividendNow)
+router.route('/investment-order/terminate').post(InvestmentOrderService.terminate)
 router.route('/team-investment-config/list').post(TeamInvestmentConfigService.list)
 router.route('/team-investment-config/save').post(TeamInvestmentConfigService.save)
 router.route('/team-investment-config/delete').post(TeamInvestmentConfigService.remove)
