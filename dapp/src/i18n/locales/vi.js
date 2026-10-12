@@ -34,6 +34,7 @@ export default {
   "3509a9f8": "ngày",
   "3545ebe1": "Mô tả",
   "35e9863a": "Tổng đầu tư của đội nhóm",
+  "37d471a4": "Đã chấm dứt",
   "3863c722": "Cá nhân",
   "3bef176e": "Đối tác chiến lược",
   "3de55fb7": "Rút tiền",

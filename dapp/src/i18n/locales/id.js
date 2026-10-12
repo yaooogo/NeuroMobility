@@ -34,6 +34,7 @@ export default {
   "3509a9f8": "h",
   "3545ebe1": "Deskripsi",
   "35e9863a": "Total Investasi Tim",
+  "37d471a4": "Dihentikan",
   "3863c722": "Saya",
   "3bef176e": "Mitra Strategis",
   "3de55fb7": "Tarik",

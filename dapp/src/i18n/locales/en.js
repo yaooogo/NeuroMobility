@@ -34,6 +34,7 @@ export default {
   "3509a9f8": "d",
   "3545ebe1": "Description",
   "35e9863a": "Total Team Investment",
+  "37d471a4": "Terminated",
   "3863c722": "Profile",
   "3bef176e": "Strategic Partner",
   "3de55fb7": "Withdraw",

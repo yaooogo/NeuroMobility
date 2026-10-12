@@ -76,6 +76,14 @@ function orderAmountText(order) {
     .join(" + ");
 }
 
+function waitingText(order) {
+  return Number(order?.status || 0) === 3 ? lang("已终止") : (order?.waiting_until || "-");
+}
+
+function createdAtText(order) {
+  return Number(order?.status || 0) === 3 ? lang("已终止") : (order?.created_at || "-");
+}
+
 function addDecimalAmounts(...values) {
   const normalized = values.map((value) => {
     const text = String(value ?? "0").trim();
@@ -252,8 +260,8 @@ onBeforeUnmount(() => {
         <dl>
           <div><dt>{{ lang("订单编号") }}</dt><dd>{{ order.order_id }}</dd></div>
           <div><dt>{{ lang("参与金额") }}</dt><dd>{{ orderAmountText(order) }}</dd></div>
-          <div><dt>{{ lang("参与时间") }}</dt><dd>{{ order.created_at }}</dd></div>
-          <div><dt>{{ lang("等待期") }}</dt><dd>{{ order.waiting_until }}</dd></div>
+          <div><dt>{{ lang("参与时间") }}</dt><dd>{{ createdAtText(order) }}</dd></div>
+          <div><dt>{{ lang("等待期") }}</dt><dd>{{ waitingText(order) }}</dd></div>
           <div><dt>{{ lang("分红周期") }}</dt><dd>{{ order.cycle_days }}{{ lang("天") }}</dd></div>
         </dl>
         <div class="order-actions">

@@ -23,6 +23,12 @@ function orderPaymentParts(value) {
 function orderAmountText(value) {
   return orderPaymentParts(value).map((part) => `${amount(part.amount)} ${part.token || 'USDT'}`).join(' + ');
 }
+function waitingText(value) {
+  return Number(value?.status || 0) === 3 ? lang('已终止') : (value?.waiting_until || '-');
+}
+function createdAtText(value) {
+  return Number(value?.status || 0) === 3 ? lang('已终止') : (value?.created_at || '-');
+}
 onMounted(async () => {
   try { order.value = await requestInvestmentOrder(String(route.query.order_id || '')); }
   catch (err) { error.value = err.message || lang('加载投资订单失败'); }
@@ -37,8 +43,8 @@ onMounted(async () => {
     <dl v-else-if="order" class="order-info">
       <div><dt>{{ lang('订单编号') }}</dt><dd>{{ order.order_id }}</dd></div>
       <div><dt>{{ lang('参与金额') }}</dt><dd>{{ orderAmountText(order) }}</dd></div>
-      <div><dt>{{ lang('参与时间') }}</dt><dd>{{ order.created_at }}</dd></div>
-      <div><dt>{{ lang('等待期') }}</dt><dd>{{ order.waiting_until }}</dd></div>
+      <div><dt>{{ lang('参与时间') }}</dt><dd>{{ createdAtText(order) }}</dd></div>
+      <div><dt>{{ lang('等待期') }}</dt><dd>{{ waitingText(order) }}</dd></div>
       <div><dt>{{ lang('分红周期') }}</dt><dd>{{ order.cycle_days }}{{ lang('天') }}</dd></div>
     </dl>
     <button class="home-button" type="button" @click="router.push({ name: 'home' })">{{ lang('返回首页') }}</button>
