@@ -1,4 +1,5 @@
 export default {
+  "余额": "Saldo",
   "029cf596": "Tentang kami",
   "02b727de": "Isi Ulang",
   "0562164c": "Kembali ke",

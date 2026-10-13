@@ -27,6 +27,7 @@ function filters(req) {
   return {
     wallet: String(req.body?.wallet || '').trim(), searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
     token: String(req.body?.token || '').trim().toUpperCase(),
+    reason: Helper.safeString(req.body?.reason, 255).trim(),
     type: String(req.body?.type || '').trim(), scene: String(req.body?.scene || '').trim(),
     start: String(req.body?.start_date || '').trim(), end: String(req.body?.end_date || '').trim()
   };
@@ -48,6 +49,7 @@ function applyFilters(query, value, prefix) {
   if (value.token) query.where('token', value.token);
   if (value.type) query.where('type', value.type);
   if (value.scene) query.where('scene', value.scene);
+  if (value.reason) query.where('reason', 'like', `%${value.reason}%`);
   if (/^\d{4}-\d{2}-\d{2}$/u.test(value.start)) query.where('created_at', '>=', `${value.start} 00:00:00`);
   if (/^\d{4}-\d{2}-\d{2}$/u.test(value.end)) query.where('created_at', '<=', `${value.end} 23:59:59`);
   return query;

@@ -5,7 +5,7 @@ import ManagePagination from '../components/ManagePagination.vue';
 import { post } from '../lib/http.js';
 
 const props = defineProps({ frozen: { type: Boolean, default: false } });
-const query = reactive({ wallet: '', search_team: 0, token: '', type: '', scene: '', start_date: '', end_date: '', page: 1, page_size: 10 });
+const query = reactive({ wallet: '', search_team: 0, token: '', type: '', scene: '', reason: '', start_date: '', end_date: '', page: 1, page_size: 10 });
 const list = ref([]); const tokenOptions = ref([]); const sceneOptions = ref([]); const total = ref(0); const lastPage = ref(1);
 const summary = ref([]);
 const loading = ref(false); const error = ref('');
@@ -26,7 +26,7 @@ function search() {
   if (query.start_date && query.end_date && query.start_date > query.end_date) { error.value = '结束日期不能早于开始日期'; return; }
   query.page = 1; load();
 }
-function reset() { Object.assign(query, { wallet: '', search_team: 0, token: '', type: '', scene: '', start_date: '', end_date: '', page: 1 }); load(); }
+function reset() { Object.assign(query, { wallet: '', search_team: 0, token: '', type: '', scene: '', reason: '', start_date: '', end_date: '', page: 1 }); load(); }
 function changePage(page) { query.page = page; load(); }
 function typeLabel(type) { return type === 'in' ? '转入' : type === 'out' ? '转出' : '-'; }
 watch(() => props.frozen, () => { query.page = 1; load(); });
@@ -42,6 +42,7 @@ onMounted(load);
         <select v-model="query.token" class="text-input text-input--inline"><option value="">全部资产</option><option v-for="item in tokenOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
         <select v-model="query.type" class="text-input text-input--inline"><option value="">全部类型</option><option value="in">转入</option><option value="out">转出</option></select>
         <select v-model="query.scene" class="text-input text-input--inline"><option value="">全部业务类型</option><option v-for="item in sceneOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
+        <input v-model.trim="query.reason" class="text-input text-input--inline" placeholder="原因关键词（如 mix）" aria-label="原因关键词" maxlength="255" @keyup.enter="search" />
         <input v-model="query.start_date" class="text-input text-input--inline" type="date" aria-label="开始日期" />
         <input v-model="query.end_date" class="text-input text-input--inline" type="date" aria-label="结束日期" />
         <button class="primary-button" @click="search">查询</button><button class="ghost-button" @click="reset">重置</button>

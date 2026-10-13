@@ -306,7 +306,7 @@ async function create(req, res) {
         await DB.query(configName, connection).table('wallet_assets_logs').insert({
           biz_id: newOrderId, wallet, token: debit.token, balance: debit.debitRaw.toString(),
           before_balance: before.toString(), after_balance: after.toString(), scene: 'investment',
-          reason: `Investment order ${newOrderId}`, type: 'out', created_at: now, updated_at: now
+          reason: `${investmentToken === MIXED_TOKEN ? 'mix ' : ''}Investment order ${newOrderId}`, type: 'out', created_at: now, updated_at: now
         });
       }
       const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, levelRules);

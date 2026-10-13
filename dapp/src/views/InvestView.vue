@@ -1,13 +1,13 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
-import { requestCreateInvestment, requestInvestmentConfig } from "../lib/api.js";
+import { requestAssetOverview, requestCreateInvestment, requestInvestmentConfig } from "../lib/api.js";
 const requireAsset = (assetPath) => globalThis.require(assetPath);
 
 defineOptions({ inheritAttrs: false });
-const props = defineProps({ connected: { type: Boolean, default: false }, authenticated: { type: Boolean, default: false } });
+const props = defineProps({ connected: { type: Boolean, default: false }, authenticated: { type: Boolean, default: false }, address: { type: String, default: "" } });
 const emit = defineEmits(["connect", "action", "notice"]);
 const { lang } = useLocale();
 const router = useRouter();
@@ -31,6 +31,26 @@ const selectedToken = ref("USDT");
 const customAmount = ref("");
 const submitting = ref(false);
 const configLoaded = ref(false);
+const assetBalances = ref({ USDT: null, RUSD: null });
+let balanceRequestId = 0;
+watch(() => [props.connected, props.authenticated, props.address], async () => {
+  const requestId = ++balanceRequestId;
+  assetBalances.value = { USDT: null, RUSD: null };
+  if (!props.connected || !props.authenticated || !localStorage.getItem("token")) return;
+  try {
+    const overview = await requestAssetOverview();
+    if (requestId !== balanceRequestId) return;
+    const assets = Array.isArray(overview?.assets) ? overview.assets : [overview];
+    const balances = { USDT: "0", RUSD: "0" };
+    for (const asset of assets) {
+      const symbol = String(asset?.token?.symbol || asset?.token?.value || "").toUpperCase();
+      if (Object.prototype.hasOwnProperty.call(balances, symbol)) balances[symbol] = asset.balance || "0";
+    }
+    assetBalances.value = balances;
+  } catch {
+    // Unavailable balances remain distinct from a confirmed zero balance.
+  }
+}, { immediate: true });
 const participationModes = computed(() => [
   { value: "USDT", label: "USDT" },
   ...(configLoaded.value && Number(investmentConfig.value.rusdt_investment_enabled ?? 0) === 1 ? [{ value: "RUSD", label: "RUSD" }] : []),
@@ -213,7 +233,14 @@ onMounted(async () => {
         </button>
         </div>
       </template>
-      <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ currentMinimumAmount.toLocaleString() }} U)</small></h2>
+      <div class="amount-heading">
+        <h2>{{ lang("参与金额") }} <small>({{ lang("最低") }} {{ currentMinimumAmount.toLocaleString() }} U)</small></h2>
+        <div class="asset-balances" aria-live="polite">
+          <span class="balance-label">{{ lang("余额") }}</span>
+          <span>USDT：</span><span>{{ assetBalances.USDT === null ? "--" : amount(assetBalances.USDT) }}</span>
+          <span>RUSD：</span><span>{{ assetBalances.RUSD === null ? "--" : amount(assetBalances.RUSD) }}</span>
+        </div>
+      </div>
       <div class="amount-grid">
         <button
           v-for="option in amountOptions"
@@ -274,6 +301,11 @@ onMounted(async () => {
 .amount-section { margin-top: 20px; }
 .amount-section h2, .instructions > h2 { margin: 0 0 17px; padding-left: 15px; border-left: 5px solid #a243ee; font-size: 15px; line-height: 23px; }
 .amount-section h2 small { color: #99949d; font-size: 11px; font-weight: 400; }
+.amount-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 17px; }
+.amount-heading h2 { margin-bottom: 0; }
+.asset-balances { display:flex; color: #99949d; font-size: 11px; line-height: 18px; white-space: nowrap; }
+.asset-balances .balance-label { grid-row: span 2; }
+.asset-balances > span:nth-child(1), .asset-balances > span:nth-child(2) , .asset-balances > span:nth-child(4) { margin-left: 8px; }
 .participation-tabs { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 8px; margin: 0 0 43px; padding:8px; border-radius: 8px; background: #F1EFFD; }
 .participation-tabs button { min-width: 0; height: 32px; overflow: hidden; border: 0; border-radius: 6px; background: #d9c4f3; color: #918d96; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .participation-tabs button.active { background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; }

@@ -1,4 +1,5 @@
 export default {
+  "余额": "Số dư",
   "029cf596": "Giới thiệu về chúng tôi",
   "02b727de": "Nạp",
   "0562164c": "Quay lại trang của tôi",

@@ -1,4 +1,5 @@
 export default {
+  "余额": "Balance",
   "029cf596": "About us",
   "02b727de": "Recharge",
   "0562164c": "Back to my",
