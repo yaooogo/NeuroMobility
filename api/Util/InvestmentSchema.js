@@ -35,6 +35,7 @@ export async function ensureInvestmentOrderTable() {
       guaranteed_percent DECIMAL(10,4) NOT NULL DEFAULT 0,
       guaranteed_eligible TINYINT NOT NULL DEFAULT 0,
       whole_vehicle TINYINT NOT NULL DEFAULT 0,
+      is_gift TINYINT NOT NULL DEFAULT 0 COMMENT '是否赠送：后台投资未扣用户资产',
       status TINYINT NOT NULL DEFAULT 0,
       waiting_until DATETIME DEFAULT NULL,
       next_dividend_at DATETIME DEFAULT NULL,
@@ -50,6 +51,7 @@ export async function ensureInvestmentOrderTable() {
   const orderTable = `${prefix}investment_order`;
   const columns = await getColumnNames(orderTable);
   const additions = [
+    { name: 'is_gift', sql: `ALTER TABLE ${orderTable} ADD COLUMN is_gift TINYINT NOT NULL DEFAULT 0 COMMENT '是否赠送：后台投资未扣用户资产' AFTER whole_vehicle` },
     { name: 'mixed_usdt_percent', sql: `ALTER TABLE ${orderTable} ADD COLUMN mixed_usdt_percent DECIMAL(10,4) NOT NULL DEFAULT 100 AFTER amount` },
     { name: 'dividend_multiple', sql: `ALTER TABLE ${orderTable} ADD COLUMN dividend_multiple DECIMAL(20,8) NOT NULL DEFAULT 1 AFTER max_percent` },
     { name: 'dividend_min_percent', sql: `ALTER TABLE ${orderTable} ADD COLUMN dividend_min_percent DECIMAL(10,4) NOT NULL DEFAULT 0 AFTER dividend_multiple` },

@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS `n_investment_order` (
   `guaranteed_percent` decimal(10,4) NOT NULL DEFAULT 0 COMMENT '下单时的整车保底分红百分比配置快照',
   `guaranteed_eligible` tinyint NOT NULL DEFAULT 0 COMMENT '是否已满足单次或累计整车挡位保底条件：0 否，1 是',
   `whole_vehicle` tinyint NOT NULL DEFAULT 0 COMMENT '是否整车参与：0 否，1 是',
+  `is_gift` tinyint NOT NULL DEFAULT 0 COMMENT '是否赠送：0 普通投资，1 后台投资未扣用户资产',
   `status` tinyint NOT NULL DEFAULT 0 COMMENT '订单状态：0 等待期，1 分红中，2 已出局',
   `waiting_until` datetime DEFAULT NULL COMMENT '等待期结束时间',
   `next_dividend_at` datetime DEFAULT NULL COMMENT '下次计划分红时间',

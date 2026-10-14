@@ -136,6 +136,7 @@ function publicOrder(row) {
     guaranteed_percent: Number(row.guaranteed_percent || 0),
     guaranteed_eligible: Number(row.guaranteed_eligible || 0),
     whole_vehicle: Number(row.whole_vehicle || 0),
+    is_gift: Number(row.is_gift || 0),
     status: Number(row.status || 0),
     waiting_until: row.waiting_until || '',
     next_dividend_at: row.next_dividend_at || '',
@@ -347,6 +348,7 @@ export async function createInvestment(req, res, options = {}) {
         guaranteed_percent: investmentConfig.guaranteed_dividend_percent,
         guaranteed_eligible: investsAfter >= wholeRaw ? 1 : 0,
         whole_vehicle: amountRaw >= wholeRaw ? 1 : 0,
+        is_gift: options.deductWallet === false ? 1 : 0,
         status: Number(investmentConfig.waiting_period_days) > 0 ? 0 : 1,
         waiting_until: waitingUntil, next_dividend_at: nextDividendAt, created_at: now, updated_at: now
       }, result);
