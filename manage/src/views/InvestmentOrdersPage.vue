@@ -11,6 +11,37 @@ const user = getUser();
 const query = reactive({ wallet: '', search_team: 0, order_id: '', status: '', page: 1, page_size: 20 });
 const list = ref([]); const total = ref(0); const lastPage = ref(1); const loading = ref(false); const error = ref('');
 const success = ref('');
+const investmentVisible = ref(false);
+const investmentSubmitting = ref(false);
+const investmentError = ref('');
+const investmentForm = reactive({ wallet: '', token: 'USDT', amount: '', deduct_wallet: true });
+function openInvestment() {
+  Object.assign(investmentForm, { wallet: '', token: 'USDT', amount: '', deduct_wallet: true });
+  investmentError.value = '';
+  investmentVisible.value = true;
+}
+function closeInvestment() {
+  if (!investmentSubmitting.value) investmentVisible.value = false;
+}
+async function submitInvestment() {
+  if (investmentSubmitting.value) return;
+  investmentError.value = '';
+  if (!/^0x[a-fA-F0-9]{40}$/u.test(investmentForm.wallet)) {
+    investmentError.value = '请输入有效的用户地址'; return;
+  }
+  if (!/^\d+(?:\.\d{1,18})?$/u.test(investmentForm.amount) || !/[1-9]/u.test(investmentForm.amount)) {
+    investmentError.value = '请输入大于零的支付数额，最多支持18位小数'; return;
+  }
+  investmentSubmitting.value = true;
+  try {
+    const data = await post('/investment-order/create', { ...investmentForm });
+    investmentVisible.value = false;
+    success.value = `用户投资成功，订单号：${data.order_id}`;
+    query.page = 1;
+    await load();
+  } catch (err) { investmentError.value = err.message || '用户投资失败'; }
+  finally { investmentSubmitting.value = false; }
+}
 const emptySummary = {
   order_count: 0,
   amount: '0',
@@ -119,7 +150,7 @@ onMounted(load);
         <input v-model.trim="query.order_id" class="text-input text-input--inline" placeholder="订单号" @keyup.enter="search" />
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="0">等待期</option><option value="1">分红中</option><option value="2">已出局</option><option value="3">已终止</option></select>
         <button class="primary-button" @click="search">查询</button><button class="ghost-button" @click="reset">重置</button>
-      </div></div>
+      </div><div v-if="can(user, 'investment-orders-create')" class="toolbar-actions investment-toolbar-actions"><button class="primary-button" type="button" @click="openInvestment">用户投资</button></div></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="investment-summary">
@@ -137,6 +168,20 @@ onMounted(load);
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
     </section>
+    <div v-if="investmentVisible" class="modal-mask" @click="closeInvestment">
+      <section class="modal-card user-investment-modal" role="dialog" aria-modal="true" aria-labelledby="user-investment-title" @click.stop>
+        <div class="modal-head"><h2 id="user-investment-title">用户投资</h2><button class="ghost-button" type="button" :disabled="investmentSubmitting" @click="closeInvestment">关闭</button></div>
+        <form class="user-investment-form" @submit.prevent="submitInvestment">
+          <div v-if="investmentError" class="alert-box alert-box--error">{{ investmentError }}</div>
+          <label>用户地址<input v-model.trim="investmentForm.wallet" class="text-input" placeholder="请输入用户地址（0x...）" :disabled="investmentSubmitting" required /></label>
+          <label>支付方式<select v-model="investmentForm.token" class="text-input" :disabled="investmentSubmitting"><option value="USDT">USDT</option><option value="RUSD">RUSD</option><option value="USDT+RUSD">USDT+RUSD</option></select></label>
+          <label>支付数额<input v-model.trim="investmentForm.amount" class="text-input" inputmode="decimal" placeholder="请输入支付数额" :disabled="investmentSubmitting" required /></label>
+          <p v-if="investmentForm.token === 'USDT+RUSD'" class="muted-text">USDT 与 RUSD 按后台配置比例支付，支付数额为两种资产合计。</p>
+          <label class="inline-check"><input v-model="investmentForm.deduct_wallet" type="checkbox" :disabled="investmentSubmitting" /><span>扣除钱包资金</span></label>
+          <div class="user-investment-actions"><button class="ghost-button" type="button" :disabled="investmentSubmitting" @click="closeInvestment">取消</button><button class="primary-button" type="submit" :disabled="investmentSubmitting">{{ investmentSubmitting ? '提交中...' : '确认投资' }}</button></div>
+        </form>
+      </section>
+    </div>
     <div v-if="dividendVisible" class="modal-mask" @click="closeDividends">
       <section class="modal-card investment-dividend-modal" @click.stop>
         <div class="modal-head"><h2>分红记录</h2><button class="ghost-button" type="button" :disabled="dividendLoading" @click="closeDividends">关闭</button></div>
@@ -156,6 +201,11 @@ onMounted(load);
 </template>
 
 <style scoped>
+.investment-toolbar-actions { margin-left: auto; }
+.user-investment-modal { width: min(520px, calc(100vw - 32px)); }
+.user-investment-form { display: grid; gap: 18px; }
+.user-investment-form > label:not(.inline-check) { display: grid; gap: 8px; }
+.user-investment-actions { display: flex; justify-content: flex-end; gap: 12px; }
 .investment-dividend-modal { width: min(1080px, calc(100vw - 32px)); }
 .inline-check { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(142, 168, 241, 0.16); border-radius: 14px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .inline-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }

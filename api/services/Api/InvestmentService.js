@@ -247,16 +247,22 @@ async function distributeExpansionRewards(configName, connection, prefix, wallet
 }
 
 async function create(req, res) {
+  return createInvestment(req, res);
+}
+
+export async function createInvestment(req, res, options = {}) {
   try {
     await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
-    const wallet = address(req.auth?.address());
+    const wallet = address(options.wallet ?? req.auth?.address());
     if (!isWallet(wallet)) return res.send(ApiResult.error(400, 'Invalid wallet address'));
     const [investmentConfig, levelRules] = await Promise.all([
       CacheData.getInvestmentConfig(),
       CacheData.getWalletLevelRules()
     ]);
     const amountText = String(req.body?.amount ?? '').trim();
-    const investmentToken = normalizeInvestmentToken(req.body?.token);
+    const requestedToken = String(req.body?.token || TOKEN).trim().toUpperCase();
+    if (!INVESTMENT_TOKENS.includes(requestedToken)) return res.send(ApiResult.error(400, 'Invalid payment method'));
+    const investmentToken = normalizeInvestmentToken(requestedToken);
     if (!isInvestmentTokenEnabled(investmentToken, investmentConfig)) {
       return res.send(ApiResult.error(400, `${investmentToken} investment is currently unavailable`));
     }
@@ -266,6 +272,8 @@ async function create(req, res) {
     const amountRaw = BigInt(parseAssetAmount(amountText, INVESTMENT_DECIMALS));
     const minimumRaw = BigInt(parseAssetAmount(String(minimumInvestmentAmount), INVESTMENT_DECIMALS));
     const wholeRaw = BigInt(parseAssetAmount(String(investmentConfig.whole_vehicle_tier), INVESTMENT_DECIMALS));
+    if (amountRaw <= 0n) return res.send(ApiResult.error(400, 'Payment amount must be greater than zero'));
+    if (minimumRaw <= 0n) return res.send(ApiResult.error(400, 'Invalid minimum investment configuration'));
     if (amountRaw < minimumRaw) return res.send(ApiResult.error(400, `The minimum investment amount is ${minimumInvestmentAmount} U`));
     if (amountRaw !== wholeRaw && amountRaw % minimumRaw !== 0n) {
       return res.send(ApiResult.error(400, 'The investment amount must be an integer multiple of the minimum investment amount'));
@@ -293,7 +301,7 @@ async function create(req, res) {
 
     await DB.transaction(async (configName, connection) => {
       const prefix = Database.prefix(configName) || '';
-      for (const debit of debitItems) {
+      for (const debit of options.deductWallet === false ? [] : debitItems) {
         const assetRows = await DB.query(configName, connection).exec(
           `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`, [wallet, debit.token]
         );

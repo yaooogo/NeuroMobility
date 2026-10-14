@@ -17,6 +17,7 @@ import VehicleService from '../services/Manage/VehicleService.js';
 import TransferOrderService from '../services/Manage/TransferOrderService.js';
 import OverviewService from '../services/Manage/OverviewService.js';
 import InvestmentOrderService from '../services/Manage/InvestmentOrderService.js';
+import { createInvestment } from '../services/Api/InvestmentService.js';
 import PositionSalaryService from '../services/Manage/PositionSalaryService.js';
 import TeamInvestmentConfigService from '../services/Manage/TeamInvestmentConfigService.js';
 
@@ -137,6 +138,12 @@ router.route('/deposit-order/list').post(TransferOrderService.depositList)
 router.route('/withdrawal-order/list').post(TransferOrderService.withdrawalList)
 router.route('/withdrawal-order/export').post(TransferOrderService.withdrawalExport)
 router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCancel)
+router.route('/investment-order/create').post((req, res) => {
+  if (typeof req.body?.deduct_wallet !== 'boolean') return res.send(ApiResult.error(400, '请选择是否扣除钱包资金'));
+  const wallet = String(req.body?.wallet || '').trim().toLowerCase();
+  if (!/^0x[a-f0-9]{40}$/u.test(wallet)) return res.send(ApiResult.error(400, '请输入有效的用户地址'));
+  return createInvestment(req, res, { wallet, deductWallet: req.body.deduct_wallet });
+})
 router.route('/investment-order/list').post(InvestmentOrderService.list)
 router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
 router.route('/investment-order/dividend-now').post(InvestmentOrderService.dividendNow)
