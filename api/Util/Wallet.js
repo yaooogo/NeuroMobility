@@ -21,30 +21,44 @@ async function dropWalletRelationRebuildTempTables(config, connection) {
 }
 
 async function createWalletRelationRebuildTempTables(config, connection) {
+    // Match existing wallet columns instead of inheriting the database default.
+    const prefix = DB.query(config, connection).getPrefix();
+    const columns = await DB.query(config, connection).exec(
+        `SELECT CHARACTER_SET_NAME AS charset_name, COLLATION_NAME AS collation_name
+         FROM information_schema.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+        [`${prefix}wallet`, "wallet"]
+    );
+    const { charset_name: charset, collation_name: collation } = columns?.[0] || {};
+    if (!/^[a-zA-Z0-9_]+$/.test(charset || "") || !/^[a-zA-Z0-9_]+$/.test(collation || "")) {
+        throw new Error("Unable to determine wallet column character set and collation");
+    }
+    const tableOptions = `ENGINE=InnoDB DEFAULT CHARACTER SET ${charset} COLLATE ${collation}`;
+
     await DB.query(config, connection).exec(
         `CREATE TEMPORARY TABLE tmp_wallet_relation_rebuild_subtree (
             wallet VARCHAR(128) NOT NULL PRIMARY KEY,
             distance_from_root INT UNSIGNED NOT NULL,
             KEY idx_tmp_wallet_relation_rebuild_subtree_distance (distance_from_root)
-        ) ENGINE=InnoDB`
+        ) ${tableOptions}`
     );
 
     await DB.query(config, connection).exec(
         `CREATE TEMPORARY TABLE tmp_wallet_relation_rebuild_subtree_parent (
             wallet VARCHAR(128) NOT NULL PRIMARY KEY
-        ) ENGINE=InnoDB`
+        ) ${tableOptions}`
     );
 
     await DB.query(config, connection).exec(
         `CREATE TEMPORARY TABLE tmp_wallet_relation_rebuild_frontier (
             wallet VARCHAR(128) NOT NULL PRIMARY KEY
-        ) ENGINE=InnoDB`
+        ) ${tableOptions}`
     );
 
     await DB.query(config, connection).exec(
         `CREATE TEMPORARY TABLE tmp_wallet_relation_rebuild_next_frontier (
             wallet VARCHAR(128) NOT NULL PRIMARY KEY
-        ) ENGINE=InnoDB`
+        ) ${tableOptions}`
     );
 
     await DB.query(config, connection).exec(
@@ -52,13 +66,13 @@ async function createWalletRelationRebuildTempTables(config, connection) {
             inviter VARCHAR(128) NOT NULL PRIMARY KEY,
             distance_from_root INT UNSIGNED NOT NULL,
             KEY idx_tmp_wallet_relation_rebuild_parent_chain_distance (distance_from_root)
-        ) ENGINE=InnoDB`
+        ) ${tableOptions}`
     );
 
     await DB.query(config, connection).exec(
         `CREATE TEMPORARY TABLE tmp_wallet_relation_rebuild_affected (
             wallet VARCHAR(128) NOT NULL PRIMARY KEY
-        ) ENGINE=InnoDB`
+        ) ${tableOptions}`
     );
 }
 
