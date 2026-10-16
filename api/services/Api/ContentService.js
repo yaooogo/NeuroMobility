@@ -5,6 +5,7 @@ import { ensureAboutContentTable, ensureAnnouncementTable, ensureHelpArticleTabl
 import CacheData from '../../Util/CacheData.js';
 import Database from '../../Util/Database.js';
 import { toDappApiError } from '../../Util/DappApiMessage.js';
+import Helper from '../../Util/Helper.js';
 
 function normalizeVehicleTags(value) {
   try {
@@ -53,7 +54,7 @@ async function announcements(req, res) {
       .orderBy('sort', 'asc')
       .orderBy('id', 'desc');
     if (Number(requestValue(req, 'popup_only')) === 1) {
-      query.where('popup_enabled', 1).whereRaw('popup_start_at<=NOW() AND popup_end_at>NOW()');
+      query.where('popup_enabled', 1).whereRaw(`popup_start_at<='${Helper.dateFormat()}' AND popup_end_at>'${Helper.dateFormat()}'`);
     }
     const rows = await query.get();
 
