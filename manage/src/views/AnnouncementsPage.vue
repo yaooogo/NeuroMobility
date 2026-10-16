@@ -30,7 +30,7 @@ const modal = ref(false);
 const error = ref('');
 const modalError = ref('');
 const success = ref('');
-const form = reactive({ id: 0, language: 'zh', title: '', cover: '', content: '', sort: 0, status: 1 });
+const form = reactive({ id: 0, language: 'zh', title: '', cover: '', content: '', sort: 0, status: 1, popup_enabled: 0, popup_start_at: '', popup_end_at: '' });
 
 async function load() {
   loading.value = true; error.value = '';
@@ -46,18 +46,19 @@ async function load() {
 function search() { query.page = 1; load(); }
 function changePage(page) { query.page = page; load(); }
 function openCreate() {
-  Object.assign(form, { id: 0, language: 'zh', title: '', cover: '', content: '', sort: 0, status: 1 });
+  Object.assign(form, { id: 0, language: 'zh', title: '', cover: '', content: '', sort: 0, status: 1, popup_enabled: 0, popup_start_at: '', popup_end_at: '' });
   modalError.value = ''; modal.value = true;
 }
 function edit(row) {
-  Object.assign(form, { id: row.id, language: row.language || 'zh', title: row.title, cover: row.cover, content: row.content, sort: row.sort, status: row.status });
+  Object.assign(form, { id: row.id, language: row.language || 'zh', title: row.title, cover: row.cover, content: row.content, sort: row.sort, status: row.status, popup_enabled: Number(row.popup_enabled || 0), popup_start_at: String(row.popup_start_at || '').replace(' ', 'T'), popup_end_at: String(row.popup_end_at || '').replace(' ', 'T') });
   modalError.value = ''; modal.value = true;
 }
 
 async function save() {
   if (saving.value) return;
+  if (form.popup_enabled && (!form.popup_start_at || !form.popup_end_at || form.popup_start_at >= form.popup_end_at)) { modalError.value = '请设置有效的弹窗开始、结束时间，结束时间必须晚于开始时间'; return; }
   if (!form.title.trim()) { modalError.value = '请输入公告标题'; return; }
-  if (!form.content.trim()) { modalError.value = '请输入公告内容'; return; }
+  // if (!form.content.trim()) { modalError.value = '请输入公告内容'; return; }
   saving.value = true; modalError.value = '';
   try {
     await post(form.id ? '/announcement/update' : '/announcement/create', form);
@@ -114,10 +115,10 @@ onMounted(load);
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="table-wrap"><table class="data-table" style="min-width: 1230px">
-        <thead><tr><th>ID</th><th>语言</th><th>封面</th><th>标题</th><th>内容</th><th>排序</th><th>状态</th><th>创建时间</th><th>更新时间</th><th v-if="can(user, 'announcements-update') || can(user, 'announcements-delete')">操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>语言</th><th>封面</th><th>标题</th><th>内容</th><th>排序</th><th>状态</th><th>弹窗</th><th>弹窗开始时间</th><th>弹窗结束时间</th><th>创建时间</th><th>更新时间</th><th v-if="can(user, 'announcements-update') || can(user, 'announcements-delete')">操作</th></tr></thead>
         <tbody>
-          <tr v-if="loading || !list.length"><td :colspan="can(user, 'announcements-update') || can(user, 'announcements-delete') ? 10 : 9" class="empty-cell">{{ loading ? '正在加载...' : '暂无公告' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td>{{ languageLabels[row.language] || row.language }}</td><td><img v-if="row.cover" class="announcement-cover" :src="row.cover" alt="公告封面" /><span v-else>-</span></td><td><strong>{{ row.title }}</strong></td><td class="announcement-content">{{ row.content }}</td><td>{{ row.sort }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td>{{ row.created_at || '-' }}</td><td>{{ row.updated_at || '-' }}</td><td v-if="can(user, 'announcements-update') || can(user, 'announcements-delete')" class="actions-cell"><button v-if="can(user, 'announcements-update')" class="table-button" @click="edit(row)">编辑</button><button v-if="can(user, 'announcements-delete')" class="table-button table-button--danger" :disabled="deleting === row.id" @click="remove(row)">删除</button></td></tr>
+          <tr v-if="loading || !list.length"><td :colspan="can(user, 'announcements-update') || can(user, 'announcements-delete') ? 13 : 12" class="empty-cell">{{ loading ? '正在加载...' : '暂无公告' }}</td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td>{{ languageLabels[row.language] || row.language }}</td><td><img v-if="row.cover" class="announcement-cover" :src="row.cover" alt="公告封面" /><span v-else>-</span></td><td><strong>{{ row.title }}</strong></td><td class="announcement-content">{{ row.content }}</td><td>{{ row.sort }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td>{{ row.popup_enabled ? "是" : "否" }}</td><td>{{ row.popup_start_at || "-" }}</td><td>{{ row.popup_end_at || "-" }}</td><td>{{ row.created_at || '-' }}</td><td>{{ row.updated_at || '-' }}</td><td v-if="can(user, 'announcements-update') || can(user, 'announcements-delete')" class="actions-cell"><button v-if="can(user, 'announcements-update')" class="table-button" @click="edit(row)">编辑</button><button v-if="can(user, 'announcements-delete')" class="table-button table-button--danger" :disabled="deleting === row.id" @click="remove(row)">删除</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
@@ -135,6 +136,13 @@ onMounted(load);
         <label class="field-block"><span>排序（越小越靠前）</span><input v-model.number="form.sort" class="text-input" type="number" min="0" step="1" /></label>
         <label class="field-block"><span>状态</span><select v-model.number="form.status" class="text-input"><option :value="1">启用</option><option :value="0">禁用</option></select></label>
       </div>
+      <div class="announcement-form-grid">
+        <label class="field-block"><span>是否弹窗</span><select v-model.number="form.popup_enabled" class="text-input"><option :value="0">否</option><option :value="1">是</option></select></label>
+      </div>
+      <div class="announcement-form-grid">
+        <label class="field-block"><span>弹窗开始时间</span><input v-model="form.popup_start_at" class="text-input" type="datetime-local" step="1" /></label>
+        <label class="field-block"><span>弹窗结束时间</span><input v-model="form.popup_end_at" class="text-input" type="datetime-local" step="1" /></label>
+      </div>
       <label class="field-block"><span>内容</span><textarea v-model.trim="form.content" class="text-input announcement-textarea" rows="12" placeholder="请输入公告内容"></textarea></label>
       <button class="submit-button" :disabled="saving || coverUploading" @click="save">{{ saving ? '保存中...' : (coverUploading ? '封面上传中...' : '保存公告') }}</button>
     </section></div>
@@ -146,7 +154,6 @@ onMounted(load);
 .announcement-cover { width: 96px; height: 60px; border-radius: 8px; object-fit: cover; }
 .announcement-cover-preview { display: grid; place-items: center; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; }
 .announcement-cover-preview img { max-width: 100%; max-height: 240px; border-radius: 10px; object-fit: contain; }
-.announcement-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.announcement-form-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
 .announcement-textarea { min-height: 240px; resize: vertical; }
-@media (max-width: 640px) { .announcement-form-grid { grid-template-columns: 1fr; } }
 </style>

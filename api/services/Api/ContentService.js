@@ -46,13 +46,16 @@ async function announcements(req, res) {
   try {
     await ensureAnnouncementTable();
     const language = normalizeContentLanguage(requestValue(req, 'language'));
-    const rows = await DB.query()
+    const query = DB.query()
       .table('announcement')
       .where('status', 1)
       .where('language', language)
       .orderBy('sort', 'asc')
-      .orderBy('id', 'desc')
-      .get();
+      .orderBy('id', 'desc');
+    if (Number(requestValue(req, 'popup_only')) === 1) {
+      query.where('popup_enabled', 1).whereRaw('popup_start_at<=NOW() AND popup_end_at>NOW()');
+    }
+    const rows = await query.get();
 
     return res.send(ApiResult.success({
       items: (rows || []).map(normalizeAnnouncement)

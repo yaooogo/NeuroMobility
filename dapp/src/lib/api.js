@@ -78,8 +78,8 @@ export async function requestTeam() {
   return unwrap(await http.post("/team", {}));
 }
 
-export async function requestAnnouncements(language = "zh") {
-  const data = unwrap(await http.post("/content/announcements", { language }));
+export async function requestAnnouncements(language = "zh", popupOnly = false) {
+  const data = unwrap(await http.post("/content/announcements", { language, popup_only: popupOnly ? 1 : 0 }));
   return Array.isArray(data?.items) ? data.items : [];
 }
 

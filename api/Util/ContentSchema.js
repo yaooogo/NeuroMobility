@@ -42,6 +42,9 @@ export async function ensureAnnouncementTable() {
   const names = await getColumnNames(tableName);
   const additions = [
     { name: 'language', sql: `ALTER TABLE ${tableName} ADD COLUMN \`language\` VARCHAR(10) NOT NULL DEFAULT 'zh' AFTER id` },
+    { name: 'popup_enabled', sql: `ALTER TABLE ${tableName} ADD COLUMN popup_enabled TINYINT(1) NOT NULL DEFAULT 0` },
+    { name: 'popup_start_at', sql: `ALTER TABLE ${tableName} ADD COLUMN popup_start_at DATETIME DEFAULT NULL` },
+    { name: 'popup_end_at', sql: `ALTER TABLE ${tableName} ADD COLUMN popup_end_at DATETIME DEFAULT NULL` },
     { name: 'cover', sql: `ALTER TABLE ${tableName} ADD COLUMN cover VARCHAR(500) DEFAULT NULL AFTER title` },
     { name: 'sort', sql: `ALTER TABLE ${tableName} ADD COLUMN sort INT NOT NULL DEFAULT 0 AFTER content` },
     { name: 'status', sql: `ALTER TABLE ${tableName} ADD COLUMN status TINYINT(1) NOT NULL DEFAULT 1 AFTER sort` }

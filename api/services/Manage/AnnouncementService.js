@@ -1,3 +1,4 @@
+import { validateAnnouncementPopup } from '../../Util/AnnouncementPopup.js';
 import ApiResult from '../../Util/ApiResult.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
@@ -14,6 +15,9 @@ function normalize(row) {
     title: row.title || '',
     cover: row.cover || '',
     content: row.content || '',
+    popup_enabled: Number(row.popup_enabled || 0),
+    popup_start_at: row.popup_start_at || '',
+    popup_end_at: row.popup_end_at || '',
     sort: Number(row.sort || 0),
     status: Number(row.status ?? 1),
     created_at: row.created_at || '',
@@ -60,11 +64,14 @@ async function create(req, res) {
     const content = String(req.body?.content || '').trim();
     const sort = Math.max(0, Helper.parseInt(req.body?.sort, 0));
     const status = Number(req.body?.status) === 1 ? 1 : 0;
+    let popup;
+    try { popup = validateAnnouncementPopup(req.body); }
+    catch (error) { return res.send(ApiResult.error(400, error.message)); }
     if (!title) return res.send(ApiResult.error(400, '公告标题不能为空'));
-    if (!content) return res.send(ApiResult.error(400, '公告内容不能为空'));
+    // if (!content) return res.send(ApiResult.error(400, '公告内容不能为空'));
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
     const result = { insertId: 0 };
-    await DB.query().table(TABLE_NAME).insert({ language, title, cover: cover || null, content, sort, status, created_at: now, updated_at: now }, result);
+    await DB.query().table(TABLE_NAME).insert({ ...popup, language, title, cover: cover || null, content, sort, status, created_at: now, updated_at: now }, result);
     return res.send(ApiResult.success(normalize(
       await DB.query().table(TABLE_NAME).where('id', result.insertId).first()
     ), '公告创建成功'));
@@ -82,13 +89,17 @@ async function update(req, res) {
     const content = String(req.body?.content || '').trim();
     const sort = Math.max(0, Helper.parseInt(req.body?.sort, 0));
     const status = Number(req.body?.status) === 1 ? 1 : 0;
+    let popup;
+    try { popup = validateAnnouncementPopup(req.body); }
+    catch (error) { return res.send(ApiResult.error(400, error.message)); }
     const language = normalizeContentLanguage(req.body?.language);
     if (!id) return res.send(ApiResult.error(400, '公告ID不能为空'));
     if (!title) return res.send(ApiResult.error(400, '公告标题不能为空'));
-    if (!content) return res.send(ApiResult.error(400, '公告内容不能为空'));
+    // if (!content) return res.send(ApiResult.error(400, '公告内容不能为空'));
     const row = await DB.query().table(TABLE_NAME).where('id', id).first();
     if (!row) return res.send(ApiResult.error(404, '公告不存在'));
     await DB.query().table(TABLE_NAME).where('id', id).update({
+      ...popup,
       title,
       language,
       cover: cover || null,

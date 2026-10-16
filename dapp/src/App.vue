@@ -4,6 +4,7 @@ import { useAppKitAccount } from "@reown/appkit/vue";
 import { disconnect as disconnectWagmi, getAccount, signMessage as signMessageWagmi, watchAccount } from "@wagmi/core";
 import { getAddress } from "viem";
 import { useRoute, useRouter } from "vue-router";
+import AnnouncementPopup from "./components/AnnouncementPopup.vue";
 import AppBottomNav from "./components/AppBottomNav.vue";
 import AppIcon from "./components/AppIcon.vue";
 import InviteShareDialog from "./components/InviteShareDialog.vue";
@@ -431,5 +432,6 @@ onBeforeUnmount(() => {
         <button class="secondary" type="button" @click="inviteVisible = false; pendingShareInvite = false; disconnectWallet(false)">{{ lang('取消') }}</button>
       </section>
     </div>
+    <AnnouncementPopup />
   </main>
 </template>
