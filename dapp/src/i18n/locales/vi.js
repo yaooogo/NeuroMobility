@@ -1,4 +1,5 @@
 export default {
+  "0ab6d7f1": "Thưởng cổ tức giới thiệu trực tiếp",
   "余额": "Số dư",
   "029cf596": "Giới thiệu về chúng tôi",
   "02b727de": "Nạp",

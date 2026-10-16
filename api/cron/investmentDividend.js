@@ -245,6 +245,19 @@ async function creditAssetBalance(configName, connection, prefix, walletValue, t
   });
 }
 
+async function distributeDirectDividendReward(configName, connection, prefix, order, payout, tokenDecimals, percent, dividendId, now) {
+  const reward = scaleRaw(calculateGrossRewardAmount(payout, scaledDecimal(percent, PERCENT_DECIMALS)), INVESTMENT_DECIMALS, tokenDecimals);
+  if (reward <= 0n) return;
+  const rows = await DB.query(configName, connection).exec(
+    `SELECT inviter FROM ${prefix}wallet_relation WHERE LOWER(wallet)=? AND lv=1 LIMIT 1`,
+    [String(order.wallet || '').toLowerCase()]
+  );
+  const inviter = String(rows?.[0]?.inviter || '').trim().toLowerCase();
+  if (!inviter || inviter === String(order.wallet || '').toLowerCase()) return;
+  await creditAssetBalance(configName, connection, prefix, inviter, DIVIDEND_TOKEN, reward, now,
+    'investment_direct_dividend_reward', `Direct dividend reward ${order.order_id}`, `${dividendId}R`);
+}
+
 async function distributeDifferentialRewards(configName, connection, prefix, order, payout, tokenDecimals, levelRules, dividendId, now) {
   if (payout <= 0n) return;
   const snapshotMonth = String(now || '').slice(0, 7);
@@ -342,6 +355,11 @@ async function processOrder(candidate, tokenDecimals, levelRules, investmentConf
           dividendId
         );
       }
+
+      await distributeDirectDividendReward(
+        configName, connection, prefix, order, payout, tokenDecimals,
+        investmentConfig.direct_dividend_reward_percent, dividendId, now
+      );
 
       await distributeDifferentialRewards(
         configName,

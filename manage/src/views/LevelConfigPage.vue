@@ -29,7 +29,8 @@ const investment = ref({
   guaranteed_dividend_percent: '3',
   rusdt_investment_enabled: '1',
   mixed_investment_enabled: '1',
-  mixed_usdt_percent: '70'
+  mixed_usdt_percent: '70',
+  direct_dividend_reward_percent: '0'
 });
 const other = ref({ platform_operated_vehicles: '1258', virtual_users: '56320' });
 const investmentLoaded = ref(false);
@@ -84,7 +85,8 @@ async function loadInvestment() {
       guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
       rusdt_investment_enabled: String(data.rusdt_investment_enabled ?? 1),
       mixed_investment_enabled: String(data.mixed_investment_enabled ?? 1),
-      mixed_usdt_percent: String(data.mixed_usdt_percent)
+      mixed_usdt_percent: String(data.mixed_usdt_percent),
+      direct_dividend_reward_percent: String(data.direct_dividend_reward_percent ?? 0)
     };
     investmentLoaded.value = true;
   } catch (err) { error.value = err.message || '加载投资配置失败'; }
@@ -153,6 +155,8 @@ function removeGrowthReward(index) {
 }
 
 function validateInvestment() {
+  const directPercent = Number(investment.value.direct_dividend_reward_percent);
+  if (!Number.isFinite(directPercent) || directPercent < 0 || directPercent > 100) return '直属上级分红激励必须在 0% 到 100% 之间';
   if (Object.values(investment.value).some(value => String(value).trim() === '')) return '投资配置项不能为空';
   const wholeVehicleTier = Number(investment.value.whole_vehicle_tier);
   const usdtMinimumInvestmentAmount = Number(investment.value.usdt_minimum_investment_amount);
@@ -239,7 +243,8 @@ async function save() {
         guaranteed_dividend_percent: String(data.guaranteed_dividend_percent),
         rusdt_investment_enabled: String(data.rusdt_investment_enabled ?? 1),
         mixed_investment_enabled: String(data.mixed_investment_enabled ?? 1),
-        mixed_usdt_percent: String(data.mixed_usdt_percent)
+        mixed_usdt_percent: String(data.mixed_usdt_percent),
+        direct_dividend_reward_percent: String(data.direct_dividend_reward_percent ?? 0)
       };
       success.value = '投资配置已保存';
     } else {
@@ -330,6 +335,7 @@ onMounted(loadLevels);
           <label class="investment-field"><span>RUSD 参与</span><div><label v-if="canUpdate" class="config-check"><input v-model="investment.rusdt_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 RUSD</span></label><strong v-else>{{ investment.rusdt_investment_enabled === '1' ? '允许' : '禁止' }}</strong></div></label>
           <label class="investment-field"><span>混合支付</span><div><label v-if="canUpdate" class="config-check"><input v-model="investment.mixed_investment_enabled" type="checkbox" true-value="1" false-value="0" /><span>允许用户选择 USDT+RUSD</span></label><strong v-else>{{ investment.mixed_investment_enabled === '1' ? '允许' : '禁止' }}</strong></div></label>
           <label class="investment-field"><span>混合投资比例</span><div><div class="range-inputs"><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_usdt_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.mixed_usdt_percent }}</strong><em>% USDT</em></div><span class="range-separator">+</span><div class="input-with-unit"><strong>{{ Math.max(0, 100 - Number(investment.mixed_usdt_percent || 0)) }}</strong><em>% RUSD</em></div></div><small class="investment-tip">用户选择 USDT+RUSD 参与时，按该比例拆分扣款。</small></div></label>
+          <label class="investment-field"><span>直属上级分红激励</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.direct_dividend_reward_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.direct_dividend_reward_percent }}</strong><em>%</em></div><small class="investment-tip">直属上级奖励 = 当前钱包本次实际分红 × 激励比例。例：6000 × 5% × 10% = 30 USDT。设为 0 时不发放。</small></div></label>
         </div>
       </template>
       <template v-else>

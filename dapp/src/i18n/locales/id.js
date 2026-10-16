@@ -1,4 +1,5 @@
 export default {
+  "0ab6d7f1": "Bonus Dividen Referal Langsung",
   "余额": "Saldo",
   "029cf596": "Tentang kami",
   "02b727de": "Isi Ulang",

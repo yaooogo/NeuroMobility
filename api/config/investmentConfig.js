@@ -20,7 +20,8 @@ const DEFAULT_INVESTMENT_CONFIG = Object.freeze({
   guaranteed_dividend_percent: 3,
   rusdt_investment_enabled: 1,
   mixed_investment_enabled: 1,
-  mixed_usdt_percent: 70
+  mixed_usdt_percent: 70,
+  direct_dividend_reward_percent: 0
 });
 
 export function getDefaultInvestmentConfig() {
@@ -83,7 +84,8 @@ export function normalizeInvestmentConfig(config) {
     guaranteed_dividend_percent: finitePercent(guaranteedDividendPercent, defaults.guaranteed_dividend_percent),
     rusdt_investment_enabled: Number.isFinite(rusdtInvestmentEnabled) ? (rusdtInvestmentEnabled === 1 ? 1 : 0) : defaults.rusdt_investment_enabled,
     mixed_investment_enabled: Number.isFinite(mixedInvestmentEnabled) ? (mixedInvestmentEnabled === 1 ? 1 : 0) : defaults.mixed_investment_enabled,
-    mixed_usdt_percent: finitePercent(mixedUsdtPercent, defaults.mixed_usdt_percent)
+    mixed_usdt_percent: finitePercent(mixedUsdtPercent, defaults.mixed_usdt_percent),
+    direct_dividend_reward_percent: finitePercent(config?.direct_dividend_reward_percent ?? 0, 0)
   };
   normalized.minimum_investment_amount = normalized.usdt_minimum_investment_amount;
   normalized.exit_multiple = normalized.usdt_exit_multiple;
@@ -101,6 +103,10 @@ export function normalizeInvestmentConfig(config) {
 }
 
 export function validateInvestmentConfig(config) {
+  const directPercent = Number(config?.direct_dividend_reward_percent ?? 0);
+  if (!Number.isFinite(directPercent) || directPercent < 0 || directPercent > 100 || String(config?.direct_dividend_reward_percent ?? 0).trim() === '') {
+    throw new Error('Direct dividend reward percent must be between 0 and 100');
+  }
   const hasEmptyValue = [
     config?.whole_vehicle_tier ?? config?.wholeVehicleTier,
     config?.usdt_minimum_investment_amount ?? config?.usdtMinimumInvestmentAmount ?? config?.minimum_investment_amount ?? config?.minimumInvestmentAmount,
@@ -186,6 +192,7 @@ export function validateInvestmentConfig(config) {
     guaranteed_dividend_percent: guaranteedDividendPercent,
     rusdt_investment_enabled: rusdtInvestmentEnabled === 1 ? 1 : 0,
     mixed_investment_enabled: mixedInvestmentEnabled === 1 ? 1 : 0,
-    mixed_usdt_percent: mixedUsdtPercent
+    mixed_usdt_percent: mixedUsdtPercent,
+    direct_dividend_reward_percent: directPercent
   };
 }

@@ -22,6 +22,7 @@ const DIVIDEND_RECORD_SCENES = [
   'investment_dividend',
   'investment_expansion_reward',
   'investment_differential_income',
+  'investment_direct_dividend_reward',
   'position_salary'
 ];
 

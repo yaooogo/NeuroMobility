@@ -1,4 +1,5 @@
 export default {
+  "0ab6d7f1": "Direct Referral Dividend Reward",
   "余额": "Balance",
   "029cf596": "About us",
   "02b727de": "Recharge",

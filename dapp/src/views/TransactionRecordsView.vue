@@ -36,6 +36,7 @@ function sceneText(scene, type) {
     investment_dividend: "投资分红",
     investment_principal_return: "本金返还",
     investment_expansion_reward: "投资拓展奖励",
+    investment_direct_dividend_reward: "直推分红奖励",
     investment_differential_income: "投资级差收益",
     position_salary: "岗位工资",
     admin_change: "后台调整"

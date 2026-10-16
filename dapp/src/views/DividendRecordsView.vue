@@ -37,6 +37,7 @@ function recordType(scene) {
   const labels = {
     investment_dividend: "投资分红",
     investment_expansion_reward: "投资拓展奖励",
+    investment_direct_dividend_reward: "直推分红奖励",
     investment_differential_income: "投资级差收益",
     position_salary: "岗位工资"
   };
