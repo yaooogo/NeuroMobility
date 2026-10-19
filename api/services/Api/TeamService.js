@@ -3,6 +3,7 @@ import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import { investmentPerformanceSql } from '../../Util/InvestmentPerformance.js';
 import { toDappApiError } from '../../Util/DappApiMessage.js';
 
 const INVESTMENT_DECIMALS = 18;
@@ -21,7 +22,7 @@ async function overview(req, res) {
       DB.query().exec(
         `SELECT COUNT(DISTINCT LOWER(team.wallet)) AS team_count,
                 COALESCE(SUM((
-                  SELECT COALESCE(SUM(investment.amount), 0)
+                  SELECT COALESCE(SUM(${investmentPerformanceSql()}), 0)
                   FROM ${prefix}investment_order AS investment
                   WHERE LOWER(investment.wallet)=LOWER(team.wallet)
                     AND investment.status IN (0, 1)
@@ -37,7 +38,7 @@ async function overview(req, res) {
         `SELECT member.wallet,
                 member.created_at,
                 COALESCE((
-                  SELECT SUM(investment.amount)
+                  SELECT SUM(${investmentPerformanceSql()})
                   FROM ${prefix}investment_order AS investment
                   WHERE LOWER(investment.wallet)=LOWER(member.wallet)
                     AND investment.status IN (0, 1)

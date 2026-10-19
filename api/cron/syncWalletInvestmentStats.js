@@ -2,6 +2,7 @@ import Database from '../Util/Database.js';
 import DB from '../Util/database/DB.js';
 import Helper from '../Util/Helper.js';
 import { ensureInvestmentOrderTable } from '../Util/InvestmentSchema.js';
+import { investmentPerformanceSql } from '../Util/InvestmentPerformance.js';
 
 const BATCH_SIZE = 200;
 
@@ -37,7 +38,7 @@ async function syncWallet(candidate) {
     const communityRows = await DB.query(configName, connection).exec(
       `SELECT COUNT(*) AS community_users,
               COALESCE(SUM((
-                SELECT COALESCE(SUM(investment.amount), 0)
+                SELECT COALESCE(SUM(${investmentPerformanceSql()}), 0)
                 FROM ${prefix}investment_order AS investment
                 WHERE BINARY LOWER(investment.wallet)=BINARY team.wallet
                   AND investment.status IN (0, 1)
