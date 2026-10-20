@@ -3,6 +3,7 @@ import AssetToken from '../../Util/AssetToken.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { applyTeamWalletExclusion } from '../../Util/TeamWalletExclusion.js';
 import Wallet from '../../Util/Wallet.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensurePositionSalaryTable } from '../../Util/PositionSalarySchema.js';
@@ -461,6 +462,7 @@ function walletListQuery(req) {
     const status = req.body?.status;
     const level = req.body?.level;
     const query = DB.query().table(WALLET_TABLE);
+    applyTeamWalletExclusion(query, searchTeam, req.body?.exclude_wallets);
     if (wallet) query.where('wallet', 'like', `%${wallet}%`);
     if (inviter) {
       if (searchTeam) {

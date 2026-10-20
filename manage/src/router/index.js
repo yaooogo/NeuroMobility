@@ -18,6 +18,7 @@ import AboutPage from '../views/AboutPage.vue';
 import VehiclesPage from '../views/VehiclesPage.vue';
 import DepositOrdersPage from '../views/DepositOrdersPage.vue';
 import WithdrawalOrdersPage from '../views/WithdrawalOrdersPage.vue';
+import WithdrawalLimitRulesPage from '../views/WithdrawalLimitRulesPage.vue';
 import OverviewPage from '../views/OverviewPage.vue';
 import WalletNetworkPage from '../views/WalletNetworkPage.vue';
 import InvestmentOrdersPage from '../views/InvestmentOrdersPage.vue';
@@ -39,6 +40,8 @@ const router = createRouter({
     { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
     { path: '/deposit-orders', component: DepositOrdersPage, meta: { permission: 'deposit-orders' } },
     { path: '/withdrawal-orders', component: WithdrawalOrdersPage, meta: { permission: 'withdrawal-orders' } },
+    { path: '/team-withdraw-limit-rules', component: WithdrawalLimitRulesPage, props: { kind: 'team' }, meta: { permission: 'team-withdraw-limit-rules' } },
+    { path: '/level-withdraw-limit-rules', component: WithdrawalLimitRulesPage, props: { kind: 'level' }, meta: { permission: 'level-withdraw-limit-rules' } },
     { path: '/investment-orders', component: InvestmentOrdersPage, meta: { permission: 'investment-orders' } },
     { path: '/team-investment-config', component: TeamInvestmentConfigPage, meta: { permission: 'team-investment-config' } },
     { path: '/position-salary-records', component: PositionSalaryRecordsPage, meta: { permission: 'position-salary-records' } },

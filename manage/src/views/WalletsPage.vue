@@ -2,13 +2,14 @@
 import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
+import TeamWalletExclusion from '../components/TeamWalletExclusion.vue';
 import { getUser } from '../lib/auth.js';
 import { post, postForm, postBlob } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
 import { formatFixedAmount } from '../lib/amount.js';
 
 const user = getUser();
-const query = reactive({ wallet: '', inviter: '', search_team: 0, status: '', level: '', page: 1, page_size: 20 });
+const query = reactive({ wallet: '', inviter: '', search_team: 0, exclude_wallets: '', status: '', level: '', page: 1, page_size: 20 });
 const list = ref([]);
 const total = ref(0);
 const lastPage = ref(1);
@@ -319,6 +320,7 @@ onUnmounted(clearImportTaskTimer);
         <input v-model.trim="query.wallet" class="text-input text-input--inline" placeholder="搜索钱包地址" @keyup.enter="search" />
         <input v-model.trim="query.inviter" class="text-input text-input--inline" placeholder="搜索邀请人地址" @keyup.enter="search" />
         <label class="inline-check"><input v-model.number="query.search_team" type="checkbox" :true-value="1" :false-value="0" /><span>搜索团队</span></label>
+        <TeamWalletExclusion v-if="query.search_team" v-model="query.exclude_wallets" />
         <select v-model="query.level" class="text-input text-input--inline"><option value="">全部等级</option><option v-for="level in [0, 1, 2, 3]" :key="level" :value="level">等级 {{ level }}</option></select>
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="1">启用</option><option value="0">禁用</option></select>
         <button class="primary-button" @click="search">查询</button>

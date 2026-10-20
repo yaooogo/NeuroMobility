@@ -1,6 +1,7 @@
 import { ethers } from 'ethers';
 import BigNumber from 'bignumber.js';
 import ApiResult from '../../Util/ApiResult.js';
+import { ensureWithdrawalLimitTables, enforceWithdrawalLimit } from '../../Util/WithdrawalLimitRules.js';
 import AssetToken from '../../Util/AssetToken.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
@@ -177,6 +178,7 @@ async function overview(req, res) {
 async function prepareWithdrawal(req, res) {
   try {
     await ensureAssetTransferTables();
+    await ensureWithdrawalLimitTables();
     const symbol = String(req.body?.token || TOKEN).trim().toUpperCase() || TOKEN;
     const { wallet, token, decimals } = await getContext(req, symbol);
     await releaseExpiredWithdrawals(wallet);
@@ -196,7 +198,6 @@ async function prepareWithdrawal(req, res) {
     const rawFee = calculateFee(rawDebit, token, decimals);
     if (rawFee >= rawDebit) return res.send(ApiResult.error(400, 'The withdrawal amount must be greater than the service fee'));
     const rawClaim = rawDebit - rawFee;
-    const dailyLimit = BigInt(parseAssetAmount(String(token.withdraw_daily_limit || '0'), decimals));
     const orderId = createOrderId();
     const deadline = Math.floor(Date.now() / 1000) + WITHDRAW_TTL_SECONDS;
     const withdrawalContract = String(ChainConfig.getContract('TokenWithdrawal').address || '').trim();
@@ -219,10 +220,12 @@ async function prepareWithdrawal(req, res) {
     await DB.transaction(async (config, connection) => {
       // Serialize withdrawal reservations for this asset across all wallets.
       const tokenRows = await DB.query(config, connection).exec(
-        `SELECT withdraw_global_daily_limit FROM ${prefix}assets_tokens WHERE id=? LIMIT 1 FOR UPDATE`, [token.id]
+        `SELECT withdraw_daily_limit, withdraw_global_daily_limit FROM ${prefix}assets_tokens WHERE id=? LIMIT 1 FOR UPDATE`, [token.id]
       );
       if (!tokenRows?.length) throw new Error('Withdrawal asset configuration is unavailable');
       const globalDailyLimit = BigInt(parseAssetAmount(String(tokenRows[0].withdraw_global_daily_limit || '0'), decimals));
+      await enforceWithdrawalLimit({ wallet, walletInfo, token: symbol, decimals, rawDebit,
+        defaultLimit: tokenRows[0].withdraw_daily_limit, config, connection });
       const asset = await ensureWalletAsset(wallet, symbol, config, connection);
       const rows = await DB.query(config, connection).exec(
         `SELECT * FROM ${prefix}wallet_assets WHERE id=? LIMIT 1 FOR UPDATE`, [asset.id]
@@ -233,21 +236,11 @@ async function prepareWithdrawal(req, res) {
       if (before < rawDebit) throw new Error('Insufficient available balance');
 
       if (globalDailyLimit > 0n) {
-        const today = Helper.dateFormat('YYYY-mm-dd', new Date());
         const totals = await DB.query(config, connection).exec(
-          `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE token=? AND status IN (0,1,2) AND created_at>=?`,
-          [symbol, `${today} 00:00:00`]
+          `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE token=? AND status IN (0,1,2) AND created_at>=CURDATE() AND created_at<DATE_ADD(CURDATE(), INTERVAL 1 DAY)`,
+          [symbol]
         );
         if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > globalDailyLimit) throw new Error('Global daily withdrawal limit exceeded');
-      }
-
-      if (dailyLimit > 0n) {
-        const today = Helper.dateFormat('YYYY-mm-dd', new Date());
-        const totals = await DB.query(config, connection).exec(
-          `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE LOWER(wallet)=? AND token=? AND status IN (0,1,2) AND created_at>=?`,
-          [wallet, symbol, `${today} 00:00:00`]
-        );
-        if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > dailyLimit) throw new Error('Daily withdrawal limit exceeded');
       }
 
       await DB.query(config, connection).table('wallet_assets').where('id', locked.id).update({

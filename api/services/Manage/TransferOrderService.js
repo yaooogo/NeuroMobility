@@ -7,6 +7,7 @@ import ChainConfig from '../../Util/ChainConfig.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { applyTeamWalletExclusion } from '../../Util/TeamWalletExclusion.js';
 
 const DEPOSIT_TABLE = 'receiver_order';
 const WITHDRAWAL_TABLE = 'withdrawal_order';
@@ -17,6 +18,7 @@ function filters(req) {
   return {
     wallet: String(req.body?.wallet || '').trim(),
     searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
+    excludedWallets: req.body?.exclude_wallets,
     token: String(req.body?.token || '').trim().toUpperCase(),
     orderId: String(req.body?.order_id || '').trim(),
     txHash: String(req.body?.tx_hash || '').trim(),
@@ -27,6 +29,7 @@ function filters(req) {
 }
 
 function applyFilters(query, values, includeStatus = false) {
+  applyTeamWalletExclusion(query, values.searchTeam, values.excludedWallets);
   if (values.wallet && values.searchTeam) {
     const prefix = Database.prefix('default') || '';
     query.whereRaw(`LOWER(wallet) IN (SELECT LOWER(wallet) FROM ${prefix}wallet_relation WHERE inviter LIKE ?)`, [`%${values.wallet}%`]);

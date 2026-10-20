@@ -9,6 +9,8 @@ export function firstPage(user) {
   if (can(user, 'wallet-assets')) return '/wallet-assets';
   if (can(user, 'deposit-orders')) return '/deposit-orders';
   if (can(user, 'withdrawal-orders')) return '/withdrawal-orders';
+  if (can(user, 'team-withdraw-limit-rules')) return '/team-withdraw-limit-rules';
+  if (can(user, 'level-withdraw-limit-rules')) return '/level-withdraw-limit-rules';
   if (can(user, 'investment-orders')) return '/investment-orders';
   if (can(user, 'team-investment-config')) return '/team-investment-config';
   if (can(user, 'position-salary-records')) return '/position-salary-records';

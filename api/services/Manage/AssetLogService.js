@@ -3,6 +3,7 @@ import AssetToken from '../../Util/AssetToken.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { applyTeamWalletExclusion } from '../../Util/TeamWalletExclusion.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 
 const ASSET_TABLE = 'wallet_assets_logs';
@@ -27,6 +28,7 @@ const SCENE_LABELS = new Map(SCENE_OPTIONS.map(item => [item.value, item.label])
 function filters(req) {
   return {
     wallet: String(req.body?.wallet || '').trim(), searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
+    excludedWallets: req.body?.exclude_wallets,
     token: String(req.body?.token || '').trim().toUpperCase(),
     reason: Helper.safeString(req.body?.reason, 255).trim(),
     type: String(req.body?.type || '').trim(), scene: String(req.body?.scene || '').trim(),
@@ -35,6 +37,7 @@ function filters(req) {
 }
 
 function applyFilters(query, value, prefix) {
+  applyTeamWalletExclusion(query, value.searchTeam, value.excludedWallets);
   if (value.wallet && value.searchTeam) {
     query.whereRaw(
       `LOWER(wallet) IN (

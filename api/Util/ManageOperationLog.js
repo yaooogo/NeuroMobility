@@ -30,6 +30,7 @@ const WRITE_PATH_PATTERNS = [
   /\/delete$/u,
   /\/remove$/u,
   /\/save$/u,
+  /\/toggle$/u,
   /\/grant$/u,
   /\/bind$/u,
   /\/unbind$/u,

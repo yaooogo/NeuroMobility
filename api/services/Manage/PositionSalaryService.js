@@ -2,6 +2,7 @@ import ApiResult from '../../Util/ApiResult.js';
 import DB from '../../Util/database/DB.js';
 import Database from '../../Util/Database.js';
 import Helper from '../../Util/Helper.js';
+import { applyTeamWalletExclusion } from '../../Util/TeamWalletExclusion.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensurePositionSalaryTable } from '../../Util/PositionSalarySchema.js';
 
@@ -24,6 +25,7 @@ function recordQuery(req) {
     const salaryMonth = String(req.body?.salary_month || '').trim();
     const level = req.body?.level;
     const query = DB.query().table('position_salary_record');
+    applyTeamWalletExclusion(query, Helper.parseInt(req.body?.search_team, 0) === 1, req.body?.exclude_wallets);
     if (wallet && Helper.parseInt(req.body?.search_team, 0) === 1) {
       const prefix = Database.prefix('default') || '';
       query.whereRaw(

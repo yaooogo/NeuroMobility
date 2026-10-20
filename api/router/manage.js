@@ -20,6 +20,7 @@ import InvestmentOrderService from '../services/Manage/InvestmentOrderService.js
 import { createInvestment } from '../services/Api/InvestmentService.js';
 import PositionSalaryService from '../services/Manage/PositionSalaryService.js';
 import TeamInvestmentConfigService from '../services/Manage/TeamInvestmentConfigService.js';
+import WithdrawalLimitService from '../services/Manage/WithdrawalLimitService.js';
 
 import ApiResult from '../Util/ApiResult.js';
 import Upload from '../Util/Upload.js';
@@ -155,6 +156,11 @@ router.route('/team-investment-config/list').post(TeamInvestmentConfigService.li
 router.route('/team-investment-config/save').post(TeamInvestmentConfigService.save)
 router.route('/team-investment-config/delete').post(TeamInvestmentConfigService.remove)
 router.route('/position-salary-record/list').post(PositionSalaryService.list)
+router.route('/withdraw-limit/team/list').post(WithdrawalLimitService.teamList)
+router.route('/withdraw-limit/team/save').post(WithdrawalLimitService.teamSave)
+router.route('/withdraw-limit/team/toggle').post(WithdrawalLimitService.teamToggle)
+router.route('/withdraw-limit/level/list').post(WithdrawalLimitService.levelDetail)
+router.route('/withdraw-limit/level/save').post(WithdrawalLimitService.levelSave)
 router.route('/position-salary-record/export').post(PositionSalaryService.exportCsv)
 
 // 钱包与钱包资产

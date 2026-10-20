@@ -2,13 +2,14 @@
 import { onMounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
+import TeamWalletExclusion from '../components/TeamWalletExclusion.vue';
 import { getUser } from '../lib/auth.js';
 import { post, postBlob } from '../lib/http.js';
 import { formatFixedAmount } from '../lib/amount.js';
 import { can } from '../lib/permissions.js';
 
 const user = getUser();
-const query = reactive({ wallet: '', search_team: 0, order_id: '', status: '', is_gift: '', page: 1, page_size: 20 });
+const query = reactive({ wallet: '', search_team: 0, exclude_wallets: '', order_id: '', status: '', is_gift: '', page: 1, page_size: 20 });
 const list = ref([]); const total = ref(0); const lastPage = ref(1); const loading = ref(false); const error = ref('');
 const success = ref('');
 const exporting = ref(false);
@@ -84,7 +85,7 @@ async function load() {
   finally { loading.value = false; }
 }
 function search() { query.page = 1; load(); }
-function reset() { Object.assign(query, { wallet: '', search_team: 0, order_id: '', status: '', is_gift: '', page: 1 }); success.value = ''; load(); }
+function reset() { Object.assign(query, { wallet: '', search_team: 0, exclude_wallets: '', order_id: '', status: '', is_gift: '', page: 1 }); success.value = ''; load(); }
 function changePage(page) { query.page = page; load(); }
 async function loadDividends() {
   dividendLoading.value = true; dividendError.value = '';
@@ -160,6 +161,7 @@ onMounted(load);
       <div class="toolbar"><div class="toolbar-group">
         <input v-model.trim="query.wallet" class="text-input text-input--inline" :placeholder="query.search_team ? '上级钱包地址（搜索全部团队）' : '钱包地址'" @keyup.enter="search" />
         <label class="inline-check"><input v-model.number="query.search_team" type="checkbox" :true-value="1" :false-value="0" /><span>搜索团队</span></label>
+        <TeamWalletExclusion v-if="query.search_team" v-model="query.exclude_wallets" />
         <input v-model.trim="query.order_id" class="text-input text-input--inline" placeholder="订单号" @keyup.enter="search" />
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="0">等待期</option><option value="1">分红中</option><option value="2">已出局</option><option value="3">已终止</option></select>
         <select v-model="query.is_gift" class="text-input text-input--inline" aria-label="投资标识"><option value="">全部投资标识</option><option value="0">普通投资</option><option value="1">赠送</option></select>

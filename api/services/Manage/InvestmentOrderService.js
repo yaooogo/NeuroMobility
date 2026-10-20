@@ -5,6 +5,7 @@ import Config from '../../Util/Config.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import { applyTeamWalletExclusion, teamWalletExclusion } from '../../Util/TeamWalletExclusion.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
 import { ensureTeamInvestmentConfigTable } from '../../Util/TeamInvestmentConfigSchema.js';
@@ -223,6 +224,7 @@ function normalizeDividend(row) {
 }
 
 function applyListFilters(query, filters, prefix) {
+  applyTeamWalletExclusion(query, filters.searchTeam, filters.excludedWallets);
   if (filters.wallet) {
     if (filters.searchTeam) {
       query.whereRaw(
@@ -246,6 +248,11 @@ function applyListFilters(query, filters, prefix) {
 function buildSummaryWhere(filters, prefix) {
   const clauses = [];
   const bindings = [];
+  const exclusion = teamWalletExclusion(filters.searchTeam, filters.excludedWallets);
+  if (exclusion.sql) {
+    clauses.push(exclusion.sql);
+    bindings.push(...exclusion.bindings);
+  }
   if (filters.wallet) {
     if (filters.searchTeam) {
       clauses.push(`LOWER(wallet) IN (
@@ -282,6 +289,7 @@ function listFilters(req) {
     wallet: String(req.body?.wallet || '').trim(),
     orderId: String(req.body?.order_id || '').trim(),
     searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
+    excludedWallets: req.body?.exclude_wallets,
     hasStatus: statusInput !== '' && statusInput !== null && typeof statusInput !== 'undefined',
     status: Number(statusInput), hasGift, isGift: Number(giftInput)
   };
