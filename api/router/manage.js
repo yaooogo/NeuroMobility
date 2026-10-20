@@ -131,10 +131,12 @@ router.route('/admin-operation-log/path-options').post(OperationLogService.pathO
 router.route('/asset-token/list').post(AssetTokenService.list)
 router.route('/asset-token/update').post(AssetTokenService.update)
 router.route('/user-asset-log/list').post(AssetLogService.list)
+router.route('/user-asset-log/export').post(AssetLogService.exportCsv)
 router.route('/user-frozen-asset-log/list').post(AssetLogService.frozenList)
 
 // 充值与提现订单
 router.route('/deposit-order/list').post(TransferOrderService.depositList)
+router.route('/deposit-order/export').post(TransferOrderService.depositExport)
 router.route('/withdrawal-order/list').post(TransferOrderService.withdrawalList)
 router.route('/withdrawal-order/export').post(TransferOrderService.withdrawalExport)
 router.route('/withdrawal-order/cancel').post(TransferOrderService.withdrawalCancel)
@@ -145,6 +147,7 @@ router.route('/investment-order/create').post((req, res) => {
   return createInvestment(req, res, { wallet, deductWallet: req.body.deduct_wallet });
 })
 router.route('/investment-order/list').post(InvestmentOrderService.list)
+router.route('/investment-order/export').post(InvestmentOrderService.exportCsv)
 router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
 router.route('/investment-order/dividend-now').post(InvestmentOrderService.dividendNow)
 router.route('/investment-order/terminate').post(InvestmentOrderService.terminate)
@@ -152,9 +155,11 @@ router.route('/team-investment-config/list').post(TeamInvestmentConfigService.li
 router.route('/team-investment-config/save').post(TeamInvestmentConfigService.save)
 router.route('/team-investment-config/delete').post(TeamInvestmentConfigService.remove)
 router.route('/position-salary-record/list').post(PositionSalaryService.list)
+router.route('/position-salary-record/export').post(PositionSalaryService.exportCsv)
 
 // 钱包与钱包资产
 router.route('/wallet/list').post(WalletService.walletList)
+router.route('/wallet/export').post(WalletService.walletExport)
 router.route('/wallet/tree').post(WalletService.walletTree)
 router.route('/wallet/create').post(WalletService.walletCreate)
 router.route('/wallet/update').post(WalletService.walletUpdate)
@@ -163,6 +168,7 @@ router.route('/wallet/import').post(singleCsv('file'), WalletImportTaskService.c
 router.route('/wallet/import-task/detail').post(WalletImportTaskService.detail)
 router.route('/wallet/import-task/list').post(WalletImportTaskService.list)
 router.route('/wallet-asset/list').post(WalletService.walletAssetList)
+router.route('/wallet-asset/export').post(WalletService.walletAssetExport)
 router.route('/wallet-asset/change').post(WalletService.walletAssetChange)
 
 // 参数配置 - 等级配置

@@ -9,7 +9,7 @@ const COLUMNS = [
   'id', 'symbol', 'name', 'decimals', 'contract', 'icon',
   'recharge_min_amount', 'rechargeable', 'withdrawable',
   'withdraw_service_type', 'withdraw_service_fee', 'withdraw_min_amount',
-  'withdraw_daily_limit', 'status', 'sort'
+  'withdraw_daily_limit', 'withdraw_global_daily_limit', 'status', 'sort'
 ];
 
 function normalize(row) {
@@ -83,6 +83,7 @@ async function update(req, res) {
       withdraw_service_fee: fee,
       withdraw_min_amount: decimal(req.body?.withdraw_min_amount, 2, '最小提现金额'),
       withdraw_daily_limit: decimal(req.body?.withdraw_daily_limit, 8, '每日提现限额'),
+      withdraw_global_daily_limit: decimal(req.body?.withdraw_global_daily_limit ?? row.withdraw_global_daily_limit, 8, '全网每日提现额度'),
       status: boolFlag(req.body?.status, 1),
       sort: Math.max(0, Helper.parseInt(req.body?.sort, 0))
     });

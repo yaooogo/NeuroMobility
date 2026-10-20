@@ -7,6 +7,25 @@ const DEFAULT_DECIMALS = 18;
 let rechargeMinAmountColumnReady = false;
 let rechargeableColumnReady = false;
 let withdrawDailyLimitColumnReady = false;
+let withdrawGlobalDailyLimitColumnReady = false;
+
+async function ensureWithdrawGlobalDailyLimitColumn() {
+  if (withdrawGlobalDailyLimitColumnReady) return;
+  const tableName = `${Database.prefix("default") || ""}assets_tokens`;
+  const rows = await DB.query().exec(
+    'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=? LIMIT 1',
+    [Database.dbConfig.default.database, tableName, 'withdraw_global_daily_limit']
+  );
+  if (!rows?.length) {
+    try {
+      await DB.query().exec(`ALTER TABLE \`${tableName}\` ADD COLUMN \`withdraw_global_daily_limit\` DECIMAL(36,8) NOT NULL DEFAULT 0 COMMENT '全网每日提现额度，0表示不限额' AFTER \`withdraw_daily_limit\``);
+    } catch (error) {
+      if (error?.code !== 'ER_DUP_FIELDNAME') throw error;
+    }
+  }
+  await CacheData.removeAssetsTokens();
+  withdrawGlobalDailyLimitColumnReady = true;
+}
 
 async function ensureRechargeableColumn() {
   if (rechargeableColumnReady) {
@@ -115,6 +134,7 @@ async function ensureAssetTokenColumns() {
   await ensureRechargeMinAmountColumn();
   await ensureRechargeableColumn();
   await ensureWithdrawDailyLimitColumn();
+  await ensureWithdrawGlobalDailyLimitColumn();
 }
 
 function normalizeTokenRow(row) {
@@ -140,7 +160,8 @@ function normalizeTokenRow(row) {
     withdraw_service_type: Number(row.withdraw_service_type || 0),
     withdraw_service_fee: row.withdraw_service_fee ?? "0",
     withdraw_min_amount: row.withdraw_min_amount ?? "0",
-    withdraw_daily_limit: row.withdraw_daily_limit ?? "0"
+    withdraw_daily_limit: row.withdraw_daily_limit ?? "0",
+    withdraw_global_daily_limit: row.withdraw_global_daily_limit ?? "0"
   };
 }
 

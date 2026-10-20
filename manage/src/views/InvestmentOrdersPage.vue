@@ -3,7 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
 import { getUser } from '../lib/auth.js';
-import { post } from '../lib/http.js';
+import { post, postBlob } from '../lib/http.js';
 import { formatFixedAmount } from '../lib/amount.js';
 import { can } from '../lib/permissions.js';
 
@@ -11,6 +11,19 @@ const user = getUser();
 const query = reactive({ wallet: '', search_team: 0, order_id: '', status: '', is_gift: '', page: 1, page_size: 20 });
 const list = ref([]); const total = ref(0); const lastPage = ref(1); const loading = ref(false); const error = ref('');
 const success = ref('');
+const exporting = ref(false);
+async function exportCsv() {
+  if (exporting.value) return;
+  exporting.value = true; error.value = '';
+  try {
+    const { blob, filename } = await postBlob('/investment-order/export', { ...query });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = filename || `investment-orders-${Date.now()}.csv`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+  } catch (err) { error.value = err.message || '导出投资订单失败'; }
+  finally { exporting.value = false; }
+}
 const investmentVisible = ref(false);
 const investmentSubmitting = ref(false);
 const investmentError = ref('');
@@ -151,7 +164,7 @@ onMounted(load);
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="0">等待期</option><option value="1">分红中</option><option value="2">已出局</option><option value="3">已终止</option></select>
         <select v-model="query.is_gift" class="text-input text-input--inline" aria-label="投资标识"><option value="">全部投资标识</option><option value="0">普通投资</option><option value="1">赠送</option></select>
         <button class="primary-button" @click="search">查询</button><button class="ghost-button" @click="reset">重置</button>
-      </div><div v-if="can(user, 'investment-orders-create')" class="toolbar-actions investment-toolbar-actions"><button class="primary-button" type="button" @click="openInvestment">用户投资</button></div></div>
+      </div><div class="toolbar-actions investment-toolbar-actions"><button v-if="can(user, 'investment-orders-export')" class="ghost-button" type="button" :disabled="exporting" @click="exportCsv">{{ exporting ? '导出中...' : '导出 CSV' }}</button><button v-if="can(user, 'investment-orders-create')" class="primary-button" type="button" @click="openInvestment">用户投资</button></div></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="investment-summary">

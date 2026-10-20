@@ -454,16 +454,15 @@ async function walletCreate(req, res) {
   }
 }
 
-async function walletList(req, res) {
-  try {
-    const page = Helper.parseInt(req.body?.page, 1);
-    const pageSize = Helper.parseInt(req.body?.page_size, 20);
-    const keyword = String(req.body?.keyword || '').trim();
+function walletListQuery(req) {
+    const wallet = String(req.body?.wallet || '').trim();
+    const inviter = String(req.body?.inviter || '').trim();
     const searchTeam = Helper.parseInt(req.body?.search_team, 0) === 1;
     const status = req.body?.status;
     const level = req.body?.level;
     const query = DB.query().table(WALLET_TABLE);
-    if (keyword) {
+    if (wallet) query.where('wallet', 'like', `%${wallet}%`);
+    if (inviter) {
       if (searchTeam) {
         const prefix = Database.prefix('default') || '';
         query.whereRaw(
@@ -472,18 +471,23 @@ async function walletList(req, res) {
              FROM ${prefix}wallet_relation
              WHERE inviter LIKE ?
            )`,
-          [`%${keyword}%`]
+          [`%${inviter}%`]
         );
       } else {
-        query.where(builder => builder
-          .where('wallet', 'like', `%${keyword}%`)
-          .orWhere('inviter', 'like', `%${keyword}%`)
-          .orWhere('ref_code', 'like', `%${keyword}%`));
+        query.where('inviter', 'like', `%${inviter}%`);
       }
     }
     if (status !== '' && status !== null && typeof status !== 'undefined') query.where('status', Number(status));
     if (level !== '' && level !== null && typeof level !== 'undefined') query.where('level', Number(level));
     query.orderBy('id', 'desc');
+    return query;
+}
+
+async function walletList(req, res) {
+  try {
+    const page = Helper.parseInt(req.body?.page, 1);
+    const pageSize = Helper.parseInt(req.body?.page_size, 20);
+    const query = walletListQuery(req);
     const result = await query.paginate(page, pageSize);
     return res.send(ApiResult.success({
       items: (result.items || []).map(normalizeWallet),
@@ -494,6 +498,38 @@ async function walletList(req, res) {
     }, '获取钱包列表成功'));
   } catch (error) {
     return res.send(ApiResult.exception(error, 'WalletService.walletList'));
+  }
+}
+
+function walletCsvCell(value) {
+  let text = String(value ?? '');
+  if (/^\s*[=+@-]/u.test(text)) text = `'${text}`;
+  return /[",\r\n]/u.test(text) ? `"${text.replace(/"/gu, '""')}"` : text;
+}
+
+async function walletExport(req, res) {
+  try {
+    const rows = await walletListQuery(req).get();
+    const headers = ['ID', '钱包地址', '邀请人', '邀请码', '投资', '社区投资', '社区用户数', '层级', '等级', '等级模式', '提现', 'USDT提现', '状态', '系统备注', '名称备注', '社区备注', '创建时间'];
+    const lines = [headers.map(walletCsvCell).join(',')];
+    for (const raw of rows || []) {
+      const row = normalizeWallet(raw);
+      lines.push([
+        row.id, row.wallet, row.inviter, row.ref_code, row.invests, row.community_invests,
+        row.community_users, row.lv, row.level,
+        row.is_manual_level === 1 ? `手动 ${row.manual_level}` : '自动',
+        row.withdraw_enabled === 1 ? '允许' : '禁止',
+        row.usdt_withdraw_enabled === 1 ? '允许' : '禁止',
+        row.status === 1 ? '启用' : '禁用', row.remark_system, row.remark_name,
+        row.remark_community, row.created_at
+      ].map(walletCsvCell).join(','));
+    }
+    const filename = `wallets-${Helper.dateFormat('YYYYmmddHHMMSS', new Date())}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    return res.send(ApiResult.exception(error, 'WalletService.walletExport'));
   }
 }
 
@@ -674,16 +710,36 @@ function scaleRawAmount(value, fromDecimals, toDecimals) {
   return toDecimals > fromDecimals ? raw * factor : raw / factor;
 }
 
-async function walletAssetList(req, res) {
-  try {
-    const page = Helper.parseInt(req.body?.page, 1);
-    const pageSize = Helper.parseInt(req.body?.page_size, 20);
+function walletAssetQuery(req) {
     const wallet = String(req.body?.wallet || '').trim();
     const token = String(req.body?.token || '').trim().toUpperCase();
     const query = DB.query().table(WALLET_ASSET_TABLE);
     if (wallet) query.where('wallet', 'like', `%${wallet}%`);
     if (token) query.where('token', token);
     query.orderBy('id', 'desc');
+    return query;
+}
+
+async function walletAssetExport(req, res) {
+  try {
+    const [rows, tokenMap] = await Promise.all([walletAssetQuery(req).get(), getTokenMap()]);
+    const lines = [['ID', '钱包地址', '资产', '可用余额', '冻结余额', '更新时间'].map(walletCsvCell).join(',')];
+    for (const raw of rows || []) {
+      const row = normalizeWalletAsset(raw, tokenMap);
+      lines.push([row.id, row.wallet, row.token, row.balance, row.frozen_balance, row.updated_at].map(walletCsvCell).join(','));
+    }
+    const filename = `wallet-assets-${Helper.dateFormat('YYYYmmddHHMMSS', new Date())}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) { return res.send(ApiResult.exception(error, 'WalletService.walletAssetExport')); }
+}
+
+async function walletAssetList(req, res) {
+  try {
+    const page = Helper.parseInt(req.body?.page, 1);
+    const pageSize = Helper.parseInt(req.body?.page_size, 20);
+    const query = walletAssetQuery(req);
     const [result, tokenMap] = await Promise.all([query.paginate(page, pageSize), getTokenMap()]);
     return res.send(ApiResult.success({
       items: (result.items || []).map(row => normalizeWalletAsset(row, tokenMap)),
@@ -879,11 +935,13 @@ async function walletPositionSalaryPay(req, res) {
 
 export default {
   walletList,
+  walletExport,
   walletTree,
   walletCreate,
   walletUpdate,
   walletImport: walletImportBatch,
   walletAssetList,
+  walletAssetExport,
   walletAssetChange,
   walletPositionSalaryPay
 };

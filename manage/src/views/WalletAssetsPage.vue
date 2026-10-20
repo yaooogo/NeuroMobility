@@ -3,7 +3,7 @@ import { onMounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
 import { getUser } from '../lib/auth.js';
-import { post } from '../lib/http.js';
+import { post, postBlob } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
 
 const user = getUser();
@@ -12,6 +12,7 @@ const list = ref([]);
 const tokenOptions = ref([]);
 const total = ref(0);
 const lastPage = ref(1);
+const exporting = ref(false);
 const loading = ref(false);
 const saving = ref(false);
 const modal = ref(false);
@@ -30,6 +31,19 @@ async function load() {
     lastPage.value = Number(data.last_page || 1);
   } catch (err) { error.value = err.message; }
   finally { loading.value = false; }
+}
+
+async function exportCsv() {
+  if (exporting.value) return;
+  exporting.value = true; error.value = '';
+  try {
+    const { blob, filename } = await postBlob('/wallet-asset/export', { ...query });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = filename || `wallet-assets-${Date.now()}.csv`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+  } catch (err) { error.value = err.message; }
+  finally { exporting.value = false; }
 }
 
 function search() { query.page = 1; load(); }
@@ -66,7 +80,7 @@ onMounted(load);
         <input v-model.trim="query.wallet" class="text-input text-input--inline" placeholder="钱包地址" @keyup.enter="search" />
         <select v-model="query.token" class="text-input text-input--inline"><option value="">全部资产</option><option v-for="item in tokenOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
         <button class="primary-button" @click="search">查询</button>
-      </div><button v-if="can(user, 'wallet-assets-update')" class="primary-button" @click="openChange">变更资产</button></div>
+      </div><div class="toolbar-group"><button v-if="can(user, 'wallet-assets-export')" class="ghost-button" :disabled="exporting" @click="exportCsv">{{ exporting ? '导出中...' : '导出 CSV' }}</button><button v-if="can(user, 'wallet-assets-update')" class="primary-button" @click="openChange">变更资产</button></div></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="table-wrap"><table class="data-table" style="min-width: 900px">

@@ -2,9 +2,13 @@
 import { onMounted, reactive, ref, watch } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
-import { post } from '../lib/http.js';
+import { post, postBlob } from '../lib/http.js';
+import { getUser } from '../lib/auth.js';
+import { can } from '../lib/permissions.js';
 
 const props = defineProps({ frozen: { type: Boolean, default: false } });
+const user = getUser();
+const exporting = ref(false);
 const query = reactive({ wallet: '', search_team: 0, token: '', type: '', scene: '', reason: '', start_date: '', end_date: '', page: 1, page_size: 10 });
 const list = ref([]); const tokenOptions = ref([]); const sceneOptions = ref([]); const total = ref(0); const lastPage = ref(1);
 const summary = ref([]);
@@ -22,6 +26,20 @@ async function load() {
   } catch (err) { error.value = err.message; list.value = []; summary.value = []; }
   finally { loading.value = false; }
 }
+async function exportCsv() {
+  if (exporting.value || props.frozen) return;
+  if (query.start_date && query.end_date && query.start_date > query.end_date) { error.value = '结束日期不能早于开始日期'; return; }
+  exporting.value = true; error.value = '';
+  try {
+    const { blob, filename } = await postBlob('/user-asset-log/export', { ...query });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = filename || `asset-logs-${Date.now()}.csv`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+  } catch (err) { error.value = err.message || '导出资产变更记录失败'; }
+  finally { exporting.value = false; }
+}
+
 function search() {
   if (query.start_date && query.end_date && query.start_date > query.end_date) { error.value = '结束日期不能早于开始日期'; return; }
   query.page = 1; load();
@@ -46,7 +64,7 @@ onMounted(load);
         <input v-model="query.start_date" class="text-input text-input--inline" type="date" aria-label="开始日期" />
         <input v-model="query.end_date" class="text-input text-input--inline" type="date" aria-label="结束日期" />
         <button class="primary-button" @click="search">查询</button><button class="ghost-button" @click="reset">重置</button>
-      </div></div>
+      </div><button v-if="!frozen && can(user, 'user-asset-logs-export')" class="ghost-button" type="button" :disabled="exporting" @click="exportCsv">{{ exporting ? '导出中...' : '导出 CSV' }}</button></div>
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="summary.length" class="asset-summary">
         <div v-for="item in summary" :key="item.token" class="asset-summary-card">

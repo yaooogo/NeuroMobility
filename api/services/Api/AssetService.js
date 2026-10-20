@@ -217,6 +217,12 @@ async function prepareWithdrawal(req, res) {
     const prefix = Database.prefix('default') || '';
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
     await DB.transaction(async (config, connection) => {
+      // Serialize withdrawal reservations for this asset across all wallets.
+      const tokenRows = await DB.query(config, connection).exec(
+        `SELECT withdraw_global_daily_limit FROM ${prefix}assets_tokens WHERE id=? LIMIT 1 FOR UPDATE`, [token.id]
+      );
+      if (!tokenRows?.length) throw new Error('Withdrawal asset configuration is unavailable');
+      const globalDailyLimit = BigInt(parseAssetAmount(String(tokenRows[0].withdraw_global_daily_limit || '0'), decimals));
       const asset = await ensureWalletAsset(wallet, symbol, config, connection);
       const rows = await DB.query(config, connection).exec(
         `SELECT * FROM ${prefix}wallet_assets WHERE id=? LIMIT 1 FOR UPDATE`, [asset.id]
@@ -225,6 +231,15 @@ async function prepareWithdrawal(req, res) {
       const before = BigInt(String(locked?.balance || '0'));
       const frozenBefore = BigInt(String(locked?.frozen_balance || '0'));
       if (before < rawDebit) throw new Error('Insufficient available balance');
+
+      if (globalDailyLimit > 0n) {
+        const today = Helper.dateFormat('YYYY-mm-dd', new Date());
+        const totals = await DB.query(config, connection).exec(
+          `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE token=? AND status IN (0,1,2) AND created_at>=?`,
+          [symbol, `${today} 00:00:00`]
+        );
+        if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > globalDailyLimit) throw new Error('Global daily withdrawal limit exceeded');
+      }
 
       if (dailyLimit > 0n) {
         const today = Helper.dateFormat('YYYY-mm-dd', new Date());

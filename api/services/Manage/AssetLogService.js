@@ -116,4 +116,38 @@ async function listByTable(table, req, res, label) {
 async function list(req, res) { return listByTable(ASSET_TABLE, req, res, '资产变更记录'); }
 async function frozenList(req, res) { return listByTable(FROZEN_TABLE, req, res, '冻结资产变更记录'); }
 
-export default { list, frozenList };
+function csvCell(value) {
+  let text = String(value ?? '');
+  if (/^\s*[=+@-]/u.test(text)) text = `'${text}`;
+  return /[",\r\n]/u.test(text) ? `"${text.replace(/"/gu, '""')}"` : text;
+}
+
+async function exportCsv(req, res) {
+  try {
+    const value = filters(req);
+    if (value.start && value.end && value.start > value.end) return res.send(ApiResult.error(400, '结束日期不能早于开始日期'));
+    const prefix = Database.prefix('default') || '';
+    const rows = await applyFilters(DB.query().table(ASSET_TABLE), value, prefix).orderBy('id', 'desc').get();
+    const lines = [['ID', '业务单号', '钱包地址', '资产', '变动数量', '变动前', '变动后', '业务类型', '原因', '类型', '创建时间', '更新时间'].map(csvCell).join(',')];
+    const decimalsByToken = new Map();
+    for (const raw of rows || []) {
+      if (!decimalsByToken.has(raw.token)) decimalsByToken.set(raw.token, await AssetToken.getTokenDecimals(raw.token));
+      const decimals = decimalsByToken.get(raw.token);
+      lines.push([
+        raw.id, raw.biz_id, raw.wallet, raw.token,
+        formatAssetAmount(raw.balance || '0', decimals),
+        formatAssetAmount(raw.before_balance || '0', decimals),
+        formatAssetAmount(raw.after_balance || '0', decimals),
+        SCENE_LABELS.get(raw.scene) || raw.scene, raw.reason,
+        raw.type === 'in' ? '转入' : raw.type === 'out' ? '转出' : '-',
+        raw.created_at, raw.updated_at
+      ].map(csvCell).join(','));
+    }
+    const filename = `asset-logs-${Helper.dateFormat('YYYYmmddHHMMSS', new Date())}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) { return res.send(ApiResult.exception(error, 'AssetLogService.exportCsv')); }
+}
+
+export default { list, frozenList, exportCsv };

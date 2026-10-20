@@ -20,7 +20,7 @@ const success = ref('');
 const form = reactive({
   id: 0, symbol: '', name: '', decimals: 18, contract: '', icon: '', recharge_min_amount: '0',
   rechargeable: 1, withdrawable: 0, withdraw_service_type: 0, withdraw_service_fee: '0',
-  withdraw_min_amount: '0', withdraw_daily_limit: '0', status: 1, sort: 0
+  withdraw_min_amount: '0', withdraw_daily_limit: '0', withdraw_global_daily_limit: '0', status: 1, sort: 0
 });
 
 async function load() {
@@ -45,6 +45,7 @@ function edit(row) {
     withdraw_service_fee: String(row.withdraw_service_fee ?? '0'),
     withdraw_min_amount: String(row.withdraw_min_amount ?? '0'),
     withdraw_daily_limit: String(row.withdraw_daily_limit ?? '0'),
+    withdraw_global_daily_limit: String(row.withdraw_global_daily_limit ?? '0'),
     status: Number(row.status ?? 1) === 1 ? 1 : 0,
     sort: Number(row.sort || 0)
   });
@@ -79,10 +80,10 @@ onMounted(load);
       <div v-if="error" class="alert-box alert-box--error">{{ error }}</div>
       <div v-if="success" class="alert-box alert-box--success">{{ success }}</div>
       <div class="table-wrap"><table class="data-table" style="min-width: 1350px">
-        <thead><tr><th>ID</th><th>符号</th><th>名称</th><th>合约</th><th>精度</th><th>充值</th><th>最少充值</th><th>提现</th><th>手续费</th><th>最小提现</th><th>每日限额</th><th>排序</th><th>状态</th><th v-if="can(user, 'asset-tokens-update')">操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>符号</th><th>名称</th><th>合约</th><th>精度</th><th>充值</th><th>最少充值</th><th>提现</th><th>手续费</th><th>最小提现</th><th>单钱包每日限额</th><th>全网每日提现额度</th><th>排序</th><th>状态</th><th v-if="can(user, 'asset-tokens-update')">操作</th></tr></thead>
         <tbody>
-          <tr v-if="loading || !list.length"><td :colspan="can(user, 'asset-tokens-update') ? 14 : 13" class="empty-cell">{{ loading ? '正在加载...' : '暂无资产类型' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td><strong>{{ row.symbol }}</strong></td><td>{{ row.name || '-' }}</td><td class="mono-cell">{{ row.contract || '-' }}</td><td>{{ row.decimals }}</td><td>{{ row.rechargeable === 1 ? '允许' : '禁止' }}</td><td>{{ row.recharge_min_amount }}</td><td>{{ row.withdrawable === 1 ? '允许' : '禁止' }}</td><td>{{ row.withdraw_service_fee }}{{ row.withdraw_service_type === 1 ? '%' : '' }}</td><td>{{ row.withdraw_min_amount }}</td><td>{{ row.withdraw_daily_limit }}</td><td>{{ row.sort }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td v-if="can(user, 'asset-tokens-update')"><button class="table-button" @click="edit(row)">编辑</button></td></tr>
+          <tr v-if="loading || !list.length"><td :colspan="can(user, 'asset-tokens-update') ? 15 : 14" class="empty-cell">{{ loading ? '正在加载...' : '暂无资产类型' }}</td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td><strong>{{ row.symbol }}</strong></td><td>{{ row.name || '-' }}</td><td class="mono-cell">{{ row.contract || '-' }}</td><td>{{ row.decimals }}</td><td>{{ row.rechargeable === 1 ? '允许' : '禁止' }}</td><td>{{ row.recharge_min_amount }}</td><td>{{ row.withdrawable === 1 ? '允许' : '禁止' }}</td><td>{{ row.withdraw_service_fee }}{{ row.withdraw_service_type === 1 ? '%' : '' }}</td><td>{{ row.withdraw_min_amount }}</td><td>{{ row.withdraw_daily_limit }}</td><td>{{ row.withdraw_global_daily_limit }}</td><td>{{ row.sort }}</td><td><span class="status-badge" :class="row.status === 1 ? 'status-badge--on' : 'status-badge--off'">{{ row.status === 1 ? '启用' : '禁用' }}</span></td><td v-if="can(user, 'asset-tokens-update')"><button class="table-button" @click="edit(row)">编辑</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
@@ -102,7 +103,8 @@ onMounted(load);
         <label class="field-block"><span>手续费类型</span><select v-model.number="form.withdraw_service_type" class="text-input"><option :value="0">固定金额</option><option :value="1">百分比</option></select></label>
         <label class="field-block"><span>提现手续费</span><input v-model="form.withdraw_service_fee" class="text-input" type="number" min="0" step="0.0001" /></label>
         <label class="field-block"><span>最小提现金额</span><input v-model="form.withdraw_min_amount" class="text-input" type="number" min="0" step="0.01" /></label>
-        <label class="field-block"><span>每日提现限额</span><input v-model="form.withdraw_daily_limit" class="text-input" type="number" min="0" step="0.00000001" /></label>
+        <label class="field-block"><span>单钱包每日提现限额</span><input v-model="form.withdraw_daily_limit" class="text-input" type="number" min="0" step="0.00000001" /></label>
+        <label class="field-block"><span>全网每日提现额度</span><input v-model="form.withdraw_global_daily_limit" class="text-input" type="number" min="0" step="0.00000001" /><small class="muted-text">该币种所有钱包每日提现申请总额（含手续费），0 表示不限额。</small></label>
         <label class="field-block"><span>状态</span><select v-model.number="form.status" class="text-input"><option :value="1">启用</option><option :value="0">禁用</option></select></label>
       </div>
       <button class="submit-button" :disabled="saving" @click="save">{{ saving ? '保存中...' : '保存' }}</button>

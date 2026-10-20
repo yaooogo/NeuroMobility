@@ -273,6 +273,57 @@ function buildSummaryWhere(filters, prefix) {
   return { sql: clauses.length ? `WHERE ${clauses.join(' AND ')}` : '', bindings };
 }
 
+function listFilters(req) {
+  const statusInput = req.body?.status;
+  const giftInput = req.body?.is_gift;
+  const hasGift = giftInput !== '' && giftInput !== null && typeof giftInput !== 'undefined';
+  if (hasGift && ![0, 1, '0', '1'].includes(giftInput)) throw new Error('投资标识筛选值无效');
+  return {
+    wallet: String(req.body?.wallet || '').trim(),
+    orderId: String(req.body?.order_id || '').trim(),
+    searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
+    hasStatus: statusInput !== '' && statusInput !== null && typeof statusInput !== 'undefined',
+    status: Number(statusInput), hasGift, isGift: Number(giftInput)
+  };
+}
+
+function csvCell(value) {
+  let text = String(value ?? '');
+  if (/^\s*[=+@-]/u.test(text)) text = `'${text}`;
+  return /[",\r\n]/u.test(text) ? `"${text.replace(/"/gu, '""')}"` : text;
+}
+
+async function exportCsv(req, res) {
+  try {
+    const filters = listFilters(req);
+    await ensureInvestmentOrderTable();
+    const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+    await DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now])
+      .update({ status: 1, updated_at: now });
+    const prefix = Database.prefix('default') || '';
+    const rows = await applyListFilters(DB.query().table('investment_order'), filters, prefix).orderBy('id', 'desc').get();
+    const lines = [['ID', '订单号', '钱包', '参与方式', '投资标识', '投资金额', '已分红（USDT）', '总分红（USDT）', '等待期（天）', '分红周期（天）', '整车', '状态', '等待截止', '下次分红', '投资时间'].map(csvCell).join(',')];
+    const statuses = { 0: '等待期', 1: '分红中', 2: '已出局', 3: '已终止' };
+    for (const raw of rows || []) {
+      const row = normalize(raw);
+      const payment = row.payment_parts.map(part => `${part.amount} ${part.token}`).join(' + ');
+      lines.push([
+        row.id, row.order_id, row.wallet, row.token, row.is_gift === 1 ? '赠送' : '普通投资',
+        payment, row.distributed_amount, row.total_dividend, row.waiting_days, row.cycle_days,
+        row.whole_vehicle === 1 ? '是' : '否', statuses[row.status] || '未知',
+        row.waiting_until, row.next_dividend_at, row.created_at
+      ].map(csvCell).join(','));
+    }
+    const filename = `investment-orders-${Helper.dateFormat('YYYYmmddHHMMSS', new Date())}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) {
+    if (error.message === '投资标识筛选值无效') return res.send(ApiResult.error(400, error.message));
+    return res.send(ApiResult.exception(error, 'InvestmentOrderService.exportCsv'));
+  }
+}
+
 async function list(req, res) {
   try {
     await Promise.all([ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable()]);
@@ -286,15 +337,7 @@ async function list(req, res) {
     const giftInput = req.body?.is_gift;
     const hasGift = giftInput !== '' && giftInput !== null && typeof giftInput !== 'undefined';
     if (hasGift && ![0, 1, '0', '1'].includes(giftInput)) return res.send(ApiResult.error(400, '投资标识筛选值无效'));
-    const filters = {
-      wallet: String(req.body?.wallet || '').trim(),
-      orderId: String(req.body?.order_id || '').trim(),
-      searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
-      hasStatus: statusInput !== '' && statusInput !== null && typeof statusInput !== 'undefined',
-      status: Number(statusInput),
-      hasGift,
-      isGift: Number(giftInput)
-    };
+    const filters = listFilters(req);
     const query = applyListFilters(DB.query().table('investment_order'), filters, prefix);
     query.orderBy('id', 'desc');
     const summaryWhere = buildSummaryWhere(filters, prefix);
@@ -457,4 +500,4 @@ async function terminate(req, res) {
   }
 }
 
-export default { list, dividendList, dividendNow, terminate };
+export default { list, exportCsv, dividendList, dividendNow, terminate };

@@ -7,7 +7,7 @@ import { post, postBlob } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
 
 const user = getUser();
-const query = reactive({ wallet: '', token: '', order_id: '', tx_hash: '', status: '', start_date: '', end_date: '', page: 1, page_size: 20 });
+const query = reactive({ wallet: '', search_team: 0, token: '', order_id: '', tx_hash: '', status: '', start_date: '', end_date: '', page: 1, page_size: 20 });
 const list = ref([]); const tokenOptions = ref([]); const total = ref(0); const lastPage = ref(1);
 const loading = ref(false); const exporting = ref(false); const cancelling = ref(0); const error = ref(''); const success = ref('');
 
@@ -25,7 +25,7 @@ function search() {
   if (query.start_date && query.end_date && query.start_date > query.end_date) { error.value = '结束日期不能早于开始日期'; return; }
   query.page = 1; success.value = ''; load();
 }
-function reset() { Object.assign(query, { wallet: '', token: '', order_id: '', tx_hash: '', status: '', start_date: '', end_date: '', page: 1 }); success.value = ''; load(); }
+function reset() { Object.assign(query, { wallet: '', search_team: 0, token: '', order_id: '', tx_hash: '', status: '', start_date: '', end_date: '', page: 1 }); success.value = ''; load(); }
 function changePage(page) { query.page = page; load(); }
 function statusLabel(value) { return ({ 0: '待提交', 1: '已提交', 2: '已完成', 3: '已退回' })[Number(value)] || `未知(${value})`; }
 function statusClass(value) { return Number(value) === 2 ? 'status-badge--on' : Number(value) === 3 ? 'status-badge--off' : ''; }
@@ -64,7 +64,8 @@ onMounted(load);
   <ManageLayout title="提现订单" description="查看提现状态，并安全取消已过期且链上未提取的订单。">
     <section class="panel-card">
       <div class="toolbar"><div class="toolbar-group">
-        <input v-model.trim="query.wallet" class="text-input text-input--inline" placeholder="钱包地址" @keyup.enter="search" />
+        <input v-model.trim="query.wallet" class="text-input text-input--inline" :placeholder="query.search_team ? '上级钱包地址（搜索全部团队）' : '钱包地址'" @keyup.enter="search" />
+        <label class="inline-check"><input v-model.number="query.search_team" type="checkbox" :true-value="1" :false-value="0" /><span>搜索团队</span></label>
         <input v-model.trim="query.order_id" class="text-input text-input--inline" placeholder="订单号" @keyup.enter="search" />
         <input v-model.trim="query.tx_hash" class="text-input text-input--inline" placeholder="交易哈希" @keyup.enter="search" />
         <select v-model="query.token" class="text-input text-input--inline"><option value="">全部资产</option><option v-for="item in tokenOptions" :key="item.value" :value="item.value">{{ item.label }}</option></select>
@@ -86,3 +87,8 @@ onMounted(load);
     </section>
   </ManageLayout>
 </template>
+
+<style scoped>
+.inline-check { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(142, 168, 241, 0.16); border-radius: 8px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.inline-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }
+</style>

@@ -16,6 +16,7 @@ const WITHDRAWAL_RETURNED = 3;
 function filters(req) {
   return {
     wallet: String(req.body?.wallet || '').trim(),
+    searchTeam: Helper.parseInt(req.body?.search_team, 0) === 1,
     token: String(req.body?.token || '').trim().toUpperCase(),
     orderId: String(req.body?.order_id || '').trim(),
     txHash: String(req.body?.tx_hash || '').trim(),
@@ -26,7 +27,10 @@ function filters(req) {
 }
 
 function applyFilters(query, values, includeStatus = false) {
-  if (values.wallet) query.where('wallet', 'like', `%${values.wallet}%`);
+  if (values.wallet && values.searchTeam) {
+    const prefix = Database.prefix('default') || '';
+    query.whereRaw(`LOWER(wallet) IN (SELECT LOWER(wallet) FROM ${prefix}wallet_relation WHERE inviter LIKE ?)`, [`%${values.wallet}%`]);
+  } else if (values.wallet) query.where('wallet', 'like', `%${values.wallet}%`);
   if (values.token) query.where('token', values.token);
   if (values.orderId) query.where('order_id', 'like', `%${values.orderId}%`);
   if (values.txHash) query.where('tx_hash', 'like', `%${values.txHash}%`);
@@ -141,8 +145,28 @@ async function withdrawalList(req, res) {
 }
 
 function csvEscape(value) {
-  const text = String(value ?? '');
+  let text = String(value ?? '');
+  if (/^\s*[=+@-]/u.test(text)) text = `'${text}`;
   return /[",\r\n]/u.test(text) ? `"${text.replace(/"/gu, '""')}"` : text;
+}
+
+async function depositExport(req, res) {
+  try {
+    await ensureAssetTransferTables();
+    const [rows, context] = await Promise.all([
+      applyFilters(DB.query().table(DEPOSIT_TABLE), filters(req)).orderBy('id', 'desc').get(),
+      tokenContext()
+    ]);
+    const lines = [['ID', '订单号', '钱包地址', '资产', '充值数量', '交易哈希', '区块高度', '日志序号', '收款合约', '创建时间', '更新时间'].map(csvEscape).join(',')];
+    for (const raw of rows || []) {
+      const row = normalizeDeposit(raw, context.map);
+      lines.push([row.id, row.order_id, row.wallet, row.token, row.amount, row.tx_hash, row.block_number, row.log_index, row.contract, row.created_at, row.updated_at].map(csvEscape).join(','));
+    }
+    const filename = `deposit-orders-${Helper.dateFormat('YYYYmmddHHMMSS', new Date())}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.status(200).send(`\ufeff${lines.join('\r\n')}\r\n`);
+  } catch (error) { return res.send(ApiResult.exception(error, 'TransferOrderService.depositExport')); }
 }
 
 function withdrawalStatusLabel(status) {
@@ -271,4 +295,4 @@ async function withdrawalCancel(req, res) {
   }
 }
 
-export default { depositList, withdrawalList, withdrawalExport, withdrawalCancel };
+export default { depositList, depositExport, withdrawalList, withdrawalExport, withdrawalCancel };

@@ -80,7 +80,7 @@ export default {
         return this.getValue(`Config:AssetsTokens`, 0, async function (userId) {
             const columns = [
                 'id', 'symbol', 'name', 'decimals', 'contract', 'icon',
-                 'recharge_min_amount','rechargeable','withdrawable','withdraw_service_type', 'withdraw_service_fee','withdraw_min_amount','withdraw_daily_limit',
+                 'recharge_min_amount','rechargeable','withdrawable','withdraw_service_type', 'withdraw_service_fee','withdraw_min_amount','withdraw_daily_limit','withdraw_global_daily_limit',
             ]
             const rows = await DB.query()
                 .table('assets_tokens')

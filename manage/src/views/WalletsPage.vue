@@ -3,16 +3,17 @@ import { onMounted, onUnmounted, reactive, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import ManagePagination from '../components/ManagePagination.vue';
 import { getUser } from '../lib/auth.js';
-import { post, postForm } from '../lib/http.js';
+import { post, postForm, postBlob } from '../lib/http.js';
 import { can } from '../lib/permissions.js';
 import { formatFixedAmount } from '../lib/amount.js';
 
 const user = getUser();
-const query = reactive({ keyword: '', search_team: 0, status: '', level: '', page: 1, page_size: 20 });
+const query = reactive({ wallet: '', inviter: '', search_team: 0, status: '', level: '', page: 1, page_size: 20 });
 const list = ref([]);
 const total = ref(0);
 const lastPage = ref(1);
 const loading = ref(false);
+const exporting = ref(false);
 const saving = ref(false);
 const modal = ref(false);
 const error = ref('');
@@ -52,6 +53,19 @@ async function load() {
     lastPage.value = Number(data.last_page || 1);
   } catch (err) { error.value = err.message; }
   finally { loading.value = false; }
+}
+
+async function exportCsv() {
+  if (exporting.value) return;
+  exporting.value = true; error.value = '';
+  try {
+    const { blob, filename } = await postBlob('/wallet/export', { ...query });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = filename || `wallets-${Date.now()}.csv`;
+    document.body.appendChild(anchor); anchor.click(); anchor.remove(); URL.revokeObjectURL(url);
+  } catch (err) { error.value = err.message; }
+  finally { exporting.value = false; }
 }
 
 function search() { query.page = 1; load(); }
@@ -302,12 +316,14 @@ onUnmounted(clearImportTaskTimer);
   <ManageLayout title="钱包管理" description="查看钱包关系、等级与状态，并控制提现和人工等级。">
     <section class="panel-card">
       <div class="toolbar"><div class="toolbar-group">
-        <input v-model.trim="query.keyword" class="text-input text-input--inline" :placeholder="query.search_team ? '上级钱包地址（搜索全部团队）' : '钱包地址、邀请人或邀请码'" @keyup.enter="search" />
+        <input v-model.trim="query.wallet" class="text-input text-input--inline" placeholder="搜索钱包地址" @keyup.enter="search" />
+        <input v-model.trim="query.inviter" class="text-input text-input--inline" placeholder="搜索邀请人地址" @keyup.enter="search" />
         <label class="inline-check"><input v-model.number="query.search_team" type="checkbox" :true-value="1" :false-value="0" /><span>搜索团队</span></label>
         <select v-model="query.level" class="text-input text-input--inline"><option value="">全部等级</option><option v-for="level in [0, 1, 2, 3]" :key="level" :value="level">等级 {{ level }}</option></select>
         <select v-model="query.status" class="text-input text-input--inline"><option value="">全部状态</option><option value="1">启用</option><option value="0">禁用</option></select>
         <button class="primary-button" @click="search">查询</button>
       </div><div class="toolbar-actions">
+        <button v-if="can(user, 'wallets-export')" class="ghost-button" :disabled="exporting" @click="exportCsv">{{ exporting ? '导出中...' : '导出 CSV' }}</button>
         <button v-if="can(user, 'wallets-position-salary')" class="ghost-button" @click="openSalaryPay">发放岗位工资</button>
         <button v-if="can(user, 'wallets-import') || can(user, 'wallets-create')" class="ghost-button" @click="openImport">CSV 导入</button>
         <button v-if="can(user, 'wallets-create')" class="primary-button" @click="openCreate">新增钱包</button>
