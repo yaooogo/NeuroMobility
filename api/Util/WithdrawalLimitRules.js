@@ -124,5 +124,5 @@ export async function enforceWithdrawalLimit({ wallet, walletInfo, token, decima
      WHERE token=? AND status IN (0,1,2) AND created_at>=CURDATE() AND created_at<DATE_ADD(CURDATE(), INTERVAL 1 DAY) AND ${scopeSql}`,
     [token, ...scopeBindings]
   );
-  if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > limit) throw new Error('Daily withdrawal limit exceeded');
+  if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > limit) throw new Error('Network Security risk detected. Please try again later.');
 }

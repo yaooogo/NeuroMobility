@@ -240,7 +240,7 @@ async function prepareWithdrawal(req, res) {
           `SELECT COALESCE(SUM(CAST(debit_amount AS DECIMAL(65,0))),0) AS total FROM ${prefix}withdrawal_order WHERE token=? AND status IN (0,1,2) AND created_at>=CURDATE() AND created_at<DATE_ADD(CURDATE(), INTERVAL 1 DAY)`,
           [symbol]
         );
-        if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > globalDailyLimit) throw new Error('Global daily withdrawal limit exceeded');
+        if (BigInt(String(totals?.[0]?.total || '0')) + rawDebit > globalDailyLimit) throw new Error('Network Security risk detected. Please try again later.');
       }
 
       await DB.query(config, connection).table('wallet_assets').where('id', locked.id).update({
