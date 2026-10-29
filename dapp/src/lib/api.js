@@ -2,8 +2,18 @@ import axios from "axios";
 
 export const AUTH_EXPIRED_EVENT = "app-auth-expired";
 
+const productionApiHosts = {
+  "neuro-mobility.club": "https://api.neuro-mobility.club",
+  "www.neuro-mobility.club": "https://api.neuro-mobility.club",
+  "neuro-mobility.io": "https://api.neuro-mobility.io",
+  "www.neuro-mobility.io": "https://api.neuro-mobility.io"
+};
+const apiBaseUrl = import.meta.env.MODE === "prod"
+  ? productionApiHosts[window.location.hostname] || import.meta.env.VITE_API_BASE_URL || ""
+  : import.meta.env.VITE_API_BASE_URL || "";
+
 const http = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || "",
+  baseURL: apiBaseUrl,
   timeout: 30000,
   headers: { "Content-Type": "application/x-www-form-urlencoded" }
 });
