@@ -9,6 +9,7 @@ import Database from '../../Util/Database.js';
 import { RedisCache } from '../../Util/Cache.js';
 import BigNumber from 'bignumber.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
+import OpenService from '../../services/Api/OpenService.js';
 
 const TokenReceiverIface = new ethers.Interface(TokenReceiverAbi.abi);
 const TokenReceiverEvent = ethers.id(ChainConfig.getContractEvent('TokenReceiver', 'PaymentReceived'));
@@ -77,6 +78,8 @@ export default {
             await DB.transaction(async (config, connection) => {
                 const prefix = Database.prefix(config);
                 const now = Helper.dateFormat();
+                await OpenService.createWalletIfMissing(payer, config, connection, prefix, now);
+
                 const inserted = await DB.query(config, connection).table('receiver_order').insertOrIgnore({
                     order_id: orderId,
                     contract: tokenAddress,

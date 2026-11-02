@@ -242,4 +242,4 @@ async function deposits(req, res) {
     }
 }
 
-export default { deposits };
+export default { createWalletIfMissing,deposits };
