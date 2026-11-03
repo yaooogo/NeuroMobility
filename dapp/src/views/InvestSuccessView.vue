@@ -47,6 +47,7 @@ onMounted(async () => {
       <div><dt>{{ lang('等待期') }}</dt><dd>{{ waitingText(order) }}</dd></div>
       <div><dt>{{ lang('分红周期') }}</dt><dd>{{ order.cycle_days }}{{ lang('天') }}</dd></div>
     </dl>
+    <button v-if="route.query.agreement === '1' && order" class="home-button" type="button" @click="router.push({ name: 'investment-agreement', query: { order_id: order.order_id } })">{{ lang('查看已签署协议') }}</button>
     <button class="home-button" type="button" @click="router.push({ name: 'home' })">{{ lang('返回首页') }}</button>
   </section>
 </template>

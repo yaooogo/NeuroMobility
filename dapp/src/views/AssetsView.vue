@@ -4,7 +4,8 @@ import { useRouter } from "vue-router";
 import AppIcon from "../components/AppIcon.vue";
 import AssetTransferDialog from "../components/AssetTransferDialog.vue";
 import { useLocale } from "../composables/useLocale.js";
-import { requestAssetOverview, requestInvestmentOrders } from "../lib/api.js";
+import { requestAssetOverview, requestInvestmentAgreement, requestInvestmentOrders } from "../lib/api.js";
+import { downloadInvestmentAgreement } from "../lib/investmentAgreementDocument.js";
 import dividendToken from "../assets/images/dividend-token.png";
 
 defineOptions({ inheritAttrs: false });
@@ -22,6 +23,7 @@ const transferMode = ref("deposit");
 const transferOverview = ref({ balance: "0", frozen_balance: "0", token: {} });
 const overview = ref({ balance: "0", frozen_balance: "0", token: {}, assets: [] });
 const investmentData = ref({ items: [], principal: "0", total_dividend: "0", monthly_dividend: "0" });
+const downloadingAgreement = ref("");
 let overviewRequestId = 0;
 let investmentRequestId = 0;
 
@@ -192,6 +194,25 @@ function handleTransferSuccess(result) {
   void loadOverview();
 }
 
+function viewOrderAgreement(order) {
+  if (!hasActiveSession()) { emit("connect"); return; }
+  void router.push({ name: "investment-agreement", query: { order_id: order.order_id } });
+}
+
+async function downloadOrderAgreement(order) {
+  if (downloadingAgreement.value) return;
+  if (!hasActiveSession()) { emit("connect"); return; }
+  const wallet = props.address;
+  downloadingAgreement.value = order.order_id;
+  try {
+    const agreement = await requestInvestmentAgreement(order.order_id);
+    if (!hasActiveSession() || props.address !== wallet) return;
+    await downloadInvestmentAgreement(agreement);
+  } catch (error) {
+    if (props.address === wallet && Number(error?.code) !== 401) emit("notice", { message: lang("加载失败"), type: "error" });
+  } finally { downloadingAgreement.value = ""; }
+}
+
 function refreshAfterAuthChange() {
   window.setTimeout(() => {
     void loadOverview();
@@ -265,6 +286,10 @@ onBeforeUnmount(() => {
           <div><dt>{{ lang("分红周期") }}</dt><dd>{{ order.cycle_days }}{{ lang("天") }}</dd></div>
         </dl>
         <div class="order-actions">
+          <div v-if="order.has_agreement" class="order-agreement-actions">
+            <button type="button" @click="viewOrderAgreement(order)">{{ lang("查看已签署协议") }}</button>
+            <button type="button" :disabled="Boolean(downloadingAgreement)" @click="downloadOrderAgreement(order)">{{ downloadingAgreement === order.order_id ? lang("处理中") : lang("下载已签署协议") }}</button>
+          </div>
           <button type="button" @click="emit('action', { key: 'add-investment', order })">{{ lang("追加投资") }}</button>
         </div>
       </article>
@@ -320,6 +345,9 @@ onBeforeUnmount(() => {
 .order-card dd { min-width: 0; margin: 0; overflow: hidden; color: #5e5961; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .order-actions { display: block; }
 .order-actions button {width: 100%; height: 44px; border: 0; border-radius: 8px; background: linear-gradient(105deg, #ad52f4, #7825d2); color: #fff; font-size: 15px; cursor: pointer; }
+.order-agreement-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.order-agreement-actions button { height: auto; min-height: 40px; padding: 8px; border: 1px solid #dbc1ef; background: #f7f0fd; color: #8734cf; font-size: 12px; overflow-wrap: anywhere; }
+.order-agreement-actions button:disabled { opacity: .55; cursor: not-allowed; }
 @media (max-width: 390px) {
   .assets-view { padding-left: 10px; padding-right: 10px; }
   .balance-card { padding-left: 12px; padding-right: 12px; }

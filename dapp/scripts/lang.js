@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { agreementLocaleSeeds } from "./agreementTranslations.js";
 
 const rootDir = process.cwd();
 const srcDir = path.join(rootDir, "src");
@@ -286,7 +287,9 @@ for (const text of [...sourceTexts].sort((a, b) => a.localeCompare(b, "zh-Hans")
     const existingLocale = existingLocales[code] || {};
     const insuranceLocaleValue = insuranceLocaleSeeds[code]?.[text];
 
-    if (insuranceLocaleValue) {
+    if (agreementLocaleSeeds[code]?.[text]) {
+      nextLocales[code][key] = agreementLocaleSeeds[code][text];
+    } else if (insuranceLocaleValue) {
       nextLocales[code][key] = insuranceLocaleValue;
     } else if (stakingLocaleSeeds[code]?.[text]) {
       nextLocales[code][key] = stakingLocaleSeeds[code][text];

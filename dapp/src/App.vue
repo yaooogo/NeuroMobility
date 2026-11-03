@@ -318,6 +318,10 @@ function handleProfileAction(item) {
 }
 
 function handleViewAction(item) {
+  if (item?.key === "agreements") {
+    void router.push({ name: "investment-agreement" });
+    return;
+  }
   if (item?.key === "invite") {
     void openInviteShare();
     return;

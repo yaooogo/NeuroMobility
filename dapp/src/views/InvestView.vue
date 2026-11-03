@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
+import { parseUnits } from "viem";
 import AppIcon from "../components/AppIcon.vue";
 import { useLocale } from "../composables/useLocale.js";
 import { requestAssetOverview, requestCreateInvestment, requestInvestmentConfig } from "../lib/api.js";
@@ -159,9 +160,20 @@ async function submit() {
   }
   submitting.value = true;
   try {
+    const rawAmount = parseUnits(String(finalAmount.value), 18);
+    const usdtRaw = selectedToken.value === "USDT" ? rawAmount : selectedToken.value === "USDT+RUSD"
+      ? rawAmount * BigInt(Math.round(mixedSplit.value.usdtPercent * 10000)) / 1000000n : 0n;
+    if (usdtRaw >= 1000n * 10n ** 18n) {
+      await router.push({ name: "investment-agreement", query: { amount: String(finalAmount.value), token: selectedToken.value } });
+      return;
+    }
     const order = await requestCreateInvestment(String(finalAmount.value), selectedToken.value);
     await router.push({ name: "invest-success", query: { order_id: order.order_id } });
   } catch (error) {
+    if (error?.data?.agreement_required) {
+      await router.push({ name: "investment-agreement", query: { amount: String(finalAmount.value), token: selectedToken.value } });
+      return;
+    }
     emit("notice", { message: error?.message || lang("投资失败"), type: "error" });
   } finally {
     submitting.value = false;

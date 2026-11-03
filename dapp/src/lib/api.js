@@ -116,8 +116,20 @@ export async function requestPlatformStats() {
   return unwrap(await http.post("/content/platform-stats", {}));
 }
 
-export async function requestCreateInvestment(amount, token = "USDT") {
-  return unwrap(await http.post("/investment/create", { amount, token }));
+export async function requestCreateInvestment(amount, token = "USDT", agreement = {}) {
+  return unwrap(await http.post("/investment/create", { amount, token, ...agreement }));
+}
+
+export async function requestPrepareInvestmentAgreement(payload) {
+  return unwrap(await http.post("/investment/agreement/prepare", payload));
+}
+
+export async function requestInvestmentAgreement(orderId) {
+  return unwrap(await http.post("/investment/agreement", { order_id: orderId }));
+}
+
+export async function requestInvestmentAgreements() {
+  return unwrap(await http.post("/investment/agreements", {}));
 }
 
 export async function requestInvestmentOrders() {

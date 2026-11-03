@@ -1,4 +1,5 @@
 import ApiResult from '../../Util/ApiResult.js';
+import { createHash } from 'node:crypto';
 import AssetToken from '../../Util/AssetToken.js';
 import CacheData from '../../Util/CacheData.js';
 import Database from '../../Util/Database.js';
@@ -8,6 +9,7 @@ import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import { AGREEMENT_THRESHOLD, ensureInvestmentAgreementTable, buildAgreementSnapshot, validateAgreementSignature, agreementDateTime } from '../../Util/InvestmentAgreement.js';
 import {
   LEVEL_REWARD_PERCENT_DENOMINATOR,
   calculateLevelRewardRates
@@ -252,6 +254,54 @@ async function create(req, res) {
   return createInvestment(req, res);
 }
 
+async function prepareAgreement(req, res) {
+  try {
+    await ensureInvestmentAgreementTable();
+    const wallet = address(req.auth?.address());
+    if (!isWallet(wallet)) return res.send(ApiResult.error(400, 'Invalid wallet address'));
+    const config = await CacheData.getInvestmentConfig();
+    const token = String(req.body?.token || TOKEN).trim().toUpperCase();
+    if (!INVESTMENT_TOKENS.includes(token) || !isInvestmentTokenEnabled(token, config)) throw new Error('Invalid payment method');
+    const amountRaw = BigInt(parseAssetAmount(String(req.body?.amount || ''), INVESTMENT_DECIMALS));
+    const minimumRaw = BigInt(parseAssetAmount(String(minimumInvestmentAmountForToken(token, config)), INVESTMENT_DECIMALS));
+    const wholeRaw = BigInt(parseAssetAmount(String(config.whole_vehicle_tier), INVESTMENT_DECIMALS));
+    if (minimumRaw <= 0n || amountRaw < minimumRaw || (amountRaw !== wholeRaw && amountRaw % minimumRaw !== 0n)) throw new Error('Invalid investment amount');
+    const mixedUsdtPercent = mixedPercentForToken(token, config.mixed_usdt_percent);
+    const usdtRaw = splitInvestmentAmount(amountRaw, token, mixedUsdtPercent).find(item => item.token === TOKEN)?.amountRaw ?? 0n;
+    if (usdtRaw < AGREEMENT_THRESHOLD) throw new Error('An agreement is required when the USDT portion is at least 1000 USDT');
+    const snapshot = buildAgreementSnapshot({
+      investor: req.body?.investor, maturity: req.body?.maturity, token,
+      amount: formatAssetAmount(amountRaw.toString(), INVESTMENT_DECIMALS), amountRaw,
+      usdtAmount: formatAssetAmount(usdtRaw.toString(), INVESTMENT_DECIMALS), usdtRaw, mixedUsdtPercent
+    });
+    await DB.query().table('investment_agreement').insert({ agreement_id: snapshot.agreement_id, wallet, snapshot: JSON.stringify(snapshot), created_at: snapshot.created_at });
+    return res.send(ApiResult.success(snapshot));
+  } catch (error) { return res.send(ApiResult.error(400, toDappApiMessage(error, 'Unable to prepare investment agreement'))); }
+}
+
+async function agreements(req, res) {
+  try {
+    await ensureInvestmentAgreementTable();
+    const rows = await DB.query().table('investment_agreement').where('wallet', address(req.auth?.address()))
+      .whereRaw('order_id IS NOT NULL').orderBy('id', 'desc').take(100).get();
+    return res.send(ApiResult.success({ items: (rows || []).map(row => {
+      const snapshot = JSON.parse(row.snapshot);
+      return { agreement_id: row.agreement_id, order_id: row.order_id, usdt_amount: snapshot.usdt_amount, signed_at: row.signed_at };
+    }) }));
+  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentService.agreements')); }
+}
+
+async function agreement(req, res) {
+  try {
+    await ensureInvestmentAgreementTable();
+    const orderId = String(req.body?.order_id || '').trim();
+    if (!orderId) return res.send(ApiResult.error(400, 'Investment order not found'));
+    const row = await DB.query().table('investment_agreement').where('wallet', address(req.auth?.address())).where('order_id', orderId).first();
+    if (!row) return res.send(ApiResult.error(404, 'Signed agreement not found'));
+    return res.send(ApiResult.success({ ...JSON.parse(row.snapshot), order_id: row.order_id, signature: row.signature, signed_at: row.signed_at, status: 'signed' }));
+  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentService.agreement')); }
+}
+
 export async function createInvestment(req, res, options = {}) {
   try {
     await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
@@ -300,9 +350,43 @@ export async function createInvestment(req, res, options = {}) {
     const nextDividendAt = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', addDays(nowDate, Number(investmentConfig.waiting_period_days) + Number(investmentConfig.dividend_cycle_days)));
     const newOrderId = orderId();
     let createdId = 0;
+    const usdtRaw = debitItems.find(item => item.token === TOKEN)?.amountRaw ?? 0n;
+    const requiresAgreement = !options.wallet && usdtRaw >= AGREEMENT_THRESHOLD;
+    const agreementId = String(req.body?.agreement_id || '').trim();
+    let signature;
+    if (requiresAgreement) {
+      if (!agreementId || !Array.isArray(req.body?.agreement_consents) || req.body.agreement_consents.length !== 4
+        || !req.body.agreement_consents.every(value => value === true || value === 'true')) {
+        return res.send(ApiResult.error(409, 'Please read and sign the investment agreement', { agreement_required: true }));
+      }
+      try { signature = validateAgreementSignature(req.body?.agreement_signature); }
+      catch (error) { return res.send(ApiResult.error(400, error.message)); }
+      await ensureInvestmentAgreementTable();
+    }
 
     await DB.transaction(async (configName, connection) => {
       const prefix = Database.prefix(configName) || '';
+      let agreementSnapshot;
+      if (requiresAgreement) {
+        const rows = await DB.query(configName, connection).exec(
+          `SELECT * FROM ${prefix}investment_agreement WHERE agreement_id=? AND wallet=? LIMIT 1 FOR UPDATE`, [agreementId, wallet]
+        );
+        const draft = rows?.[0];
+        if (!draft) throw new Error('Investment agreement not found');
+        const snapshot = JSON.parse(draft.snapshot);
+        agreementSnapshot = snapshot;
+        if (snapshot.amount_raw !== amountRaw.toString() || snapshot.token !== investmentToken || snapshot.usdt_raw !== usdtRaw.toString()) {
+          throw new Error('Investment details changed. Please confirm a new agreement');
+        }
+        if (draft.order_id) {
+          const existing = await DB.query(configName, connection).table('investment_order').where('order_id', draft.order_id).where('wallet', wallet).first();
+          if (!existing) throw new Error('Investment order not found');
+          createdId = existing.id;
+          return;
+        }
+        const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(nowDate);
+        if (snapshot.start_date !== today) throw new Error('Investment agreement expired. Please confirm a new agreement');
+      }
       for (const debit of options.deductWallet === false ? [] : debitItems) {
         const assetRows = await DB.query(configName, connection).exec(
           `SELECT * FROM ${prefix}wallet_assets WHERE LOWER(wallet)=? AND token=? LIMIT 1 FOR UPDATE`, [wallet, debit.token]
@@ -355,24 +439,38 @@ export async function createInvestment(req, res, options = {}) {
         waiting_until: waitingUntil, next_dividend_at: nextDividendAt, created_at: now, updated_at: now
       }, result);
       createdId = result.insertId;
+      if (requiresAgreement) {
+        await DB.query(configName, connection).table('investment_agreement').where('agreement_id', agreementId).where('wallet', wallet).update({
+          order_id: newOrderId, signature, signed_at: agreementDateTime(nowDate),
+          snapshot: JSON.stringify({ ...agreementSnapshot, status: 'signed', signed_at: agreementDateTime(nowDate), consents: [true, true, true, true], signer_wallet: wallet,
+            content_sha256: createHash('sha256').update(agreementSnapshot.content).digest('hex'),
+            signature_sha256: createHash('sha256').update(signature).digest('hex') })
+        });
+      }
     });
 
     const row = await DB.query().table('investment_order').where('id', createdId).first();
     return res.send(ApiResult.success(publicOrder(row), 'Investment created successfully'));
   } catch (error) {
     const message = toDappApiMessage(error, 'Investment failed');
-    if (/Insufficient|asset account not found|account is unavailable|asset amount/iu.test(message)) return res.send(ApiResult.error(400, message));
+    if (/Insufficient|asset account not found|account is unavailable|asset amount|agreement|Investment details changed/iu.test(message)) return res.send(ApiResult.error(400, message));
     return res.send(ApiResult.exception(toDappApiError(error, 'Investment failed'), 'InvestmentService.create'));
   }
 }
 
 async function list(req, res) {
   try {
-    await ensureInvestmentOrderTable();
+    await Promise.all([ensureInvestmentOrderTable(), ensureInvestmentAgreementTable()]);
     const wallet = address(req.auth?.address());
     await activateMatureOrders(wallet);
     const rows = await DB.query().table('investment_order').whereRaw('LOWER(wallet)=?', [wallet]).orderBy('id', 'desc').take(100).get();
-    const items = (rows || []).map(publicOrder);
+    const agreementRows = rows?.length ? await DB.query().table('investment_agreement')
+      .select(['order_id', 'agreement_id']).where('wallet', wallet)
+      .whereIn('order_id', rows.map(row => row.order_id)).whereRaw('signed_at IS NOT NULL').get() : [];
+    const agreementIds = new Map((agreementRows || []).map(row => [row.order_id, row.agreement_id]));
+    const items = (rows || []).map(row => ({ ...publicOrder(row),
+      has_agreement: agreementIds.has(row.order_id), agreement_id: agreementIds.get(row.order_id) || ''
+    }));
     const principal = (rows || []).filter(row => [0, 1].includes(Number(row.status || 0)))
       .reduce((sum, row) => sum + BigInt(String(row.amount || 0)), 0n);
     const distributed = (rows || []).reduce((sum, row) => sum + BigInt(String(row.distributed_amount || 0)), 0n);
@@ -450,4 +548,4 @@ async function dividends(req, res) {
   }
 }
 
-export default { create, list, detail, dividends };
+export default { create, list, detail, dividends, prepareAgreement, agreements, agreement };
