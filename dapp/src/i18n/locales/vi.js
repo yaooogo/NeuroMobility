@@ -80,6 +80,7 @@ export default {
   "7edf331d": "Thời gian",
   "80e72e8b": "Hỗ trợ tài sản vật chất",
   "83047dbc": "Người dùng tích lũy",
+  "8315b23b": "Sao chép địa chỉ",
   "8329261b": "Phân bổ số tiền tham gia",
   "83f9fdfd": "Nạp on-chain",
   "855b8ba7": "Thời gian chờ ${waitingDays} ngày",

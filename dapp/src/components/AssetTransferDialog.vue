@@ -1,5 +1,6 @@
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { copyText } from "../lib/clipboard.js";
 import QRCode from "qrcode";
 import { getAccount, readContract, waitForTransactionReceipt, writeContract } from "@wagmi/core";
 import { formatUnits, getAddress, parseUnits } from "viem";
@@ -23,6 +24,9 @@ const stage = ref("");
 const preparedWithdrawal = ref(null);
 const showReceiver = ref(false);
 const receiverQrCode = ref("");
+const addressCopied = ref(false);
+let copyTimer;
+onBeforeUnmount(() => window.clearTimeout(copyTimer));
 const receiverWalletAddress = String(import.meta.env.VITE_RECEIVER_WALLET_ADDRESS || "").trim();
 
 const token = computed(() => props.overview?.token || {});
@@ -88,10 +92,13 @@ async function loadChainBalance() {
 }
 
 watch(() => [props.visible, props.mode, props.address, token.value.contract], ([visible]) => {
+  window.clearTimeout(copyTimer);
+  addressCopied.value = false;
   if (!visible) return;
   amount.value = "";
   showReceiver.value = false;
   receiverQrCode.value = "";
+  addressCopied.value = false;
   stage.value = "";
   preparedWithdrawal.value = null;
   chainDecimals.value = null;
@@ -100,6 +107,8 @@ watch(() => [props.visible, props.mode, props.address, token.value.contract], ([
 
 async function openReceiver() {
   if (busy.value) return;
+  window.clearTimeout(copyTimer);
+  addressCopied.value = false;
   try {
     if (!receiverWalletAddress) throw new Error(lang("暂未配置收款地址"));
     getAddress(receiverWalletAddress);
@@ -107,6 +116,19 @@ async function openReceiver() {
     showReceiver.value = true;
   } catch {
     emit("notice", { message: lang("收款地址或二维码不可用，请稍后重试"), type: "error" });
+  }
+}
+
+async function copyReceiverAddress() {
+  if (!receiverWalletAddress) return;
+  window.clearTimeout(copyTimer);
+  addressCopied.value = false;
+  try {
+    if (!await copyText(receiverWalletAddress)) throw new Error("Copy failed");
+    addressCopied.value = true;
+    copyTimer = window.setTimeout(() => { addressCopied.value = false; }, 1800);
+  } catch {
+    emit("notice", { message: lang("复制失败，请手动复制"), type: "error" });
   }
 }
 
@@ -179,7 +201,10 @@ async function submit() {
       <div v-if="isDeposit && showReceiver" class="receiver-page">
         <img class="receiver-qr" :src="receiverQrCode" :alt="lang('收款地址二维码')" />
         <p class="receiver-label">{{ lang("收款地址") }}</p>
-        <div class="receiver-address">{{ receiverWalletAddress }}</div>
+        <button class="receiver-address" type="button" :title="receiverWalletAddress" :aria-label="lang('复制地址')" @click="copyReceiverAddress">
+          <span>{{ receiverWalletAddress }}</span>
+          <small aria-live="polite">{{ addressCopied ? lang("已复制") : lang("点击复制") }}</small>
+        </button>
         <button class="receiver-link" type="button" @click="showReceiver = false">{{ lang("返回充值") }}</button>
       </div>
       <template v-else>
@@ -223,6 +248,9 @@ async function submit() {
 .receiver-page { text-align: center; }
 .receiver-qr { display: block; width: 256px; max-width: 100%; height: auto; margin: 0 auto; }
 .receiver-label { margin: 16px 0 10px; font-size: 14px; color: #929095; }
-.receiver-address { padding: 14px; border-radius: 12px; background: #f1effd; font-family: monospace; font-size: 14px; overflow-wrap: anywhere; user-select: all; }
+.receiver-address { width: 100%; min-height: 44px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 12px 13px; border: 0; border-radius: 10px; background: #f0edfb; color: #a8a3ae; text-align: left; cursor: pointer; }
+.receiver-address span { min-width: 0; font-size: 13px; font-weight: 400; overflow-wrap: anywhere; }
+.receiver-address small { color: #9140df; font-size: 10px; white-space: nowrap; }
+.receiver-address:focus-visible { outline: 2px solid #9140df; outline-offset: 3px; }
 @media (max-width: 480px) { .transfer-dialog { padding: 24px 18px 20px; } .transfer-dialog h2 { font-size: 19px; } }
 </style>

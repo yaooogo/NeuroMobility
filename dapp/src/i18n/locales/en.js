@@ -80,6 +80,7 @@ export default {
   "7edf331d": "Time",
   "80e72e8b": "Physical Asset Support",
   "83047dbc": "Cumulative Users",
+  "8315b23b": "Copy address",
   "8329261b": "Contribution Amount Allocation",
   "83f9fdfd": "On-chain Recharge",
   "855b8ba7": "${waitingDays}-day waiting period",

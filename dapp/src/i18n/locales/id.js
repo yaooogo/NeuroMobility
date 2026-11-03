@@ -80,6 +80,7 @@ export default {
   "7edf331d": "Waktu",
   "80e72e8b": "Dukungan Aset Fisik",
   "83047dbc": "Pengguna Kumulatif",
+  "8315b23b": "Salin alamat",
   "8329261b": "Alokasi Jumlah Partisipasi",
   "83f9fdfd": "Isi ulang on-chain",
   "855b8ba7": "Masa tunggu ${waitingDays} days",
