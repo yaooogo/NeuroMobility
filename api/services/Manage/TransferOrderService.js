@@ -23,12 +23,13 @@ function filters(req) {
     orderId: String(req.body?.order_id || '').trim(),
     txHash: String(req.body?.tx_hash || '').trim(),
     status: String(req.body?.status ?? '').trim(),
+    isDirect: String(req.body?.is_direct ?? '').trim(),
     start: String(req.body?.start_date || '').trim(),
     end: String(req.body?.end_date || '').trim()
   };
 }
 
-function applyFilters(query, values, includeStatus = false) {
+function applyFilters(query, values, includeStatus = false, includeDirect = false) {
   applyTeamWalletExclusion(query, values.searchTeam, values.excludedWallets);
   if (values.wallet && values.searchTeam) {
     const prefix = Database.prefix('default') || '';
@@ -38,6 +39,7 @@ function applyFilters(query, values, includeStatus = false) {
   if (values.orderId) query.where('order_id', 'like', `%${values.orderId}%`);
   if (values.txHash) query.where('tx_hash', 'like', `%${values.txHash}%`);
   if (includeStatus && values.status !== '') query.where('status', Helper.parseInt(values.status, 0));
+  if (includeDirect && ['0', '1'].includes(values.isDirect)) query.where('is_direct', Number(values.isDirect));
   if (/^\d{4}-\d{2}-\d{2}$/u.test(values.start)) query.where('created_at', '>=', `${values.start} 00:00:00`);
   if (/^\d{4}-\d{2}-\d{2}$/u.test(values.end)) query.where('created_at', '<=', `${values.end} 23:59:59`);
   return query;
@@ -66,6 +68,7 @@ function normalizeDeposit(row, tokenMap) {
     token: row.token || '',
     amount: formatAssetAmount(row.amount || '0', decimals),
     raw_amount: String(row.amount || '0'),
+    is_direct: Number(row.is_direct || 0),
     tx_hash: row.tx_hash || '',
     block_number: Number(row.block_number || 0),
     log_index: Number(row.index || 0),
@@ -105,7 +108,7 @@ async function depositList(req, res) {
     await ensureAssetTransferTables();
     const page = Helper.parseInt(req.body?.page, 1);
     const pageSize = Helper.parseInt(req.body?.page_size, 20);
-    const query = applyFilters(DB.query().table(DEPOSIT_TABLE), filters(req)).orderBy('id', 'desc');
+    const query = applyFilters(DB.query().table(DEPOSIT_TABLE), filters(req), false, true).orderBy('id', 'desc');
     const [result, context] = await Promise.all([query.paginate(page, pageSize), tokenContext()]);
     return res.send(ApiResult.success({
       items: (result.items || []).map(row => normalizeDeposit(row, context.map)),
@@ -157,13 +160,13 @@ async function depositExport(req, res) {
   try {
     await ensureAssetTransferTables();
     const [rows, context] = await Promise.all([
-      applyFilters(DB.query().table(DEPOSIT_TABLE), filters(req)).orderBy('id', 'desc').get(),
+      applyFilters(DB.query().table(DEPOSIT_TABLE), filters(req), false, true).orderBy('id', 'desc').get(),
       tokenContext()
     ]);
-    const lines = [['ID', '订单号', '钱包地址', '资产', '充值数量', '交易哈希', '区块高度', '日志序号', '收款合约', '创建时间', '更新时间'].map(csvEscape).join(',')];
+    const lines = [['ID', '订单号', '钱包地址', '资产', '充值数量', '交易哈希', '直接打款', '区块高度', '日志序号', '收款合约', '创建时间', '更新时间'].map(csvEscape).join(',')];
     for (const raw of rows || []) {
       const row = normalizeDeposit(raw, context.map);
-      lines.push([row.id, row.order_id, row.wallet, row.token, row.amount, row.tx_hash, row.block_number, row.log_index, row.contract, row.created_at, row.updated_at].map(csvEscape).join(','));
+      lines.push([row.id, row.order_id, row.wallet, row.token, row.amount, row.tx_hash, row.is_direct === 1 ? '是' : '否', row.block_number, row.log_index, row.contract, row.created_at, row.updated_at].map(csvEscape).join(','));
     }
     const filename = `deposit-orders-${Helper.dateFormat('YYYYmmddHHMMSS', new Date())}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');

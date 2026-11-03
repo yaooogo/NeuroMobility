@@ -10,11 +10,16 @@ import { RedisCache } from '../../Util/Cache.js';
 import BigNumber from 'bignumber.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
 import OpenService from '../../services/Api/OpenService.js';
+import { TokenAbi } from '../../Util/Abi/TokenAbi.js';
+import Config from '../../Util/Config.js';
 
 const TokenReceiverIface = new ethers.Interface(TokenReceiverAbi.abi);
 const TokenReceiverEvent = ethers.id(ChainConfig.getContractEvent('TokenReceiver', 'PaymentReceived'));
 const TokenWithdrawalIface = new ethers.Interface(TokenWithdrawalAbi.abi);
 const TokenWithdrawalEvent = ethers.id(ChainConfig.getContractEvent('TokenWithdrawal', 'Claimed'));
+const TokenTransferIface = new ethers.Interface(TokenAbi.abi);
+const TokenTransferEvent = ethers.id(ChainConfig.getContractEvent('USDT', 'Transfer'));
+
 const USER_ASSET_LOG_SCENE = 'token_recharge';
 
 function normalizeAddress(value) {
@@ -261,6 +266,122 @@ export default {
 
             await RedisCache.set(cacheKey, "1", 180);
             console.log("parse TokenWithdrawal", user, orderId, tokenSymbol, serviceAmount, feeReceiver);
+            return true;
+        }
+        catch (e) {
+            throw new Error(e?.message || e);
+        }
+    },
+    async USDT(log) {
+        try {
+            await ensureAssetTransferTables();
+            if (!log?.topics?.length || log.topics[0] !== TokenTransferEvent) {
+                return false;
+            }
+
+            const parsedLog = TokenTransferIface.parseLog(log);
+            if (!parsedLog || parsedLog.name !== 'Transfer') {
+                return false;
+            }
+
+            const payer = normalizeAddress(parsedLog.args?.payer || parsedLog.args?.[0] || '');
+            const recipient = normalizeAddress(parsedLog.args?.recipient || parsedLog.args?.[1] || '');
+
+            if(Config.CHAIN_NET=='test' && recipient !== normalizeAddress(Config.TEST_RECEIVER_WALLET_ADDRESS || '')) {
+                return false;
+            }
+            if(Config.CHAIN_NET=='main' && recipient !== normalizeAddress(Config.MAIN_RECEIVER_WALLET_ADDRESS || '')) {
+                return false;
+            }
+
+            const tokenAddress = normalizeAddress(log.address || '');
+            const tokenItem = await resolveTokenItemByContract(tokenAddress);
+            const tokenSymbol = String(tokenItem?.symbol || '').trim().toUpperCase();
+            const amount = String(parsedLog.args?.amount || parsedLog.args?.[2] || '0');
+            const orderId = String(Helper.dateFormat('YYYYmmddHHMMSS') + Math.floor(Math.random() * 1000000)).padStart(20, '0');
+            const eventTimestamp = Helper.getUtcTime();
+            const createdAt = formatOrderCreatedAt(eventTimestamp);
+            const logIndex = Number(log.index ?? log.logIndex ?? 0);
+            const cacheKey = `TOKEN_TRANSFER_PAYMENT_RECEIVED:${log.blockNumber}:${logIndex}`;
+
+            if (!orderId || !payer || !tokenSymbol || !tokenAddress) {
+                return false;
+            }
+
+            if (await RedisCache.get(cacheKey)) {
+                return false;
+            }
+  
+
+            await DB.transaction(async (config, connection) => {
+                const prefix = Database.prefix(config);
+                const now = Helper.dateFormat();
+                await OpenService.createWalletIfMissing(payer, config, connection, prefix, now);
+
+                const inserted = await DB.query(config, connection).table('receiver_order').insertOrIgnore({
+                    order_id: orderId,
+                    contract: tokenAddress,
+                    wallet: payer,
+                    token: tokenSymbol,
+                    amount,
+                    tx_hash: String(log.transactionHash || '').trim(),
+                    is_direct: 1,
+                    block_number: Number(log.blockNumber || 0),
+                    "`index`": logIndex,
+                    created_at: createdAt,
+                    updated_at: now
+                });
+
+                if (!inserted) {
+                    return false;
+                }
+
+                const assetRows = await DB.query(config, connection).exec(
+                    `SELECT * FROM ${prefix}wallet_assets WHERE wallet=? AND token=? LIMIT 1 FOR UPDATE`,
+                    [payer, tokenSymbol]
+                );
+                let asset = Array.isArray(assetRows) ? assetRows[0] : null;
+
+                if (!asset) {
+                    await DB.query(config, connection).table('wallet_assets').insert({
+                        wallet: payer,
+                        token: tokenSymbol,
+                        balance: '0',
+                        frozen_balance: '0',
+                        updated_at: now
+                    });
+
+                    asset = {
+                        balance: '0'
+                    };
+                }
+
+                const beforeBalance = toRawBigInt(asset.balance);
+                const rechargeAmount = toRawBigInt(amount);
+                const afterBalance = beforeBalance + rechargeAmount;
+
+                await DB.query(config, connection).exec(
+                    `UPDATE ${prefix}wallet_assets SET balance=?, updated_at=? WHERE wallet=? AND token=?`,
+                    [afterBalance.toString(), now, payer, tokenSymbol]
+                );
+
+                await DB.query(config, connection).table('wallet_assets_logs').insert({
+                    biz_id: orderId,
+                    wallet: payer,
+                    token: tokenSymbol,
+                    balance: rechargeAmount.toString(),
+                    before_balance: beforeBalance.toString(),
+                    after_balance: afterBalance.toString(),
+                    scene: USER_ASSET_LOG_SCENE,
+                    reason: `${tokenSymbol} recharge order ${orderId}`,
+                    type: 'in',
+                    created_at: now,
+                    updated_at: now
+                });
+            });
+
+            await RedisCache.set(cacheKey, "1", 180);
+            console.log("parse Token Transfer Receiver", payer, tokenSymbol, orderId);
             return true;
         }
         catch (e) {

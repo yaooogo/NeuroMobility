@@ -1,0 +1,5 @@
+ALTER TABLE `n_receiver_order` 
+ADD COLUMN `is_direct` tinyint(1) NOT NULL DEFAULT 0 COMMENT '直接打款' AFTER `tx_hash`;
+
+ALTER TABLE `n_receiver_order` 
+ADD UNIQUE INDEX `idx_receiver_order_type`(`is_direct`, `block_number`, `index`);

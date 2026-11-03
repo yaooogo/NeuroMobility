@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from "vue";
+import QRCode from "qrcode";
 import { getAccount, readContract, waitForTransactionReceipt, writeContract } from "@wagmi/core";
 import { formatUnits, getAddress, parseUnits } from "viem";
 import { useLocale } from "../composables/useLocale.js";
@@ -20,6 +21,9 @@ const chainDecimals = ref(null);
 const busy = ref(false);
 const stage = ref("");
 const preparedWithdrawal = ref(null);
+const showReceiver = ref(false);
+const receiverQrCode = ref("");
+const receiverWalletAddress = String(import.meta.env.VITE_RECEIVER_WALLET_ADDRESS || "").trim();
 
 const token = computed(() => props.overview?.token || {});
 const tokenSymbol = computed(() => token.value.symbol || token.value.value || "USDT");
@@ -86,11 +90,25 @@ async function loadChainBalance() {
 watch(() => [props.visible, props.mode, props.address, token.value.contract], ([visible]) => {
   if (!visible) return;
   amount.value = "";
+  showReceiver.value = false;
+  receiverQrCode.value = "";
   stage.value = "";
   preparedWithdrawal.value = null;
   chainDecimals.value = null;
   void loadChainBalance();
 });
+
+async function openReceiver() {
+  if (busy.value) return;
+  try {
+    if (!receiverWalletAddress) throw new Error(lang("暂未配置收款地址"));
+    getAddress(receiverWalletAddress);
+    receiverQrCode.value = await QRCode.toDataURL(receiverWalletAddress, { width: 256, margin: 4 });
+    showReceiver.value = true;
+  } catch {
+    emit("notice", { message: lang("收款地址或二维码不可用，请稍后重试"), type: "error" });
+  }
+}
 
 async function deposit(rawAmount) {
   const wallet = walletContext();
@@ -158,6 +176,13 @@ async function submit() {
   <div v-if="visible" class="transfer-mask" @click.self="!busy && emit('close')">
     <section class="transfer-dialog" role="dialog" aria-modal="true" :aria-label="title">
       <header><h2>{{ title }}</h2><button type="button" :disabled="busy" @click="emit('close')">×</button></header>
+      <div v-if="isDeposit && showReceiver" class="receiver-page">
+        <img class="receiver-qr" :src="receiverQrCode" :alt="lang('收款地址二维码')" />
+        <p class="receiver-label">{{ lang("收款地址") }}</p>
+        <div class="receiver-address">{{ receiverWalletAddress }}</div>
+        <button class="receiver-link" type="button" @click="showReceiver = false">{{ lang("返回充值") }}</button>
+      </div>
+      <template v-else>
       <div v-if="!isDeposit" class="address-box">{{ address }}</div>
       <label class="amount-box">
         <input v-model.trim="amount" inputmode="decimal" :disabled="busy" :placeholder="`${lang('最低输入')} ${minimum || 0} ${tokenSymbol}`" />
@@ -170,6 +195,10 @@ async function submit() {
       <button class="confirm" type="button" :disabled="busy || !amount" @click="submit">
         {{ busy ? (stage || lang("处理中")) : (isDeposit ? lang("确认充值") : lang("确认提现")) }}
       </button>
+      <button v-if="isDeposit" class="receiver-link" type="button" :disabled="busy" @click="openReceiver">
+        {{ lang("使用收款地址充值") }}
+      </button>
+      </template>
     </section>
   </div>
 </template>
@@ -189,5 +218,11 @@ async function submit() {
 .fee { margin-top: 8px; }
 .confirm { width: 100%; min-height: 44px; margin-top: 28px; border: 0; border-radius: 12px; background: linear-gradient(105deg, #ae52f5, #7926d3); color: #fff; font-size: 18px; font-weight: 700; cursor: pointer; }
 .confirm:disabled { cursor: not-allowed; opacity: .58; }
+.receiver-link { display: block; margin: 16px auto 0; padding: 4px 8px; border: 0; background: transparent; color: #2878e8; font-size: 14px; cursor: pointer; }
+.receiver-link:disabled { cursor: not-allowed; opacity: .58; }
+.receiver-page { text-align: center; }
+.receiver-qr { display: block; width: 256px; max-width: 100%; height: auto; margin: 0 auto; }
+.receiver-label { margin: 16px 0 10px; font-size: 14px; color: #929095; }
+.receiver-address { padding: 14px; border-radius: 12px; background: #f1effd; font-family: monospace; font-size: 14px; overflow-wrap: anywhere; user-select: all; }
 @media (max-width: 480px) { .transfer-dialog { padding: 24px 18px 20px; } .transfer-dialog h2 { font-size: 19px; } }
 </style>

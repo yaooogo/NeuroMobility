@@ -24,6 +24,7 @@ export async function ensureAssetTransferTables() {
       token VARCHAR(40) DEFAULT NULL,
       amount VARCHAR(100) NOT NULL,
       tx_hash VARCHAR(100) DEFAULT NULL,
+      is_direct TINYINT(1) NOT NULL DEFAULT 0 COMMENT '直接打款',
       block_number BIGINT NOT NULL DEFAULT 0,
       \`index\` INT NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT NULL,
@@ -60,7 +61,8 @@ export async function ensureAssetTransferTables() {
   const receiverColumns = await getColumnNames(receiverTable);
   const receiverAdditions = [
     { name: 'token', sql: `ALTER TABLE ${receiverTable} ADD COLUMN token VARCHAR(40) DEFAULT NULL AFTER wallet` },
-    { name: 'tx_hash', sql: `ALTER TABLE ${receiverTable} ADD COLUMN tx_hash VARCHAR(100) DEFAULT NULL AFTER amount` }
+    { name: 'tx_hash', sql: `ALTER TABLE ${receiverTable} ADD COLUMN tx_hash VARCHAR(100) DEFAULT NULL AFTER amount` },
+    { name: 'is_direct', sql: `ALTER TABLE ${receiverTable} ADD COLUMN is_direct TINYINT(1) NOT NULL DEFAULT 0 COMMENT '直接打款' AFTER tx_hash` }
   ];
   for (const addition of receiverAdditions) {
     if (!receiverColumns.has(addition.name)) await DB.query().exec(addition.sql);

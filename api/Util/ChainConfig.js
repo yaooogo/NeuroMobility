@@ -22,7 +22,9 @@ export default {
             },
             "USDT":{
                 address: Config.TEST_USDT_CONTRACT_ADDRESS || "",
-                events:{}
+                events:{
+                    "Transfer":"Transfer(address,address,uint256)",
+                }
             },
             "ROH":{
                 address: Config.TEST_ROH_CONTRACT_ADDRESS || "",
@@ -55,7 +57,9 @@ export default {
             },
             "USDT":{
                 address: Config.MAIN_USDT_CONTRACT_ADDRESS || "",
-                events:{}
+                events:{
+                    "Transfer":"Transfer(address,address,uint256)",
+                }
             },
             "ROH":{
                 address: Config.MAIN_ROH_CONTRACT_ADDRESS || "",
