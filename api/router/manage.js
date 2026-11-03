@@ -148,6 +148,7 @@ router.route('/investment-order/create').post((req, res) => {
   return createInvestment(req, res, { wallet, deductWallet: req.body.deduct_wallet });
 })
 router.route('/investment-order/list').post(InvestmentOrderService.list)
+router.route('/investment-order/agreement').post(InvestmentOrderService.agreement)
 router.route('/investment-order/export').post(InvestmentOrderService.exportCsv)
 router.route('/investment-order/dividend-list').post(InvestmentOrderService.dividendList)
 router.route('/investment-order/dividend-now').post(InvestmentOrderService.dividendNow)

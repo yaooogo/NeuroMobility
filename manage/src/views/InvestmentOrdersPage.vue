@@ -7,12 +7,36 @@ import { getUser } from '../lib/auth.js';
 import { post, postBlob } from '../lib/http.js';
 import { formatFixedAmount } from '../lib/amount.js';
 import { can } from '../lib/permissions.js';
+import companySignature from '../assets/company-signature.png';
 
 const user = getUser();
 const query = reactive({ wallet: '', search_team: 0, exclude_wallets: '', order_id: '', status: '', is_gift: '', page: 1, page_size: 20 });
 const list = ref([]); const total = ref(0); const lastPage = ref(1); const loading = ref(false); const error = ref('');
 const success = ref('');
 const exporting = ref(false);
+const agreementVisible = ref(false);
+const agreementLoading = ref(false);
+const agreementError = ref('');
+const agreementDetail = ref(null);
+let agreementRequestId = 0;
+async function openAgreement(row) {
+  const requestId = ++agreementRequestId;
+  agreementVisible.value = true;
+  agreementLoading.value = true;
+  agreementError.value = '';
+  agreementDetail.value = null;
+  try {
+    const detail = await post('/investment-order/agreement', { order_id: row.order_id });
+    if (requestId === agreementRequestId) agreementDetail.value = detail;
+  } catch (err) { if (requestId === agreementRequestId) agreementError.value = err.message || '加载协议失败'; }
+  finally { if (requestId === agreementRequestId) agreementLoading.value = false; }
+}
+function closeAgreement() {
+  ++agreementRequestId;
+  agreementVisible.value = false;
+  agreementDetail.value = null;
+  agreementLoading.value = false;
+}
 async function exportCsv() {
   if (exporting.value) return;
   exporting.value = true; error.value = '';
@@ -176,14 +200,39 @@ onMounted(load);
         <div class="investment-summary-card"><span>分红总额</span><strong>{{ formatFixedAmount(summary.distributed_amount) }} USDT</strong><em>计划 {{ formatFixedAmount(summary.total_dividend) }} USDT</em></div>
       </div>
       <div class="table-wrap"><table class="data-table" style="min-width: 1780px">
-        <thead><tr><th>ID</th><th>订单号</th><th>钱包</th><th>参与方式</th><th>投资标识</th><th>投资金额</th><th>已分红</th><th>总分红</th><th>等待期</th><th>分红周期</th><th>整车</th><th>状态</th><th>等待截止</th><th>下次分红</th><th>投资时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>订单号</th><th>钱包</th><th>参与方式</th><th>投资标识</th><th>投资金额</th><th>已分红</th><th>总分红</th><th>等待期</th><th>分红周期</th><th>整车</th><th>状态</th><th>等待截止</th><th>下次分红</th><th>投资时间</th><th>协议</th><th>操作</th></tr></thead>
         <tbody>
-          <tr v-if="loading || !list.length"><td colspan="16" class="empty-cell">{{ loading ? '正在加载...' : '暂无投资订单' }}</td></tr>
-          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ tokenLabel(row) }}</td><td><span v-if="Number(row.is_gift) === 1" class="investment-gift-badge">赠送</span><span v-else>普通投资</span></td><td>{{ paymentText(row) }}</td><td>{{ formatFixedAmount(row.distributed_amount) }} USDT</td><td>{{ formatFixedAmount(row.total_dividend) }} USDT</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && [0, 1].includes(Number(row.status))" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button><button v-if="can(user, 'investment-orders-terminate') && [0, 1].includes(Number(row.status))" class="table-button table-button--danger" type="button" :disabled="Boolean(terminatingOrderId)" @click="terminateOrder(row)">{{ terminatingOrderId === row.order_id ? '终止中...' : '终止' }}</button></td></tr>
+          <tr v-if="loading || !list.length"><td colspan="17" class="empty-cell">{{ loading ? '正在加载...' : '暂无投资订单' }}</td></tr>
+          <tr v-for="row in list" :key="row.id"><td>{{ row.id }}</td><td class="mono-cell">{{ row.order_id }}</td><td class="mono-cell">{{ row.wallet }}</td><td>{{ tokenLabel(row) }}</td><td><span v-if="Number(row.is_gift) === 1" class="investment-gift-badge">赠送</span><span v-else>普通投资</span></td><td>{{ paymentText(row) }}</td><td>{{ formatFixedAmount(row.distributed_amount) }} USDT</td><td>{{ formatFixedAmount(row.total_dividend) }} USDT</td><td>{{ row.waiting_days }}天</td><td>{{ row.cycle_days }}天</td><td>{{ row.whole_vehicle === 1 ? '是' : '否' }}</td><td>{{ statusLabels[row.status] || '未知' }}</td><td>{{ row.waiting_until || '-' }}</td><td>{{ row.next_dividend_at || '-' }}</td><td>{{ row.created_at || '-' }}</td><td><button v-if="row.has_agreement" class="table-button" type="button" @click="openAgreement(row)">查看协议</button><span v-else class="muted-text">无协议</span></td><td class="actions-cell"><button class="table-button" type="button" @click="openDividends(row)">分红记录</button><button v-if="manualDividendEnabled && [0, 1].includes(Number(row.status))" class="table-button" type="button" :disabled="Boolean(distributingOrderId)" @click="dividendNow(row)">{{ distributingOrderId === row.order_id ? '分红中...' : '立即分红' }}</button><button v-if="can(user, 'investment-orders-terminate') && [0, 1].includes(Number(row.status))" class="table-button table-button--danger" type="button" :disabled="Boolean(terminatingOrderId)" @click="terminateOrder(row)">{{ terminatingOrderId === row.order_id ? '终止中...' : '终止' }}</button></td></tr>
         </tbody>
       </table></div>
       <ManagePagination :page="query.page" :last-page="lastPage" :total="total" @change="changePage" />
     </section>
+    <div v-if="agreementVisible" class="modal-mask" @click.self="closeAgreement" @keydown.esc="closeAgreement">
+      <section class="modal-card investment-agreement-modal" role="dialog" aria-modal="true" aria-labelledby="investment-agreement-title" tabindex="-1">
+        <div class="modal-head"><h2 id="investment-agreement-title">车辆租赁业务投资协议</h2><button class="ghost-button" type="button" @click="closeAgreement">关闭</button></div>
+        <p v-if="agreementLoading" role="status">正在加载协议...</p>
+        <div v-if="agreementError" class="alert-box alert-box--error" role="alert">{{ agreementError }}</div>
+        <template v-if="agreementDetail">
+          <dl class="agreement-info">
+            <div><dt>协议编号</dt><dd>{{ agreementDetail.agreement_id }}</dd></div>
+            <div><dt>协议版本</dt><dd>{{ agreementDetail.version }}</dd></div>
+            <div><dt>订单编号</dt><dd>{{ agreementDetail.order_id }}</dd></div>
+            <div><dt>投资钱包</dt><dd>{{ agreementDetail.wallet }}</dd></div>
+            <div><dt>投资者姓名</dt><dd>{{ agreementDetail.investor.name }}</dd></div>
+            <div><dt>身份证 / 护照号码</dt><dd>{{ agreementDetail.investor.document_number }}</dd></div>
+            <div><dt>联系电话</dt><dd>{{ agreementDetail.investor.phone }}</dd></div>
+            <div><dt>电子邮箱</dt><dd>{{ agreementDetail.investor.email }}</dd></div>
+            <div><dt>协议金额</dt><dd>USD {{ agreementDetail.usdt_amount }}</dd></div>
+            <div><dt>投资期限</dt><dd>{{ agreementDetail.term_months }}个月（{{ agreementDetail.start_date }} 至 {{ agreementDetail.end_date }}）</dd></div>
+            <div><dt>到期处理方式</dt><dd>{{ agreementDetail.maturity === 'renew' ? '自动续约' : '退还本金' }}</dd></div>
+            <div><dt>签署时间</dt><dd>{{ agreementDetail.signed_at }}</dd></div>
+          </dl>
+          <h3>协议正文</h3><pre class="agreement-content">{{ agreementDetail.content }}</pre>
+          <div class="agreement-signatures"><section><h3>甲方（公司）</h3><p>Neuro Foundation Ltd</p><img :src="companySignature" alt="Neuro Foundation Ltd 电子签名" /><p>签署时间：{{ agreementDetail.signed_at }}</p></section><section><h3>乙方（投资者）</h3><p>{{ agreementDetail.investor.name }}</p><img :src="agreementDetail.signature" alt="投资者电子签名" /><p>签署时间：{{ agreementDetail.signed_at }}</p></section></div>
+        </template>
+      </section>
+    </div>
     <div v-if="investmentVisible" class="modal-mask" @click="closeInvestment">
       <section class="modal-card user-investment-modal" role="dialog" aria-modal="true" aria-labelledby="user-investment-title" @click.stop>
         <div class="modal-head"><h2 id="user-investment-title">用户投资</h2><button class="ghost-button" type="button" :disabled="investmentSubmitting" @click="closeInvestment">关闭</button></div>
@@ -224,6 +273,12 @@ onMounted(load);
 .user-investment-form > label:not(.inline-check) { display: grid; gap: 8px; }
 .user-investment-actions { display: flex; justify-content: flex-end; gap: 12px; }
 .investment-dividend-modal { width: min(1080px, calc(100vw - 32px)); }
+.investment-agreement-modal { width: min(980px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; }
+.agreement-info { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 24px; }
+.agreement-info div { min-width: 0; }.agreement-info dt { color: var(--muted); font-size: 12px; }.agreement-info dd { margin: 6px 0 0; overflow-wrap: anywhere; }
+.agreement-content { padding: 20px; border-radius: 10px; background: #fff; color: #352b3b; white-space: pre-wrap; overflow-wrap: anywhere; font-family: inherit; font-size: 14px; line-height: 1.9; }
+.agreement-signatures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.agreement-signatures section { min-width: 0; padding: 16px; border: 1px solid rgba(142, 168, 241, .18); border-radius: 10px; }.agreement-signatures img { display: block; width: 100%; max-width: 360px; height: 120px; padding: 8px; object-fit: contain; background: #fff; border-radius: 8px; }.agreement-signatures p { overflow-wrap: anywhere; }
 .inline-check { min-height: 44px; display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(142, 168, 241, 0.16); border-radius: 14px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 .inline-check input { width: 16px; height: 16px; margin: 0; accent-color: var(--primary); }
 .investment-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
@@ -233,4 +288,5 @@ onMounted(load);
 .investment-summary-card em { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; font-style: normal; overflow-wrap: anywhere; }
 @media (max-width: 900px) { .investment-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .investment-summary { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .agreement-info, .agreement-signatures { grid-template-columns: 1fr; } }
 </style>

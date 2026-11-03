@@ -6,6 +6,8 @@ import DB from '../Util/database/DB.js';
 import CacheData from '../Util/CacheData.js';
 import AssetToken from '../Util/AssetToken.js';
 import InvestmentService from '../services/Api/InvestmentService.js';
+import ManageInvestmentService from '../services/Manage/InvestmentOrderService.js';
+import ManagePermission from '../Util/ManagePermission.js';
 import { getDefaultInvestmentConfig } from '../config/investmentConfig.js';
 import { agreementEndDate, agreementDateTime, ensureInvestmentAgreementTable, validateAgreementInvestor, validateAgreementSignature } from '../Util/InvestmentAgreement.js';
 
@@ -70,6 +72,24 @@ test('existing varchar agreement dates are converted before altering columns to 
   }
 });
 
+test('admin agreement endpoint requires investment order viewing permission', async t => {
+  let permissions = ['investment-orders'];
+  t.mock.method(DB, 'query', () => ({ table() { return this; }, where() { return this; }, async first() { return { id: 1, status: 1, permissions }; } }));
+  async function check(expected) {
+    let allowed = false;
+    let response;
+    await ManagePermission.verifyRequestPermission({ path: '/investment-order/agreement', body: {}, auth: { id: () => 1 } },
+      { send: value => { response = value; } }, () => { allowed = true; });
+    assert.equal(allowed, expected);
+    if (!expected) assert.equal(response.code, 403);
+  }
+  await check(true);
+  permissions = ['investment-orders-create'];
+  await check(false);
+  permissions = ['wallets'];
+  await check(false);
+});
+
 test('investment agreement service binds signing, ownership, debit and order atomically', async t => {
   let state;
   let failSave = false;
@@ -101,6 +121,7 @@ test('investment agreement service binds signing, ownership, debit and order ato
       select() { return this; }, orderBy() { return this; }, take() { return this; },
       async first() { return state[table].find(matches); },
       async get() { return state[table].filter(matches); },
+      async paginate() { const items = state[table].filter(matches); return { items, total: items.length, currentPage: 1, perPage: 20, lastPage: 1 }; },
       async insert(row, result) { const id = state[table].length + 1; state[table].push({ id, ...row }); if (result) result.insertId = id; return id; },
       async update(values) {
         if (table === 'investment_agreement' && failSave) throw new Error('Simulated agreement persistence failure');
@@ -113,6 +134,7 @@ test('investment agreement service binds signing, ownership, debit and order ato
         if (sql.includes('wallet_assets WHERE')) return state.wallet_assets.filter(row => row.wallet === args[0] && row.token === args[1]);
         if (sql.includes('wallet WHERE')) return state.wallet.filter(row => row.wallet === args[0]);
         if (sql.includes('wallet_relation')) return [];
+        if (sql.includes('team_investment_config') || sql.includes('COUNT(*)')) return [];
         if (sql.includes('SUM(amount)')) return [{ amount: '0' }];
         throw new Error(`Unexpected query: ${sql}`);
       }
@@ -127,6 +149,11 @@ test('investment agreement service binds signing, ownership, debit and order ato
   async function call(method, body, caller = wallet) {
     let response;
     await InvestmentService[method]({ auth: { address: () => caller }, body }, { send(value) { response = value; return value; } });
+    return response;
+  }
+  async function callManage(method, body) {
+    let response;
+    await ManageInvestmentService[method]({ body }, { send(value) { response = value; return value; } });
     return response;
   }
   const prepare = (amount = '2000', token = 'USDT') => call('prepareAgreement', { amount, token, investor, maturity: 'refund' });
@@ -218,6 +245,22 @@ test('investment agreement service binds signing, ownership, debit and order ato
     assert.equal(legacyOrder.agreement_id, '');
     assert.equal(signedOrder.signature, undefined);
     assert.equal(signedOrder.investor, undefined);
+  });
+  await t.test('admin list and detail expose signed agreements while rejecting missing or mismatched records', async () => {
+    const response = await callManage('list', {});
+    assert.equal(response.code, 0);
+    const signedOrder = response.data.items.find(order => order.order_id !== 'LEGACY');
+    const legacyOrder = response.data.items.find(order => order.order_id === 'LEGACY');
+    assert.equal(signedOrder.has_agreement, true);
+    assert.equal(legacyOrder.has_agreement, false);
+    const detail = await callManage('agreement', { order_id: signedOrder.order_id });
+    assert.equal(detail.code, 0);
+    assert.equal(detail.data.agreement_id, signedOrder.agreement_id);
+    assert.deepEqual(detail.data.investor, investor);
+    assert.equal(detail.data.signature, signaturePng());
+    assert.equal((await callManage('agreement', { order_id: 'LEGACY' })).code, 404);
+    assert.equal((await callManage('agreement', { order_id: 'MISSING' })).code, 404);
+    assert.equal((await callManage('agreement', {})).code, 400);
   });
   await t.test('exactly 1000 USDT requires signing before debit, while pure RUSD does not', async () => {
     reset();

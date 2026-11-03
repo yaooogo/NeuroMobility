@@ -8,6 +8,7 @@ import Helper from '../../Util/Helper.js';
 import { applyTeamWalletExclusion, teamWalletExclusion } from '../../Util/TeamWalletExclusion.js';
 import { formatAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
+import { ensureInvestmentAgreementTable } from '../../Util/InvestmentAgreement.js';
 import { ensureTeamInvestmentConfigTable } from '../../Util/TeamInvestmentConfigSchema.js';
 import { distributeOrderNow } from '../../cron/investmentDividend.js';
 
@@ -334,7 +335,7 @@ async function exportCsv(req, res) {
 
 async function list(req, res) {
   try {
-    await Promise.all([ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable()]);
+    await Promise.all([ensureInvestmentOrderTable(), ensureTeamInvestmentConfigTable(), ensureInvestmentAgreementTable()]);
     const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
     await DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now])
       .update({ status: 1, updated_at: now });
@@ -368,9 +369,14 @@ async function list(req, res) {
       CacheData.getInvestmentConfig()
     ]);
     const summary = summaryRows?.[0] || {};
+    const agreementRows = result.items?.length ? await DB.query().table('investment_agreement')
+      .select(['order_id', 'wallet', 'agreement_id', 'signed_at'])
+      .whereIn('order_id', result.items.map(row => row.order_id)).whereRaw('signed_at IS NOT NULL').get() : [];
+    const agreementMap = new Map((agreementRows || []).map(row => [`${row.order_id}:${String(row.wallet).toLowerCase()}`, row]));
     const items = await Promise.all((result.items || []).map(async (row) => {
       const rule = await currentDividendRuleForOrder(row, investmentConfig, prefix);
-      return normalize(row, rule);
+      const agreement = agreementMap.get(`${row.order_id}:${String(row.wallet).toLowerCase()}`);
+      return { ...normalize(row, rule), has_agreement: Boolean(agreement), agreement_id: agreement?.agreement_id || '', agreement_signed_at: agreement?.signed_at || '' };
     }));
     return res.send(ApiResult.success({
       items, total: result.total, page: result.currentPage,
@@ -388,6 +394,22 @@ async function list(req, res) {
       }
     }, '获取投资订单成功'));
   } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.list')); }
+}
+
+async function agreement(req, res) {
+  try {
+    const orderId = String(req.body?.order_id || '').trim();
+    if (!orderId) return res.send(ApiResult.error(400, '投资订单号不能为空'));
+    await Promise.all([ensureInvestmentOrderTable(), ensureInvestmentAgreementTable()]);
+    const order = await DB.query().table('investment_order').where('order_id', orderId).first();
+    if (!order) return res.send(ApiResult.error(404, '投资订单不存在'));
+    const row = await DB.query().table('investment_agreement').where('order_id', orderId)
+      .whereRaw('LOWER(wallet)=?', [String(order.wallet).toLowerCase()]).whereRaw('signed_at IS NOT NULL').first();
+    if (!row) return res.send(ApiResult.error(404, '该订单暂无已签署协议'));
+    return res.send(ApiResult.success({ ...JSON.parse(row.snapshot), agreement_id: row.agreement_id,
+      wallet: row.wallet, order_id: row.order_id, signature: row.signature, signed_at: row.signed_at, status: 'signed'
+    }));
+  } catch (error) { return res.send(ApiResult.exception(error, 'InvestmentOrderService.agreement')); }
 }
 
 async function dividendList(req, res) {
@@ -508,4 +530,4 @@ async function terminate(req, res) {
   }
 }
 
-export default { list, exportCsv, dividendList, dividendNow, terminate };
+export default { list, exportCsv, dividendList, dividendNow, terminate, agreement };
