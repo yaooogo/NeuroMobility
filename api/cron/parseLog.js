@@ -11,8 +11,8 @@ const contracts =  ChainConfig.getContracts()
 
 for(const key in contracts){
     if(contracts[key]?.events && contracts[key]?.address){
-        allowContractList.push(contracts[key]?.address)
-        allowContractNames[contracts[key]?.address] =  key;
+        allowContractList.push(contracts[key]?.address.toLowerCase())
+        allowContractNames[contracts[key]?.address.toLowerCase()] =  key;
     }
 }
 
@@ -124,9 +124,9 @@ export default {
               //  console.log(`交易哈希: ${log.transactionHash}`);
               //  console.log(`事件数据:`, parsedLog.args);
               try{
-                  if(allowContractList.includes(log.address)){
-                    if(typeof parse[allowContractNames[log.address]] == 'function')
-                        await parse[allowContractNames[log.address]](log);
+                  if(allowContractList.includes(log.address.toLowerCase())){
+                    if(typeof parse[allowContractNames[log.address.toLowerCase()]] == 'function')
+                        await parse[allowContractNames[log.address.toLowerCase()]](log);
                   }
               }
               catch(ee){
