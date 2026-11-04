@@ -14,7 +14,6 @@ const { lang } = useLocale();
 const route = useRoute();
 const router = useRouter();
 const investor = reactive({ name: '', document_number: '', phone: '', email: '' });
-const maturity = ref('refund');
 const step = ref(1);
 const draft = ref(null);
 const signed = ref(null);
@@ -41,7 +40,7 @@ async function prepare() {
   error.value = '';
   const current = ++requestId;
   try {
-    const prepared = await requestPrepareInvestmentAgreement({ amount: String(route.query.amount), token: String(route.query.token || 'USDT'), investor: { ...investor }, maturity: maturity.value });
+    const prepared = await requestPrepareInvestmentAgreement({ amount: String(route.query.amount), token: String(route.query.token || 'USDT'), investor: { ...investor }, maturity: 'renew' });
     if (current !== requestId) return;
     draft.value = prepared;
     signature.value = '';
@@ -116,7 +115,6 @@ onMounted(load);
           <label>{{ lang('身份证 / 护照号码') }}<input v-model.trim="investor.document_number" required maxlength="100" /></label>
           <label>{{ lang('联系电话') }}<input v-model.trim="investor.phone" type="tel" autocomplete="tel" required maxlength="40" /></label>
           <label>{{ lang('电子邮箱') }}<input v-model.trim="investor.email" type="email" autocomplete="email" required maxlength="254" /></label>
-          <label>{{ lang('到期处理方式') }}<select v-model="maturity"><option value="refund">{{ lang('退还本金') }}</option><option value="renew">{{ lang('自动续约') }}</option></select></label>
         </article>
         <button class="primary" :disabled="busy">{{ busy ? lang('提交中...') : lang('确认协议') }}</button>
       </form>
@@ -125,7 +123,7 @@ onMounted(load);
           <dl><div><dt>{{ lang('协议编号') }}</dt><dd>{{ draft.agreement_id }}</dd></div><div><dt>{{ lang('协议版本') }}</dt><dd>{{ draft.version }}</dd></div><div><dt>{{ lang('甲方（公司）') }}</dt><dd>Neuro Foundation Ltd</dd></div><div><dt>{{ lang('乙方（投资者）') }}</dt><dd>{{ draft.investor.name }}</dd></div><div><dt>{{ lang('投资金额') }}</dt><dd>USD {{ draft.usdt_amount }}</dd></div><div><dt>{{ lang('投资期限') }}</dt><dd>12 {{ lang('个月') }}</dd></div></dl>
         </article>
         <article class="card"><h2>{{ lang('预计收益') }}</h2><div class="rate"><span>{{ lang('预计月化收益率') }}</span><strong>3%–10%</strong></div><p class="note">{{ lang('预计收益率为预估范围，非保证收益。') }}</p></article>
-        <article class="card"><h2>{{ lang('投资本金及期限') }}</h2><dl><div><dt>{{ lang('投资开始日期') }}</dt><dd>{{ draft.start_date }}</dd></div><div><dt>{{ lang('投资结束日期') }}</dt><dd>{{ draft.end_date }} (12 {{ lang('个月') }})</dd></div><div><dt>{{ lang('到期处理方式') }}</dt><dd>{{ draft.maturity === 'renew' ? lang('自动续约') : lang('退还本金') }}</dd></div></dl></article>
+        <article class="card"><h2>{{ lang('投资本金及期限') }}</h2><dl><div><dt>{{ lang('投资开始日期') }}</dt><dd>{{ draft.start_date }}</dd></div><div><dt>{{ lang('投资结束日期') }}</dt><dd>{{ draft.end_date }} (12 {{ lang('个月') }})</dd></div></dl></article>
         <article class="card"><h2>{{ lang('双方确认') }}</h2><p>{{ lang('甲方负责按照本协议约定使用投资资金及管理车辆租赁业务。') }}</p><p>{{ lang('乙方已了解项目经营风险，并自愿参与本次投资。') }}</p><p>{{ lang('本协议经双方有效电子签署后生效。') }}</p></article>
         <article class="card"><h2>{{ lang('协议全文') }}</h2><pre class="contract-text">{{ draft.content }}</pre></article>
         <article class="card"><h2>{{ lang('投资者确认') }}</h2><label v-for="(label, index) in consentLabels" :key="index" class="check"><input v-model="consents[index]" type="checkbox" :disabled="busy" /><span>{{ label }}</span></label></article>

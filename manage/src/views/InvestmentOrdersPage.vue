@@ -225,7 +225,6 @@ onMounted(load);
             <div><dt>电子邮箱</dt><dd>{{ agreementDetail.investor.email }}</dd></div>
             <div><dt>协议金额</dt><dd>USD {{ agreementDetail.usdt_amount }}</dd></div>
             <div><dt>投资期限</dt><dd>{{ agreementDetail.term_months }}个月（{{ agreementDetail.start_date }} 至 {{ agreementDetail.end_date }}）</dd></div>
-            <div><dt>到期处理方式</dt><dd>{{ agreementDetail.maturity === 'renew' ? '自动续约' : '退还本金' }}</dd></div>
             <div><dt>签署时间</dt><dd>{{ agreementDetail.signed_at }}</dd></div>
           </dl>
           <h3>协议正文</h3><pre class="agreement-content">{{ agreementDetail.content }}</pre>

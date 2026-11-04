@@ -1,8 +1,8 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt } from 'node:crypto';
 import Database from './Database.js';
 import DB from './database/DB.js';
 
-export const AGREEMENT_VERSION = '2026-11-03.1';
+export const AGREEMENT_VERSION = 'NM - v1.0';
 export const AGREEMENT_THRESHOLD = 1000n * 10n ** 18n;
 let ready;
 
@@ -79,12 +79,12 @@ export function agreementEndDate(startDate) {
   return date.toISOString().slice(0, 10);
 }
 
-export function buildAgreementSnapshot({ investor, maturity, amount, amountRaw, token, usdtAmount, usdtRaw, mixedUsdtPercent }) {
+export function buildAgreementSnapshot({ investor, maturity = 'renew', amount, amountRaw, token, usdtAmount, usdtRaw, mixedUsdtPercent }) {
   if (!['renew', 'refund'].includes(maturity)) throw new Error('Please select a principal maturity option');
   const createdAt = agreementDateTime();
   const startDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const snapshot = {
-    agreement_id: `NM-${randomUUID()}`, version: AGREEMENT_VERSION, status: 'pending', company: 'Neuro Foundation Ltd',
+    agreement_id: `v${createdAt.slice(2, 10).replaceAll('-', '')}-${String(randomInt(100)).padStart(2, '0')}-${String(randomInt(100000000)).padStart(8, '0')}`, version: AGREEMENT_VERSION, status: 'pending', company: 'Neuro Foundation Ltd',
     investor: validateAgreementInvestor(investor), maturity, amount, amount_raw: String(amountRaw), token,
     usdt_amount: usdtAmount, usdt_raw: String(usdtRaw), mixed_usdt_percent: mixedUsdtPercent,
     term_months: 12, start_date: startDate, end_date: agreementEndDate(startDate),
