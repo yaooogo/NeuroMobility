@@ -47,7 +47,7 @@ const displayedTargetAmount = computed(() => profileProgress.value?.targetAmount
 const currentLevelInfo = computed(() => getLevelInfo(displayedCurrentLevel.value));
 const nextLevelInfo = computed(() => getLevelInfo(displayedNextLevel.value));
 const menuItems = computed(() => [
-  { key: "agreements", icon: requireAsset("@assets/images/icons/invite.png"), title: lang("我的协议"), description: lang("查看及下载已签署协议") },
+  // { key: "agreements", icon: requireAsset("@assets/images/icons/invite.png"), title: lang("我的协议"), description: lang("查看及下载已签署协议") },
   { key: "invite", icon: requireAsset("@assets/images/icons/invite.png"), title: lang("邀请好友"), description: lang("分享挚友·共赢未来") },
   { key: "team", icon: requireAsset("@assets/images/icons/team.png"), title: lang("我的团队"), description: lang("团队管理·共同成长") },
   { key: "help", icon: requireAsset("@assets/images/icons/help.png"), title: lang("帮助中心"), description: lang("常见问题解答") },
