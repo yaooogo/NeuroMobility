@@ -79,15 +79,21 @@ export function agreementEndDate(startDate) {
   return date.toISOString().slice(0, 10);
 }
 
-export function buildAgreementSnapshot({ investor, maturity = 'renew', amount, amountRaw, token, usdtAmount, usdtRaw, mixedUsdtPercent }) {
+export function agreementStartDate(createdAt, waitingDays = 0) {
+  const date = new Date(`${createdAt.slice(0, 10)}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + Number(waitingDays));
+  return date.toISOString().slice(0, 10);
+}
+
+export function buildAgreementSnapshot({ investor, maturity = 'renew', amount, amountRaw, token, usdtAmount, usdtRaw, mixedUsdtPercent, waitingDays = 0 }) {
   if (!['renew', 'refund'].includes(maturity)) throw new Error('Please select a principal maturity option');
   const createdAt = agreementDateTime();
-  const startDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const startDate = agreementStartDate(createdAt, waitingDays);
   const snapshot = {
     agreement_id: `v${createdAt.slice(2, 10).replaceAll('-', '')}-${String(randomInt(100)).padStart(2, '0')}-${String(randomInt(100000000)).padStart(8, '0')}`, version: AGREEMENT_VERSION, status: 'pending', company: 'Neuro Foundation Ltd',
     investor: validateAgreementInvestor(investor), maturity, amount, amount_raw: String(amountRaw), token,
     usdt_amount: usdtAmount, usdt_raw: String(usdtRaw), mixed_usdt_percent: mixedUsdtPercent,
-    term_months: 12, start_date: startDate, end_date: agreementEndDate(startDate),
+    term_months: 12, waiting_days: Number(waitingDays), start_date: startDate, end_date: agreementEndDate(startDate),
     expected_rate: '3%–10%', created_at: createdAt
   };
   snapshot.content = agreementContent(snapshot);

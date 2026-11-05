@@ -9,7 +9,7 @@ import InvestmentService from '../services/Api/InvestmentService.js';
 import ManageInvestmentService from '../services/Manage/InvestmentOrderService.js';
 import ManagePermission from '../Util/ManagePermission.js';
 import { getDefaultInvestmentConfig } from '../config/investmentConfig.js';
-import { agreementEndDate, agreementDateTime, ensureInvestmentAgreementTable, validateAgreementInvestor, validateAgreementSignature } from '../Util/InvestmentAgreement.js';
+import { agreementStartDate, agreementEndDate, agreementDateTime, ensureInvestmentAgreementTable, validateAgreementInvestor, validateAgreementSignature } from '../Util/InvestmentAgreement.js';
 
 const wallet = `0x${'a'.repeat(40)}`;
 const otherWallet = `0x${'b'.repeat(40)}`;
@@ -43,6 +43,9 @@ test('agreement dates, investor validation and signature limits', () => {
   assert.equal(agreementDateTime('2026-11-03T16:00:00.000Z'), '2026-11-04 00:00:00');
   assert.equal(agreementEndDate('2024-02-29'), '2025-02-28');
   assert.equal(agreementEndDate('2026-11-03'), '2027-11-03');
+  assert.equal(agreementStartDate('2026-12-25 12:00:00', 15), '2027-01-09');
+  assert.equal(agreementStartDate('2024-02-20 12:00:00', 9), '2024-02-29');
+  assert.equal(agreementStartDate('2026-11-03 12:00:00', 0), '2026-11-03');
   assert.deepEqual(validateAgreementInvestor(investor), investor);
   assert.throws(() => validateAgreementInvestor({ ...investor, name: '' }));
   assert.throws(() => validateAgreementInvestor({ ...investor, email: 'invalid' }));
@@ -186,6 +189,9 @@ test('investment agreement service binds signing, ownership, debit and order ato
     assert.equal(missing.code, 409);
     assert.equal(missing.data.agreement_required, true);
     const { data: draft } = await prepare();
+    assert.equal(draft.waiting_days, Number(config.waiting_period_days));
+    assert.equal(draft.start_date, agreementStartDate(draft.created_at, config.waiting_period_days));
+    assert.equal(draft.end_date, agreementEndDate(draft.start_date));
     assert.notEqual((await call('create', { ...signedBody(draft), agreement_consents: [true, false, true, true] })).code, 0);
     assert.notEqual((await call('create', { ...signedBody(draft), agreement_signature: '' })).code, 0);
     assert.equal(state.investment_order.length, 0);

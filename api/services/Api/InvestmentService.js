@@ -9,7 +9,7 @@ import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../../Util/InvestmentSchema.js';
-import { AGREEMENT_THRESHOLD, ensureInvestmentAgreementTable, buildAgreementSnapshot, validateAgreementSignature, agreementDateTime } from '../../Util/InvestmentAgreement.js';
+import { AGREEMENT_THRESHOLD, ensureInvestmentAgreementTable, buildAgreementSnapshot, validateAgreementSignature, agreementDateTime, agreementStartDate } from '../../Util/InvestmentAgreement.js';
 import {
   LEVEL_REWARD_PERCENT_DENOMINATOR,
   calculateLevelRewardRates
@@ -272,7 +272,7 @@ async function prepareAgreement(req, res) {
     const snapshot = buildAgreementSnapshot({
       investor: req.body?.investor, maturity: req.body?.maturity, token,
       amount: formatAssetAmount(amountRaw.toString(), INVESTMENT_DECIMALS), amountRaw,
-      usdtAmount: formatAssetAmount(usdtRaw.toString(), INVESTMENT_DECIMALS), usdtRaw, mixedUsdtPercent
+      usdtAmount: formatAssetAmount(usdtRaw.toString(), INVESTMENT_DECIMALS), usdtRaw, mixedUsdtPercent, waitingDays: config.waiting_period_days
     });
     await DB.query().table('investment_agreement').insert({ agreement_id: snapshot.agreement_id, wallet, snapshot: JSON.stringify(snapshot), created_at: snapshot.created_at });
     return res.send(ApiResult.success(snapshot));
@@ -385,7 +385,7 @@ export async function createInvestment(req, res, options = {}) {
           return;
         }
         const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit' }).format(nowDate);
-        if (snapshot.start_date !== today) throw new Error('Investment agreement expired. Please confirm a new agreement');
+        if (snapshot.created_at?.slice(0, 10) !== today || snapshot.start_date !== agreementStartDate(today, investmentConfig.waiting_period_days) || Number(snapshot.waiting_days ?? 0) !== Number(investmentConfig.waiting_period_days)) throw new Error('Investment agreement expired. Please confirm a new agreement');
       }
       for (const debit of options.deductWallet === false ? [] : debitItems) {
         const assetRows = await DB.query(configName, connection).exec(
