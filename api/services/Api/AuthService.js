@@ -151,6 +151,9 @@ export default {
       const boundedProgressBasisPoints = progressBasisPoints > 10000n ? 10000n : progressBasisPoints;
       return res.send(ApiResult.success({
         effective_level: effectiveLevel,
+        last_level_upgrade_at: userinfo.last_level_upgrade_at || null,
+        first_level_upgrade_at: userinfo.first_level_upgrade_at || null,
+        first_level_upgrade_date: userinfo.first_level_upgrade_date || null,
         community_invests: formatAssetAmount(communityInvestsRaw.toString(), 18),
         next_level: Number(nextRule?.level || effectiveLevel),
         next_level_amount: String(nextRule?.min_price || 0),

@@ -14,6 +14,25 @@ async function getColumnNames(tableName) {
 export async function ensureInvestmentOrderTable() {
   if (ready) return;
   const prefix = Database.prefix('default') || '';
+  const walletTable = `${prefix}wallet`;
+  const walletColumns = await getColumnNames(walletTable);
+  for (const [name, type] of [['first_level_upgrade_at', 'DATETIME'], ['first_level_upgrade_date', 'DATE']]) {
+    if (walletColumns.has(name)) continue;
+    try {
+      await DB.query().exec(`ALTER TABLE ${walletTable} ADD COLUMN ${name} ${type} DEFAULT NULL COMMENT 'First automatic level change'`);
+    } catch (error) {
+      if (error?.code !== 'ER_DUP_FIELDNAME') throw error;
+    }
+  }
+  if (!walletColumns.has('last_level_upgrade_at')) {
+    try {
+      await DB.query().exec(
+        `ALTER TABLE ${walletTable} ADD COLUMN last_level_upgrade_at DATETIME DEFAULT NULL COMMENT 'Last automatic level upgrade time' AFTER level`
+      );
+    } catch (error) {
+      if (error?.code !== 'ER_DUP_FIELDNAME') throw error;
+    }
+  }
   await DB.query().exec(
     `CREATE TABLE IF NOT EXISTS ${prefix}investment_order (
       id BIGINT NOT NULL AUTO_INCREMENT,

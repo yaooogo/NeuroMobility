@@ -161,7 +161,7 @@ async function publicDividendLog(row) {
   };
 }
 
-async function updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, performanceRaw, levelRules) {
+async function updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, performanceRaw, levelRules, now) {
   const walletRows = await DB.query(configName, connection).exec(
     `SELECT * FROM ${prefix}wallet WHERE LOWER(wallet)=? LIMIT 1 FOR UPDATE`, [wallet]
   );
@@ -196,6 +196,10 @@ async function updateInvestmentTotals(configName, connection, prefix, wallet, am
     await DB.query(configName, connection).table('wallet').where('id', member.id).update({
       community_invests: communityAfter.toString(),
       level: automaticLevel,
+      ...(automaticLevel !== Number(member.level || 0) && !member.first_level_upgrade_at
+        ? { first_level_upgrade_at: now, first_level_upgrade_date: now.slice(0, 10) }
+        : {}),
+      ...(automaticLevel > Number(member.level || 0) ? { last_level_upgrade_at: now } : {}),
       level_isupdate: 1
     });
   }
@@ -404,7 +408,7 @@ export async function createInvestment(req, res, options = {}) {
         });
       }
       const performanceRaw = debitItems.find(item => item.token === TOKEN)?.amountRaw ?? 0n;
-      const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, performanceRaw, levelRules);
+      const investsAfter = await updateInvestmentTotals(configName, connection, prefix, wallet, amountRaw, performanceRaw, levelRules, now);
       await distributeExpansionRewards(
         configName,
         connection,
