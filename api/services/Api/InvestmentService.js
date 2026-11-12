@@ -5,6 +5,8 @@ import CacheData from '../../Util/CacheData.js';
 import Database from '../../Util/Database.js';
 import DB from '../../Util/database/DB.js';
 import Helper from '../../Util/Helper.js';
+import growthSnapshot from '../../cron/growthSnapshot.js';
+import { performanceSnapshotJoin } from '../../Util/PerformanceAssessment.js';
 import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 import { formatAssetAmount, parseAssetAmount } from '../../Util/AssetAmount.js';
 import { ensureAssetTransferTables } from '../../Util/AssetTransferSchema.js';
@@ -196,7 +198,7 @@ async function updateInvestmentTotals(configName, connection, prefix, wallet, am
     await DB.query(configName, connection).table('wallet').where('id', member.id).update({
       community_invests: communityAfter.toString(),
       level: automaticLevel,
-      ...(automaticLevel !== Number(member.level || 0) && !member.first_level_upgrade_at
+      ...(automaticLevel > Number(member.level || 0) && !member.first_level_upgrade_at
         ? { first_level_upgrade_at: now, first_level_upgrade_date: now.slice(0, 10) }
         : {}),
       ...(automaticLevel > Number(member.level || 0) ? { last_level_upgrade_at: now } : {}),
@@ -213,13 +215,15 @@ async function distributeExpansionRewards(configName, connection, prefix, wallet
             member.invests,
             member.level,
             member.manual_level,
-            member.is_manual_level
+            member.is_manual_level,
+            COALESCE(assessment.deduction_expansion_reward_percent,0) AS deduction_expansion_reward_percent
      FROM ${prefix}wallet_relation AS relation
      INNER JOIN ${prefix}wallet AS member
        ON LOWER(member.wallet)=LOWER(relation.inviter)
+     ${performanceSnapshotJoin(prefix, 'relation.inviter')}
      WHERE LOWER(relation.wallet)=?
      ORDER BY relation.lv ASC`,
-    [wallet]
+    [now, wallet]
   );
   const investedAncestors = (ancestors || []).filter(ancestor => BigInt(String(ancestor.invests || '0')) > 0n);
   const rewards = calculateLevelRewardRates(investedAncestors, levelRules, 'expansion_reward_percent');
@@ -309,6 +313,7 @@ async function agreement(req, res) {
 export async function createInvestment(req, res, options = {}) {
   try {
     await Promise.all([ensureAssetTransferTables(), ensureInvestmentOrderTable()]);
+    await growthSnapshot.capture();
     const wallet = address(options.wallet ?? req.auth?.address());
     if (!isWallet(wallet)) return res.send(ApiResult.error(400, 'Invalid wallet address'));
     const [investmentConfig, levelRules] = await Promise.all([

@@ -1,3 +1,4 @@
+import { subtractPercent } from './PerformanceAssessment.js';
 export const LEVEL_REWARD_PERCENT_DECIMALS = 4;
 export const LEVEL_REWARD_PERCENT_DENOMINATOR = 100n * (10n ** BigInt(LEVEL_REWARD_PERCENT_DECIMALS));
 
@@ -21,14 +22,15 @@ export function calculateLevelRewardRates(ancestors, levelRules, percentField) {
     if (!rulesByLevel.has(level) || recipientsByLevel.has(level)) continue;
     recipientsByLevel.set(level, {
       wallet: String(ancestor.wallet || ancestor.inviter || '').trim().toLowerCase(),
-      level
+      level,
+      effectivePercent: subtractPercent(rulePercent(level), ancestor[`deduction_${percentField}`] || 0)
     });
   }
 
   let lowerLevelPercent = 0n;
   const rewards = [];
   for (const recipient of [...recipientsByLevel.values()].sort((a, b) => a.level - b.level)) {
-    const configuredPercent = rulesByLevel.get(recipient.level) || 0n;
+    const configuredPercent = recipient.effectivePercent;
     const rewardPercent = configuredPercent > lowerLevelPercent
       ? configuredPercent - lowerLevelPercent
       : 0n;
@@ -36,4 +38,9 @@ export function calculateLevelRewardRates(ancestors, levelRules, percentField) {
     if (recipient.wallet) rewards.push({ ...recipient, percent: rewardPercent });
   }
   return rewards;
+
+  function rulePercent(level) {
+    const raw = rulesByLevel.get(level) || 0n;
+    return `${raw / 10000n}.${String(raw % 10000n).padStart(4, '0')}`;
+  }
 }

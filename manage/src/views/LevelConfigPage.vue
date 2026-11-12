@@ -133,13 +133,13 @@ function validateLevels() {
   }
   const keys = [];
   for (const row of deductions.value) {
-    if (![1,2,3].includes(Number(row.level))) return '????1?3?';
+    if (![1,2,3].includes(Number(row.level))) return '业绩不足扣减等级必须为1至3级';
     for (const { key } of deductionFields) {
-      if (String(row[key] ?? '').trim() === '' || !Number.isFinite(Number(row[key])) || Number(row[key]) < 0 || (key !== 'target_amount' && Number(row[key]) > 100)) return '????????????????0%?100%';
+      if (String(row[key] ?? '').trim() === '' || !Number.isFinite(Number(row[key])) || Number(row[key]) < 0 || (key !== 'target_amount' && Number(row[key]) > 100)) return '达标金额必须为非负数，扣减比例必须在0%至100%之间';
     }
     keys.push(Number(row.level) + ':' + Number(row.target_amount));
   }
-  if (new Set(keys).size !== keys.length) return '???????????????';
+  if (new Set(keys).size !== keys.length) return '同一等级和达标金额不能重复配置';
   const growthMessage = validateGrowthRewards();
   if (growthMessage) return growthMessage;
   return '';

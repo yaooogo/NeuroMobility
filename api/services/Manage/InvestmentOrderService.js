@@ -509,6 +509,7 @@ async function terminate(req, res) {
 
       await DB.query(configName, connection).table('investment_order').where('id', order.id).update({
         status: STATUS_TERMINATED,
+        performance_ended_at: now,
         next_dividend_at: null,
         updated_at: now
       });

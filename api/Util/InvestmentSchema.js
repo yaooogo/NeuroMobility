@@ -70,6 +70,7 @@ export async function ensureInvestmentOrderTable() {
   const orderTable = `${prefix}investment_order`;
   const columns = await getColumnNames(orderTable);
   const additions = [
+    { name: 'performance_ended_at', sql: `ALTER TABLE ${orderTable} ADD COLUMN performance_ended_at DATETIME DEFAULT NULL COMMENT 'Time order stopped contributing team performance'` },
     { name: 'is_gift', sql: `ALTER TABLE ${orderTable} ADD COLUMN is_gift TINYINT NOT NULL DEFAULT 0 COMMENT '是否赠送：后台投资未扣用户资产' AFTER whole_vehicle` },
     { name: 'mixed_usdt_percent', sql: `ALTER TABLE ${orderTable} ADD COLUMN mixed_usdt_percent DECIMAL(10,4) NOT NULL DEFAULT 100 AFTER amount` },
     { name: 'dividend_multiple', sql: `ALTER TABLE ${orderTable} ADD COLUMN dividend_multiple DECIMAL(20,8) NOT NULL DEFAULT 1 AFTER max_percent` },
@@ -87,6 +88,9 @@ export async function ensureInvestmentOrderTable() {
       }
     }
   }
+
+  // Legacy exited/terminated orders have no dedicated end time; preserve their last update.
+  await DB.query().exec(`UPDATE ${orderTable} SET performance_ended_at=updated_at WHERE status IN (2,3) AND performance_ended_at IS NULL`);
 
   await DB.query().exec(
     `CREATE TABLE IF NOT EXISTS ${prefix}investment_dividend (

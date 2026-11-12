@@ -1,3 +1,5 @@
+import performanceSnapshot from './performanceSnapshot.js';
+import { assessmentDateTime } from '../Util/PerformanceAssessment.js';
 import CacheData from '../Util/CacheData.js';
 import Database from '../Util/Database.js';
 import DB from '../Util/database/DB.js';
@@ -8,7 +10,7 @@ import { ensureGrowthSnapshotTable } from '../Util/GrowthSnapshotSchema.js';
 const INVESTMENT_DECIMALS = 18;
 
 export function getGrowthSnapshotPeriod(date = new Date()) {
-  const dateText = Helper.dateFormat('YYYY-mm-dd', date);
+  const dateText = assessmentDateTime(date).slice(0, 10);
   return { isSnapshotDay: dateText.endsWith('-01'), month: dateText.slice(0, 7) };
 }
 
@@ -84,6 +86,7 @@ async function captureWallet(candidate, month, wholeVehicleAmount, rules, now) {
 }
 
 async function capture(runDate = new Date()) {
+  await performanceSnapshot.capture(runDate);
   const period = getGrowthSnapshotPeriod(runDate);
   await ensureGrowthSnapshotTable();
   if (!period.isSnapshotDay) return { matched: 0, processed: 0, failed: 0, skipped: true };

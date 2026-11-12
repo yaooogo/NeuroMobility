@@ -8,6 +8,7 @@ import { ensureAssetTransferTables } from '../Util/AssetTransferSchema.js';
 import { ensureInvestmentOrderTable } from '../Util/InvestmentSchema.js';
 import { ensureTeamInvestmentConfigTable } from '../Util/TeamInvestmentConfigSchema.js';
 import growthSnapshot from './growthSnapshot.js';
+import { performanceSnapshotJoin, subtractPercent } from '../Util/PerformanceAssessment.js';
 
 const INVESTMENT_DECIMALS = 18;
 const PERCENT_DECIMALS = 4;
@@ -191,11 +192,15 @@ export function calculateDifferentialRewardRates(ancestors, levelRules) {
       ? Number(ancestor.manual_level || 0)
       : Number(ancestor.level || 0);
     if (!rulesByLevel.has(level) || recipientsByLevel.has(level)) continue;
-    const growthPercent = scaledDecimal(ancestor.growth_percent || '0', PERCENT_DECIMALS);
+    const growthPercent = subtractPercent(ancestor.growth_percent || 0, ancestor.deduction_bonus_percent || 0);
+    const basePercent = subtractPercent(
+      (levelRules || []).find(rule => Number(rule.level) === level)?.differential_percent || 0,
+      ancestor.deduction_differential_percent || 0
+    );
     recipientsByLevel.set(level, {
       wallet: String(ancestor.wallet || ancestor.inviter || '').trim().toLowerCase(),
       level,
-      effectivePercent: (rulesByLevel.get(level) || 0n) + growthPercent
+      effectivePercent: basePercent + growthPercent
     });
   }
 
@@ -246,21 +251,23 @@ async function creditAssetBalance(configName, connection, prefix, walletValue, t
 }
 
 async function distributeDirectDividendReward(configName, connection, prefix, order, payout, tokenDecimals, percent, dividendId, now) {
-  const reward = scaleRaw(calculateGrossRewardAmount(payout, scaledDecimal(percent, PERCENT_DECIMALS)), INVESTMENT_DECIMALS, tokenDecimals);
-  if (reward <= 0n) return;
   const rows = await DB.query(configName, connection).exec(
-    `SELECT inviter FROM ${prefix}wallet_relation WHERE LOWER(wallet)=? AND lv=1 LIMIT 1`,
-    [String(order.wallet || '').toLowerCase()]
+    `SELECT relation.inviter, COALESCE(assessment.deduction_direct_dividend_reward_percent,0) AS deduction
+     FROM ${prefix}wallet_relation AS relation
+     ${performanceSnapshotJoin(prefix, 'relation.inviter')}
+     WHERE LOWER(relation.wallet)=? AND relation.lv=1 LIMIT 1`,
+    [now, String(order.wallet || '').toLowerCase()]
   );
   const inviter = String(rows?.[0]?.inviter || '').trim().toLowerCase();
   if (!inviter || inviter === String(order.wallet || '').toLowerCase()) return;
+  const reward = scaleRaw(calculateGrossRewardAmount(payout, subtractPercent(percent, rows[0].deduction)), INVESTMENT_DECIMALS, tokenDecimals);
+  if (reward <= 0n) return;
   await creditAssetBalance(configName, connection, prefix, inviter, DIVIDEND_TOKEN, reward, now,
     'investment_direct_dividend_reward', `Direct dividend reward ${order.order_id}`, `${dividendId}R`);
 }
 
 async function distributeDifferentialRewards(configName, connection, prefix, order, payout, tokenDecimals, levelRules, dividendId, now) {
   if (payout <= 0n) return;
-  const snapshotMonth = String(now || '').slice(0, 7);
   const ancestors = await DB.query(configName, connection).exec(
     `SELECT relation.inviter AS wallet,
             relation.lv,
@@ -268,17 +275,19 @@ async function distributeDifferentialRewards(configName, connection, prefix, ord
             member.level,
             member.manual_level,
             member.is_manual_level,
-            COALESCE(growth.growth_percent, 0) AS growth_percent
+            COALESCE(growth.growth_percent, 0) AS growth_percent,
+            COALESCE(assessment.deduction_bonus_percent, 0) AS deduction_bonus_percent,
+            COALESCE(assessment.deduction_differential_percent, 0) AS deduction_differential_percent
      FROM ${prefix}wallet_relation AS relation
      INNER JOIN ${prefix}wallet AS member
        ON LOWER(member.wallet)=LOWER(relation.inviter)
+     ${performanceSnapshotJoin(prefix, 'relation.inviter')}
      LEFT JOIN ${prefix}wallet_growth_snapshot AS growth
-       ON growth.wallet=LOWER(relation.inviter)
-      AND growth.snapshot_month=?
+       ON growth.wallet=LOWER(relation.inviter) AND growth.snapshot_month=?
      WHERE LOWER(relation.wallet)=?
        AND CAST(member.invests AS DECIMAL(65,0)) > 0
      ORDER BY relation.lv ASC`,
-    [snapshotMonth, String(order.wallet || '').toLowerCase()]
+    [now, String(now).slice(0, 7), String(order.wallet || '').toLowerCase()]
   );
   const rewards = calculateDifferentialRewardRates(ancestors, levelRules);
   for (const reward of rewards) {
@@ -393,6 +402,7 @@ async function processOrder(candidate, tokenDecimals, levelRules, investmentConf
         distributed_amount: (BigInt(String(order.distributed_amount || '0')) + payout).toString(),
         total_dividend: totalAfter.toString(),
         status: exited ? 2 : 1,
+        ...(exited ? { performance_ended_at: now } : {}),
         next_dividend_at: exited
           ? null
           : Helper.dateFormat('YYYY-mm-dd HH:MM:SS', addDays(cycleDate, order.cycle_days)),
