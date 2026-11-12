@@ -1,3 +1,4 @@
+import { validatePerformanceDeductions } from '../../config/performanceDeduction.js';
 import ApiResult from '../../Util/ApiResult.js';
 import CacheData from '../../Util/CacheData.js';
 import DB from '../../Util/database/DB.js';
@@ -100,7 +101,13 @@ async function ensureOtherRow() {
   return DB.query().table(TABLE_NAME).where('id', result.insertId).first();
 }
 
-function format(row, growthRewardRow) {
+async function ensureDeductionRow() {
+  let row = await DB.query().table(TABLE_NAME).where('name', 'performance_deduction_rules').first();
+  if (row) return row;
+  await DB.query().table(TABLE_NAME).insert({ name: 'performance_deduction_rules', value: '[]', brief: '????????' });
+  return DB.query().table(TABLE_NAME).where('name', 'performance_deduction_rules').first();
+}
+function format(row, growthRewardRow, deductionRow) {
   return {
     id: Number(row?.id || 0), name: row?.name || WALLET_LEVEL_SYS_CONFIG_NAME,
     brief: row?.brief || BRIEF,
@@ -111,7 +118,8 @@ function format(row, growthRewardRow) {
       expansion_reward_percent: item.expansion_reward_percent,
       position_salary: item.position_salary
     })),
-    growth_rewards: parseGrowthRewardRules(growthRewardRow?.value)
+    growth_rewards: parseGrowthRewardRules(growthRewardRow?.value),
+    performance_deductions: validatePerformanceDeductions(JSON.parse(deductionRow?.value || '[]'))
   };
 }
 
@@ -126,8 +134,8 @@ function formatInvestment(row) {
 
 async function walletLevelDetail(req, res) {
   try {
-    const [row, growthRewardRow] = await Promise.all([ensureRow(), ensureGrowthRewardRow()]);
-    return res.send(ApiResult.success(format(row, growthRewardRow), '获取等级配置成功'));
+    const [row, growthRewardRow, deductionRow] = await Promise.all([ensureRow(), ensureGrowthRewardRow(), ensureDeductionRow()]);
+    return res.send(ApiResult.success(format(row, growthRewardRow, deductionRow), '获取等级配置成功'));
   }
   catch (error) { return res.send(ApiResult.exception(error, 'SystemConfigService.walletLevelDetail')); }
 }
@@ -143,19 +151,22 @@ async function walletLevelUpdate(req, res) {
       position_salary: item?.position_salary
     })));
     const growthRewards = validateGrowthRewardRules(Array.isArray(req.body?.growth_rewards) ? req.body.growth_rewards : []);
-    const [row, growthRewardRow] = await Promise.all([ensureRow(), ensureGrowthRewardRow()]);
+    const [row, growthRewardRow, deductionRow] = await Promise.all([ensureRow(), ensureGrowthRewardRow(), ensureDeductionRow()]);
+    const deductions = validatePerformanceDeductions(req.body?.performance_deductions ?? JSON.parse(deductionRow.value || '[]'));
     await DB.transaction(async (configName, connection) => {
       await DB.query(configName, connection).table(TABLE_NAME).where('id', row.id)
         .update({ value: JSON.stringify(rules), brief: BRIEF });
       await DB.query(configName, connection).table(TABLE_NAME).where('id', growthRewardRow.id)
         .update({ value: JSON.stringify(growthRewards), brief: GROWTH_REWARD_BRIEF });
+      await DB.query(configName, connection).table(TABLE_NAME).where('id', deductionRow.id).update({ value: JSON.stringify(deductions) });
     });
     await Promise.all([
       CacheData.removeWalletLevelRules(),
-      CacheData.removeSysConfig(GROWTH_REWARD_SYS_CONFIG_NAME)
+      CacheData.removeSysConfig(GROWTH_REWARD_SYS_CONFIG_NAME),
+      CacheData.removeSysConfig('performance_deduction_rules')
     ]);
-    const [savedRow, savedGrowthRewardRow] = await Promise.all([ensureRow(), ensureGrowthRewardRow()]);
-    return res.send(ApiResult.success(format(savedRow, savedGrowthRewardRow), '等级配置保存成功'));
+    const [savedRow, savedGrowthRewardRow, savedDeductionRow] = await Promise.all([ensureRow(), ensureGrowthRewardRow(), ensureDeductionRow()]);
+    return res.send(ApiResult.success(format(savedRow, savedGrowthRewardRow, savedDeductionRow), '等级配置保存成功'));
   } catch (error) {
     return res.send(ApiResult.error(400, error.message || '等级配置格式不正确'));
   }

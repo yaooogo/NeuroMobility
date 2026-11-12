@@ -9,6 +9,8 @@ const user = getUser();
 const activeTab = ref('level');
 const rules = ref([]);
 const growthRewards = ref([]);
+const deductions = ref([]);
+const deductionFields = [{ key: 'target_amount', label: '达标金额（U）' }, { key: 'differential_percent', label: '扣减毛利分成（%）' }, { key: 'expansion_reward_percent', label: '扣减拓展奖励（%）' }, { key: 'bonus_percent', label: '扣减加成（%）' }, { key: 'direct_dividend_reward_percent', label: '扣减直属上级分红激励（%）' }];
 const investment = ref({
   whole_vehicle_tier: '50000',
   minimum_investment_amount: '1000',
@@ -45,6 +47,7 @@ async function loadLevels() {
   loading.value = true; error.value = '';
   try {
     const data = await post('/system-config/wallet-level');
+    deductions.value = data.performance_deductions || [];
     rules.value = (data.rules || []).map(item => ({
       level: String(item.level),
       amount: String(item.amount),
@@ -128,6 +131,15 @@ function validateLevels() {
   for (let index = 0; index < normalized.length - 1; index += 1) {
     if (normalized[index].amount <= normalized[index + 1].amount) return `等级 ${normalized[index].level} 的金额必须高于等级 ${normalized[index + 1].level}`;
   }
+  const keys = [];
+  for (const row of deductions.value) {
+    if (![1,2,3].includes(Number(row.level))) return '????1?3?';
+    for (const { key } of deductionFields) {
+      if (String(row[key] ?? '').trim() === '' || !Number.isFinite(Number(row[key])) || Number(row[key]) < 0 || (key !== 'target_amount' && Number(row[key]) > 100)) return '????????????????0%?100%';
+    }
+    keys.push(Number(row.level) + ':' + Number(row.target_amount));
+  }
+  if (new Set(keys).size !== keys.length) return '???????????????';
   const growthMessage = validateGrowthRewards();
   if (growthMessage) return growthMessage;
   return '';
@@ -207,8 +219,9 @@ async function save() {
   saving.value = true; error.value = ''; success.value = '';
   try {
     if (activeTab.value === 'level') {
-      const data = await post('/system-config/wallet-level/update', { rules: rules.value, growth_rewards: growthRewards.value });
-      rules.value = (data.rules || []).map(item => ({
+      const data = await post('/system-config/wallet-level/update', { rules: rules.value, growth_rewards: growthRewards.value, performance_deductions: deductions.value });
+      deductions.value = data.performance_deductions || [];
+    rules.value = (data.rules || []).map(item => ({
         level: String(item.level),
         amount: String(item.amount),
         differential_percent: String(item.differential_percent ?? 0),
@@ -311,6 +324,22 @@ onMounted(loadLevels);
                   <td><input v-if="canUpdate" v-model.trim="row.whole_vehicle_count" class="text-input" type="number" min="1" step="1" /><span v-else>{{ row.whole_vehicle_count }}</span></td>
                   <td><input v-if="canUpdate" v-model.trim="row.bonus_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><span v-else>{{ row.bonus_percent }}%</span></td>
                   <td v-if="canUpdate"><button class="table-button" type="button" @click="removeGrowthReward(index)">删除</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <section class="growth-reward-section">
+          <div class="growth-reward-head"><div><h3>业绩不足扣减</h3><p>金额不达标扣减</p></div><button v-if="canUpdate" class="primary-button" type="button" @click="deductions.push({ level: '1', target_amount: '0', differential_percent: '0', expansion_reward_percent: '0', bonus_percent: '0', direct_dividend_reward_percent: '0' })">新增规则</button></div>
+          <div class="table-wrap">
+            <table class="data-table growth-reward-table">
+              <thead><tr><th>等级</th><th v-for="field in deductionFields" :key="field.key">{{ field.label }}</th><th v-if="canUpdate">操作</th></tr></thead>
+              <tbody>
+                <tr v-if="loading || !deductions.length"><td :colspan="canUpdate ? 7 : 6" class="empty-cell">{{ loading ? '正在加载...' : '暂无业绩不足扣减规则' }}</td></tr>
+                <tr v-for="(row, index) in deductions" :key="index">
+                  <td><select v-if="canUpdate" v-model="row.level" class="text-input"><option value="1">1级</option><option value="2">2级</option><option value="3">3级</option></select><span v-else>{{ row.level }}级</span></td>
+                  <td v-for="field in deductionFields" :key="field.key"><input v-if="canUpdate" v-model.trim="row[field.key]" class="text-input" type="number" min="0" :max="field.key === 'target_amount' ? undefined : 100" step="0.01" /><span v-else>{{ row[field.key] }}{{ field.key === 'target_amount' ? ' U' : '%' }}</span></td>
+                  <td v-if="canUpdate"><button class="table-button" type="button" @click="deductions.splice(index, 1)">删除</button></td>
                 </tr>
               </tbody>
             </table>
