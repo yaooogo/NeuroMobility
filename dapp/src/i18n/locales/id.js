@@ -1,4 +1,5 @@
 export default {
+  "股份分红": "Dividen Saham",
   "订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账": "Pesanan berakhir. Pengembalian: {amount} USDT. Biaya: {fee}%. Dana diperkirakan masuk mulai {date}.",
   "该订单不可申请本金返还": "Pesanan ini tidak memenuhi syarat pengembalian pokok.",
   "该订单没有可返还的 USDT 本金": "Pesanan ini tidak memiliki pokok USDT untuk dikembalikan.",

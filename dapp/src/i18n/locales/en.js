@@ -1,4 +1,5 @@
 export default {
+  "股份分红": "Share Dividend",
   "订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账": "Order ended. Return: {amount} USDT. Fee: {fee}%. Expected credit from {date}.",
   "该订单不可申请本金返还": "This order is not eligible for a principal return.",
   "该订单没有可返还的 USDT 本金": "This order has no USDT principal to return.",

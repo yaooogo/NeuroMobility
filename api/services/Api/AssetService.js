@@ -331,7 +331,11 @@ async function records(req, res) {
     }
     const logQuery = DB.query().table('wallet_assets_logs').whereRaw('LOWER(wallet)=?', [wallet]);
     if (requestedToken) {
-      logQuery.where('token', requestedToken);
+      if (requestedToken === 'STOCK') {
+        logQuery.whereRaw('(token=? OR (token=? AND scene=?))', ['STOCK', 'USDT', 'stock_dividend']);
+      } else {
+        logQuery.where('token', requestedToken);
+      }
     }
     const logs = await logQuery.orderBy('id', 'desc').take(100).get();
     const items = await Promise.all((logs || []).map(async row => {

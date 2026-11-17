@@ -1,4 +1,5 @@
 export default {
+  "股份分红": "Cổ tức theo cổ phần",
   "订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账": "Lệnh đã kết thúc. Hoàn trả {amount} USDT, phí {fee}%. Dự kiến ghi có từ {date}.",
   "该订单不可申请本金返还": "Lệnh này không đủ điều kiện hoàn trả vốn gốc.",
   "该订单没有可返还的 USDT 本金": "Lệnh này không có vốn gốc USDT để hoàn trả.",
