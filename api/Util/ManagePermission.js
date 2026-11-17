@@ -1,4 +1,4 @@
-﻿import ApiResult from "./ApiResult.js";
+import ApiResult from "./ApiResult.js";
 import DB from "./database/DB.js";
 
 const MANAGE_MENU_PERMISSIONS = [
@@ -28,6 +28,8 @@ const MANAGE_MENU_PERMISSIONS = [
   { key: "level-withdraw-limit-rules-update", label: "等级提现限额-编辑" },
   { key: "position-salary-records-export", label: "岗位工资记录-导出" },
   { key: "wallets", label: "钱包管理" },
+  { key: "stock-dividend", label: "股份分红" },
+  { key: "stock-dividend-pay", label: "股份分红-发放" },
   { key: "wallets-export", label: "钱包管理-导出" },
   { key: "wallet-network", label: "网体图" },
   { key: "wallets-create", label: "钱包管理-新增" },
@@ -131,6 +133,9 @@ const ROUTE_PERMISSION_RULES = [
   { path: "/withdraw-limit/level/save", permissions: ["level-withdraw-limit-rules-update"], exact: true },
   { path: "/withdraw-limit/level/list", permissions: ["level-withdraw-limit-rules"], exact: true },
   { path: "/wallet/export", permissions: ["wallets-export"], exact: true },
+  { path: "/stock-dividend/prepare", permissions: ["stock-dividend-pay"], exact: true },
+  { path: "/stock-dividend/pay", permissions: ["stock-dividend-pay"], exact: true },
+  { path: "/stock-dividend", permissions: ["stock-dividend"] },
   { path: "/wallet/update", permissions: ["wallets-update"], exact: true },
   { path: "/wallet/create", permissions: ["wallets-create"], exact: true },
   { path: "/wallet/position-salary/pay", permissions: ["wallets-position-salary"], exact: true },

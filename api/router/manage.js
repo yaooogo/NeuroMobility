@@ -9,6 +9,7 @@ import AssetTokenService from '../services/Manage/AssetTokenService.js';
 import AssetLogService from '../services/Manage/AssetLogService.js';
 import SystemConfigService from '../services/Manage/SystemConfigService.js';
 import WalletService from '../services/Manage/WalletService.js';
+import StockDividendService from '../services/Manage/StockDividendService.js';
 import WalletImportTaskService from '../services/Manage/WalletImportTaskService.js';
 import AnnouncementService from '../services/Manage/AnnouncementService.js';
 import HelpArticleService from '../services/Manage/HelpArticleService.js';
@@ -166,6 +167,10 @@ router.route('/position-salary-record/export').post(PositionSalaryService.export
 
 // 钱包与钱包资产
 router.route('/wallet/list').post(WalletService.walletList)
+router.route('/stock-dividend/list').post(StockDividendService.list)
+router.route('/stock-dividend/detail').post(StockDividendService.detail)
+router.route('/stock-dividend/prepare').post(StockDividendService.prepare)
+router.route('/stock-dividend/pay').post(StockDividendService.pay)
 router.route('/wallet/export').post(WalletService.walletExport)
 router.route('/wallet/tree').post(WalletService.walletTree)
 router.route('/wallet/create').post(WalletService.walletCreate)

@@ -11,6 +11,7 @@ import AssetLogsPage from '../views/AssetLogsPage.vue';
 import LevelConfigPage from '../views/LevelConfigPage.vue';
 import NoPermissionPage from '../views/NoPermissionPage.vue';
 import WalletsPage from '../views/WalletsPage.vue';
+import StockDividendPage from '../views/StockDividendPage.vue';
 import WalletAssetsPage from '../views/WalletAssetsPage.vue';
 import AnnouncementsPage from '../views/AnnouncementsPage.vue';
 import HelpArticlesPage from '../views/HelpArticlesPage.vue';
@@ -36,6 +37,7 @@ const router = createRouter({
     { path: '/operation-logs', component: OperationLogsPage, meta: { permission: 'admin-operation-logs' } },
     { path: '/asset-tokens', component: AssetTokensPage, meta: { permission: 'asset-tokens' } },
     { path: '/wallets', component: WalletsPage, meta: { permission: 'wallets' } },
+    { path: '/stock-dividend', component: StockDividendPage, meta: { permission: 'stock-dividend' } },
     { path: '/wallet-network', component: WalletNetworkPage, meta: { permission: 'wallet-network' } },
     { path: '/wallet-assets', component: WalletAssetsPage, meta: { permission: 'wallet-assets' } },
     { path: '/deposit-orders', component: DepositOrdersPage, meta: { permission: 'deposit-orders' } },

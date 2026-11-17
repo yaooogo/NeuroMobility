@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { getUser } from '../lib/auth.js';
 import { can } from '../lib/permissions.js';
 
@@ -18,6 +18,7 @@ const user = getUser();
       <router-link v-if="can(user, 'position-salary-records')" class="menu-item" active-class="menu-item--active" to="/position-salary-records">岗位工资记录</router-link>
       <router-link v-if="can(user, 'team-withdraw-limit-rules')" class="menu-item" active-class="menu-item--active" to="/team-withdraw-limit-rules">团队提现限额</router-link>
       <router-link v-if="can(user, 'level-withdraw-limit-rules')" class="menu-item" active-class="menu-item--active" to="/level-withdraw-limit-rules">等级提现限额</router-link>
+      <router-link v-if="can(user, 'stock-dividend')" class="menu-item" active-class="menu-item--active" to="/stock-dividend">股份分红</router-link>
       <router-link v-if="can(user, 'wallets')" class="menu-item" active-class="menu-item--active" to="/wallets">钱包管理</router-link>
       <router-link v-if="can(user, 'wallet-network')" class="menu-item" active-class="menu-item--active" to="/wallet-network">网体图</router-link>
       <router-link v-if="can(user, 'wallet-assets')" class="menu-item" active-class="menu-item--active" to="/wallet-assets">钱包资产管理</router-link>

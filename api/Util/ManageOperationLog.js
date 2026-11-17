@@ -25,6 +25,7 @@ const SENSITIVE_KEYS = new Set([
   "signature"
 ]);
 const WRITE_PATH_PATTERNS = [
+  /^\/stock-dividend\/(prepare|pay)$/u,
   /\/create$/u,
   /\/update(?:-[^/]+)?$/u,
   /\/delete$/u,
