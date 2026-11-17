@@ -12,7 +12,7 @@ import Helper from '../../Util/Helper.js';
 import { toDappApiError, toDappApiMessage } from '../../Util/DappApiMessage.js';
 
 const TOKEN = 'USDT';
-const ASSET_TOKENS = ['USDT', 'RUSD'];
+const ASSET_TOKENS = ['USDT', 'RUSD', 'STOCK'];
 const WITHDRAW_TTL_SECONDS = 15 * 60;
 
 function address(value) {
@@ -158,7 +158,7 @@ async function overview(req, res) {
         raw_balance: String(walletAsset?.balance || '0')
       });
     }
-    const totalBalance = assets.reduce((sum, item) => sum + Number(item.balance || 0) + Number(item.frozen_balance || 0), 0);
+    const totalBalance = assets.filter((item) => ['USDT', 'RUSD'].includes(item.token.symbol)).reduce((sum, item) => sum + Number(item.balance || 0) + Number(item.frozen_balance || 0), 0);
     return res.send(ApiResult.success({
       wallet,
       token: tokenPublic(token),

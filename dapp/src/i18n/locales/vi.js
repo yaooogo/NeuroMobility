@@ -1,4 +1,8 @@
 export default {
+  "仅返还 USDT 本金，RUSD 不返还。": "Chỉ hoàn trả vốn gốc USDT, không hoàn trả RUSD.",
+  "一年内（含一年）手续费": "Phí trong vòng một năm (kể cả tròn một năm)",
+  "超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。": "Sau một năm được hoàn trả toàn bộ. Xác nhận sẽ kết thúc lệnh và cổ tức ngay lập tức. Tiền về vào ngày hôm sau (T+1).",
+  "5a1a7790": "Hoàn trả vốn gốc",
   "029cf596": "Giới thiệu về chúng tôi",
   "02b727de": "Nạp",
   "0562164c": "Quay lại trang của tôi",

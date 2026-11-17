@@ -1,4 +1,8 @@
 export default {
+  "仅返还 USDT 本金，RUSD 不返还。": "Hanya pokok USDT yang dikembalikan, RUSD tidak.",
+  "一年内（含一年）手续费": "Biaya hingga satu tahun (termasuk tepat satu tahun)",
+  "超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。": "Setelah satu tahun, pokok dikembalikan penuh. Konfirmasi langsung mengakhiri pesanan dan dividen. Dana masuk keesokan hari (T+1).",
+  "5a1a7790": "Pengembalian Pokok",
   "029cf596": "Tentang kami",
   "02b727de": "Isi Ulang",
   "0562164c": "Kembali ke",

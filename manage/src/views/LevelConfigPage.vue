@@ -1,4 +1,4 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref } from 'vue';
 import ManageLayout from '../components/ManageLayout.vue';
 import { getUser } from '../lib/auth.js';
@@ -25,6 +25,7 @@ const investment = ref({
   dividend_min_percent: '0',
   dividend_max_percent: '100',
   exit_multiple: '1',
+  principal_return_fee_percent: '30',
   usdt_exit_multiple: '1',
   rusdt_exit_multiple: '1',
   mixed_exit_multiple: '1',
@@ -69,6 +70,7 @@ async function loadInvestment() {
   try {
     const data = await post('/system-config/investment');
     investment.value = {
+      principal_return_fee_percent: String(data.principal_return_fee_percent ?? 30),
       whole_vehicle_tier: String(data.whole_vehicle_tier),
       minimum_investment_amount: String(data.minimum_investment_amount),
       usdt_minimum_investment_amount: String(data.usdt_minimum_investment_amount ?? data.minimum_investment_amount),
@@ -237,7 +239,8 @@ async function save() {
     } else if (activeTab.value === 'investment') {
       const data = await post('/system-config/investment/update', investment.value);
       investment.value = {
-        whole_vehicle_tier: String(data.whole_vehicle_tier),
+        principal_return_fee_percent: String(data.principal_return_fee_percent ?? 30),
+      whole_vehicle_tier: String(data.whole_vehicle_tier),
         minimum_investment_amount: String(data.minimum_investment_amount),
         usdt_minimum_investment_amount: String(data.usdt_minimum_investment_amount ?? data.minimum_investment_amount),
         rusdt_minimum_investment_amount: String(data.rusdt_minimum_investment_amount ?? 100),
@@ -356,6 +359,7 @@ onMounted(loadLevels);
           <label class="investment-field"><span>等待期</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.waiting_period_days" class="text-input" type="number" min="0" step="1" /><strong v-else>{{ investment.waiting_period_days }}</strong><em>天</em></div></label>
           <label class="investment-field"><span>分红周期</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.dividend_cycle_days" class="text-input" type="number" min="1" step="1" /><strong v-else>{{ investment.dividend_cycle_days }}</strong><em>天</em></div></label>
           <label class="investment-field"><span>分红百分比</span><div class="range-inputs"><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.min_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.min_percent }}</strong><em>%</em></div><span class="range-separator">~</span><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.max_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.max_percent }}</strong><em>%</em></div></div></label>
+          <label class="investment-field"><span>本金返还手续费（一年内）</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.principal_return_fee_percent" class="text-input" type="number" min="0" max="100" step="0.01" /><strong v-else>{{ investment.principal_return_fee_percent }}</strong><em>%</em></div><small class="investment-tip">一年内（含一年）返还 USDT 本金时扣除，超过一年全额返还。已申请的返还金额不受后续调整影响。</small></div></label>
           <label class="investment-field"><span>USDT 出局倍数</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.usdt_exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.usdt_exit_multiple }}</strong><em>倍</em></div><small class="investment-tip">纯 USDT 订单按此倍数出局，只计算分红，不算本金。</small></div></label>
           <label class="investment-field"><span>RUSD 出局倍数</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.rusdt_exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.rusdt_exit_multiple }}</strong><em>倍</em></div><small class="investment-tip">纯 RUSD 订单按此倍数出局，只计算分红，不算本金。</small></div></label>
           <label class="investment-field"><span>混合出局倍数</span><div><div class="input-with-unit"><input v-if="canUpdate" v-model.trim="investment.mixed_exit_multiple" class="text-input" type="number" min="0.01" step="0.01" /><strong v-else>{{ investment.mixed_exit_multiple }}</strong><em>倍</em></div><small class="investment-tip">USDT+RUSD 混合订单按此倍数出局，只计算分红，不算本金。</small></div></label>

@@ -10,7 +10,7 @@ import Helper from '../../Util/Helper.js';
 import { ensureOpenDepositTable } from '../../Util/OpenDepositSchema.js';
 import { toDappApiError } from '../../Util/DappApiMessage.js';
 
-const TOKEN = 'RUSD';
+const DEFAULT_TOKEN = 'RUSD';
 const DEPOSIT_SCENE = 'open_api_recharge';
 
 function normalizeWallet(value) {
@@ -124,6 +124,8 @@ async function deposits(req, res) {
         const walletInput = String(req.body?.wallet ?? '').trim();
         const amountInput = String(req.body?.amount ?? '').trim();
         const signature = String(req.body?.signature ?? '').trim();
+        const tokenInput = String(req.body?.token ?? '').trim();
+        const TOKEN = tokenInput.toUpperCase() || DEFAULT_TOKEN;
 
         if (!uniqueId || !walletInput || !amountInput || !signature) {
             return res.send(ApiResult.error(400, 'unique_id, wallet, amount, and signature are required'));
@@ -146,7 +148,8 @@ async function deposits(req, res) {
         const params = querystring.stringify({
             unique_id: uniqueId,
             wallet: walletInput,
-            amount: amountInput
+            amount: amountInput,
+            ...(tokenInput ? { token: tokenInput } : {})
         });
         const expectedSignature = Helper.createHmacSha256(params, secretKey);
         if (!signaturesMatch(signature, expectedSignature)) {

@@ -32,6 +32,7 @@ router.route("/investment/agreement/prepare").post(InvestmentService.prepareAgre
 router.route("/investment/agreement").post(InvestmentService.agreement);
 router.route("/investment/agreements").post(InvestmentService.agreements);
 router.route("/investment/orders").post(InvestmentService.list);
+router.route("/investment/return-principal").post(InvestmentService.returnPrincipal);
 router.route("/investment/order").post(InvestmentService.detail);
 router.route("/investment/dividends").post(InvestmentService.dividends);
 

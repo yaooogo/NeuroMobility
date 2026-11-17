@@ -70,6 +70,9 @@ export async function ensureInvestmentOrderTable() {
   const orderTable = `${prefix}investment_order`;
   const columns = await getColumnNames(orderTable);
   const additions = [
+    { name: 'principal_refund_amount', sql: `ALTER TABLE ${orderTable} ADD COLUMN principal_refund_amount DECIMAL(65,0) DEFAULT NULL` },
+    { name: 'principal_refund_at', sql: `ALTER TABLE ${orderTable} ADD COLUMN principal_refund_at DATETIME DEFAULT NULL` },
+    { name: 'principal_refunded_at', sql: `ALTER TABLE ${orderTable} ADD COLUMN principal_refunded_at DATETIME DEFAULT NULL` },
     { name: 'performance_ended_at', sql: `ALTER TABLE ${orderTable} ADD COLUMN performance_ended_at DATETIME DEFAULT NULL COMMENT 'Time order stopped contributing team performance'` },
     { name: 'is_gift', sql: `ALTER TABLE ${orderTable} ADD COLUMN is_gift TINYINT NOT NULL DEFAULT 0 COMMENT '是否赠送：后台投资未扣用户资产' AFTER whole_vehicle` },
     { name: 'mixed_usdt_percent', sql: `ALTER TABLE ${orderTable} ADD COLUMN mixed_usdt_percent DECIMAL(10,4) NOT NULL DEFAULT 100 AFTER amount` },

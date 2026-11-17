@@ -1,4 +1,8 @@
 export default {
+  "仅返还 USDT 本金，RUSD 不返还。": "Only USDT principal is returned. RUSD is excluded.",
+  "一年内（含一年）手续费": "Fee within one year (inclusive)",
+  "超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。": "Full principal is returned after one year. Confirmation ends the order and dividends immediately. Funds arrive the next day (T+1).",
+  "5a1a7790": "Return Principal",
   "029cf596": "About us",
   "02b727de": "Recharge",
   "0562164c": "Back to my",

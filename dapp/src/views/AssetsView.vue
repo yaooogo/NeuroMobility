@@ -7,6 +7,7 @@ import { useLocale } from "../composables/useLocale.js";
 import { requestAssetOverview, requestInvestmentAgreement, requestInvestmentOrders } from "../lib/api.js";
 import { downloadInvestmentAgreement } from "../lib/investmentAgreementDocument.js";
 import dividendToken from "../assets/images/dividend-token.png";
+import { requestInvestmentConfig, requestPrincipalReturn } from '../lib/api.js';
 
 defineOptions({ inheritAttrs: false });
 const props = defineProps({
@@ -24,6 +25,31 @@ const transferOverview = ref({ balance: "0", frozen_balance: "0", token: {} });
 const overview = ref({ balance: "0", frozen_balance: "0", token: {}, assets: [] });
 const investmentData = ref({ items: [], principal: "0", total_dividend: "0", monthly_dividend: "0" });
 const downloadingAgreement = ref("");
+const returningPrincipal = ref(false);
+const principalDialog = ref(null);
+const principalFee = ref(30);
+const principalLoading = ref(false);
+async function returnPrincipal(order) {
+  if (returningPrincipal.value || principalLoading.value) return;
+  principalLoading.value = true;
+  try {
+    principalFee.value = Number((await requestInvestmentConfig()).principal_return_fee_percent ?? 30);
+    principalDialog.value = order;
+  } catch (error) { emit('notice', { message: error.message || lang('加载失败'), type: 'error' }); }
+  finally { principalLoading.value = false; }
+}
+async function confirmPrincipalReturn() {
+  if (returningPrincipal.value || !principalDialog.value) return;
+  const order = principalDialog.value;
+  returningPrincipal.value = true;
+  try {
+    const result = await requestPrincipalReturn(order.order_id);
+    principalDialog.value = null;
+    emit('notice', { message: `订单已结束，返还 ${result.amount} USDT，手续费 ${result.fee_percent}%，预计 ${result.refund_at} 起到账`, type: 'success' });
+    await Promise.all([loadInvestments(), loadOverview()]);
+  } catch (error) { emit('notice', { message: error.message || '本金返还申请失败', type: 'error' }); }
+  finally { returningPrincipal.value = false; }
+}
 let overviewRequestId = 0;
 let investmentRequestId = 0;
 
@@ -290,11 +316,26 @@ onBeforeUnmount(() => {
             <button type="button" @click="viewOrderAgreement(order)">{{ lang("查看已签署协议") }}</button>
             <button type="button" :disabled="Boolean(downloadingAgreement)" @click="downloadOrderAgreement(order)">{{ downloadingAgreement === order.order_id ? lang("处理中") : lang("下载已签署协议") }}</button>
           </div>
-          <button type="button" @click="emit('action', { key: 'add-investment', order })">{{ lang("追加投资") }}</button>
+          <button v-if="[0, 1].includes(Number(order.status)) && order.token !== 'RUSD' && !Number(order.is_gift)" type="button" :disabled="returningPrincipal" @click="returnPrincipal(order)">{{ lang("本金返还") }}</button>
         </div>
       </article>
     </section>
 
+    <Teleport to="body">
+      <div v-if="principalDialog" class="principal-mask" @click.self="!returningPrincipal && (principalDialog = null)" @keydown.esc="!returningPrincipal && (principalDialog = null)">
+        <section class="principal-dialog" role="dialog" aria-modal="true" :aria-label="lang('本金返还')">
+          <header><h2>{{ lang('本金返还') }}</h2><button type="button" :disabled="returningPrincipal" :aria-label="lang('取消')" @click="principalDialog = null">×</button></header>
+          <p class="principal-order">{{ principalDialog.order_id }}</p>
+          <p>{{ lang('仅返还 USDT 本金，RUSD 不返还。') }}</p>
+          <div class="principal-rule"><span>{{ lang('一年内（含一年）手续费') }}</span><strong>{{ principalFee }}%</strong></div>
+          <p>{{ lang('超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。') }}</p>
+          <footer>
+            <button type="button" :disabled="returningPrincipal" @click="principalDialog = null">{{ lang('取消') }}</button>
+            <button class="principal-confirm" type="button" :disabled="returningPrincipal" @click="confirmPrincipalReturn">{{ returningPrincipal ? lang('处理中') : lang('确认') }}</button>
+          </footer>
+        </section>
+      </div>
+    </Teleport>
     <AssetTransferDialog
       :visible="transferVisible"
       :mode="transferMode"
@@ -308,6 +349,19 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.principal-mask { position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; padding: 20px; background: rgba(25,15,35,.38); backdrop-filter: blur(7px); }
+.principal-dialog { box-sizing: border-box; width: min(100%,440px); max-height: 90dvh; overflow-y: auto; padding: 24px; border: 1.5px solid #a845f1; border-radius: 16px; background: white; color: #454047; box-shadow: 0 20px 60px rgba(80,31,120,.2); }
+.principal-dialog header, .principal-dialog footer, .principal-rule { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.principal-dialog h2 { margin: 0; font-size: 20px; }
+.principal-dialog header button { border: 0; background: transparent; font-size: 30px; }
+.principal-dialog p { font-size: 14px; line-height: 1.7; }
+.principal-order { color: #929095; overflow-wrap: anywhere; }
+.principal-rule { padding: 16px; border-radius: 12px; background: #f1effd; font-size: 14px; }
+.principal-rule strong { color: #9140df; font-size: 22px; }
+.principal-dialog footer { margin-top: 24px; }
+.principal-dialog footer button { flex: 1; min-height: 44px; border: 0; border-radius: 12px; background: #f1effd; color: #454047; cursor: pointer; }
+.principal-dialog footer .principal-confirm { background: linear-gradient(105deg,#ae52f5,#7926d3); color: white; }
+.principal-dialog button:disabled { opacity: .58; cursor: not-allowed; }
 .assets-view { min-height: calc(100vh - 78px); padding: 0 15px 29px; background: #fff; color: #37333a; }
 .assets-header { height:70px; display: flex; justify-content: center; align-items: center; padding: max(18px, env(safe-area-inset-top)) 0 18px; }
 .assets-header h1 { display: flex; justify-content: center; margin: 0; text-align: center; color: #151317; font-size: 18px; line-height: 32px; }

@@ -136,6 +136,10 @@ export async function requestInvestmentOrders() {
   return unwrap(await http.post("/investment/orders", {}));
 }
 
+export async function requestPrincipalReturn(orderId) {
+  return unwrap(await http.post('/investment/return-principal', { order_id: orderId }));
+}
+
 export async function requestInvestmentOrder(orderId) {
   return unwrap(await http.post("/investment/order", { order_id: orderId }));
 }

@@ -1,6 +1,7 @@
 ﻿export const INVESTMENT_SYS_CONFIG_NAME = "investment_config";
 
 const DEFAULT_INVESTMENT_CONFIG = Object.freeze({
+  principal_return_fee_percent: 30,
   whole_vehicle_tier: 50000,
   minimum_investment_amount: 1000,
   usdt_minimum_investment_amount: 1000,
@@ -67,6 +68,7 @@ export function normalizeInvestmentConfig(config) {
   const mixedUsdtPercent = Number(config?.mixed_usdt_percent ?? config?.mixedUsdtPercent);
 
   const normalized = {
+    principal_return_fee_percent: Number.isFinite(Number(config?.principal_return_fee_percent)) && Number(config.principal_return_fee_percent) >= 0 && Number(config.principal_return_fee_percent) <= 100 ? Number(config.principal_return_fee_percent) : 30,
     whole_vehicle_tier: Number.isFinite(wholeVehicleTier) && wholeVehicleTier > 0 ? wholeVehicleTier : defaults.whole_vehicle_tier,
     usdt_minimum_investment_amount: positiveInteger(usdtMinimumInvestmentAmount, defaults.usdt_minimum_investment_amount),
     rusdt_minimum_investment_amount: positiveInteger(rusdtMinimumInvestmentAmount, defaults.rusdt_minimum_investment_amount),
@@ -103,6 +105,8 @@ export function normalizeInvestmentConfig(config) {
 }
 
 export function validateInvestmentConfig(config) {
+  const fee = Number(config?.principal_return_fee_percent ?? 30);
+  if (!Number.isFinite(fee) || fee < 0 || fee > 100 || String(config?.principal_return_fee_percent ?? 30).trim() === '' || Math.abs(fee * 100 - Math.round(fee * 100)) > 1e-8) throw new Error('本金返还手续费须为0至100，最多两位小数');
   const directPercent = Number(config?.direct_dividend_reward_percent ?? 0);
   if (!Number.isFinite(directPercent) || directPercent < 0 || directPercent > 100 || String(config?.direct_dividend_reward_percent ?? 0).trim() === '') {
     throw new Error('Direct dividend reward percent must be between 0 and 100');
@@ -174,6 +178,7 @@ export function validateInvestmentConfig(config) {
 
   return {
     whole_vehicle_tier: wholeVehicleTier,
+    principal_return_fee_percent: fee,
     minimum_investment_amount: usdtMinimumInvestmentAmount,
     usdt_minimum_investment_amount: usdtMinimumInvestmentAmount,
     rusdt_minimum_investment_amount: rusdtMinimumInvestmentAmount,

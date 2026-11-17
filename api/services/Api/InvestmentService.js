@@ -557,4 +557,38 @@ async function dividends(req, res) {
   }
 }
 
-export default { create, list, detail, dividends, prepareAgreement, agreements, agreement };
+async function returnPrincipal(req, res) {
+  try {
+    await ensureInvestmentOrderTable();
+    const wallet = String(req.auth.address()).toLowerCase();
+    let result;
+    await DB.transaction(async (config, connection) => {
+      const prefix = Database.prefix(config) || '';
+      const rows = await DB.query(config, connection).exec(`SELECT * FROM ${prefix}investment_order WHERE order_id=? AND LOWER(wallet)=? LIMIT 1 FOR UPDATE`, [String(req.body?.order_id || ''), wallet]);
+      const order = rows?.[0];
+      if (!order || ![0, 1].includes(Number(order.status)) || Number(order.is_gift)) throw new Error('该订单不可申请本金返还');
+      let principal = BigInt(String(order.amount));
+      if (order.token === 'RUSD') principal = 0n;
+      else if (order.token === 'USDT+RUSD') principal = principal * BigInt(Math.round(Number(order.mixed_usdt_percent) * 10000)) / 1000000n;
+      if (principal <= 0n) throw new Error('该订单没有可返还的 USDT 本金');
+      const nowDate = new Date();
+      const anniversary = new Date(String(order.created_at).replace(' ', 'T'));
+      if (order.created_at instanceof Date) anniversary.setTime(order.created_at.getTime());
+      if (!Number.isFinite(anniversary.getTime())) throw new Error('订单日期无效');
+      anniversary.setFullYear(anniversary.getFullYear() + 1);
+      const investmentConfig = await CacheData.getInvestmentConfig();
+      const fee = nowDate <= anniversary ? Number(investmentConfig.principal_return_fee_percent ?? 30) : 0;
+      const refund = principal * BigInt(10000 - Math.round(fee * 100)) / 10000n;
+      const due = new Date(nowDate);
+      due.setDate(due.getDate() + 1);
+      due.setHours(0, 0, 0, 0);
+      const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', nowDate);
+      const dueAt = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', due);
+      await DB.query(config, connection).table('investment_order').where('id', order.id).update({ status: 3, performance_ended_at: now, next_dividend_at: null, principal_refund_amount: refund.toString(), principal_refund_at: dueAt, updated_at: now });
+      result = { amount: formatAssetAmount(refund.toString(), INVESTMENT_DECIMALS), fee_percent: fee, refund_at: dueAt };
+    });
+    return res.send(ApiResult.success(result, '订单已结束，本金将于次日返还'));
+  } catch (error) { return res.send(ApiResult.error(400, error.message)); }
+}
+
+export default { create, list, detail, dividends, prepareAgreement, agreements, agreement, returnPrincipal };

@@ -440,6 +440,22 @@ async function distribute() {
     CacheData.getInvestmentConfig()
   ]);
   const now = Helper.dateFormat('YYYY-mm-dd HH:MM:SS', new Date());
+  const refunds = await DB.query().table('investment_order').where('status', 3)
+    .whereRaw('principal_refund_at<=? AND principal_refunded_at IS NULL AND principal_refund_amount>0', [now]).take(BATCH_SIZE).get();
+  const refundToken = await AssetToken.getTokenItem(DIVIDEND_TOKEN);
+  for (const candidate of refunds || []) {
+    await DB.transaction(async (config, connection) => {
+      const prefix = Database.prefix(config) || '';
+      const rows = await DB.query(config, connection).exec(`SELECT * FROM ${prefix}investment_order WHERE id=? FOR UPDATE`, [candidate.id]);
+      const order = rows?.[0];
+      if (!order || Number(order.status) !== 3 || order.principal_refunded_at) return;
+      await DB.query(config, connection).exec(`INSERT IGNORE INTO ${prefix}wallet_assets (wallet,token,balance,frozen_balance,updated_at) VALUES (?,?,'0','0',?)`, [order.wallet, DIVIDEND_TOKEN, now]);
+      await creditAssetBalance(config, connection, prefix, order.wallet, DIVIDEND_TOKEN,
+        scaleRaw(order.principal_refund_amount, INVESTMENT_DECIMALS, Number(refundToken?.decimals ?? AssetToken.DEFAULT_DECIMALS)), now,
+        'investment_principal_return', `Investment principal return ${order.order_id}`, `principal_return_${order.order_id}`);
+      await DB.query(config, connection).table('investment_order').where('id', order.id).update({ principal_refunded_at: now, updated_at: now });
+    });
+  }
   await DB.query().table('investment_order').where('status', 0).whereRaw('waiting_until<=?', [now])
     .update({ status: 1, updated_at: now });
   const orders = await DB.query().table('investment_order').where('status', 1)
