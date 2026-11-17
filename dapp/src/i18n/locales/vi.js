@@ -1,4 +1,9 @@
 export default {
+  "订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账": "Lệnh đã kết thúc. Hoàn trả {amount} USDT, phí {fee}%. Dự kiến ghi có từ {date}.",
+  "该订单不可申请本金返还": "Lệnh này không đủ điều kiện hoàn trả vốn gốc.",
+  "该订单没有可返还的 USDT 本金": "Lệnh này không có vốn gốc USDT để hoàn trả.",
+  "订单日期无效": "Ngày lệnh không hợp lệ.",
+  "本金返还申请失败，请刷新订单后重试": "Yêu cầu hoàn trả thất bại. Hãy tải lại danh sách lệnh và thử lại.",
   "仅返还 USDT 本金，RUSD 不返还。": "Chỉ hoàn trả vốn gốc USDT, không hoàn trả RUSD.",
   "一年内（含一年）手续费": "Phí trong vòng một năm (kể cả tròn một năm)",
   "超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。": "Sau một năm được hoàn trả toàn bộ. Xác nhận sẽ kết thúc lệnh và cổ tức ngay lập tức. Tiền về vào ngày hôm sau (T+1).",

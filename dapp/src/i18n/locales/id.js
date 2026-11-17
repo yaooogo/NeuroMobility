@@ -1,4 +1,9 @@
 export default {
+  "订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账": "Pesanan berakhir. Pengembalian: {amount} USDT. Biaya: {fee}%. Dana diperkirakan masuk mulai {date}.",
+  "该订单不可申请本金返还": "Pesanan ini tidak memenuhi syarat pengembalian pokok.",
+  "该订单没有可返还的 USDT 本金": "Pesanan ini tidak memiliki pokok USDT untuk dikembalikan.",
+  "订单日期无效": "Tanggal pesanan tidak valid.",
+  "本金返还申请失败，请刷新订单后重试": "Permintaan pengembalian gagal. Muat ulang pesanan dan coba lagi.",
   "仅返还 USDT 本金，RUSD 不返还。": "Hanya pokok USDT yang dikembalikan, RUSD tidak.",
   "一年内（含一年）手续费": "Biaya hingga satu tahun (termasuk tepat satu tahun)",
   "超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。": "Setelah satu tahun, pokok dikembalikan penuh. Konfirmasi langsung mengakhiri pesanan dan dividen. Dana masuk keesokan hari (T+1).",

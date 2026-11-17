@@ -45,9 +45,14 @@ async function confirmPrincipalReturn() {
   try {
     const result = await requestPrincipalReturn(order.order_id);
     principalDialog.value = null;
-    emit('notice', { message: `订单已结束，返还 ${result.amount} USDT，手续费 ${result.fee_percent}%，预计 ${result.refund_at} 起到账`, type: 'success' });
+    const message = lang('订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账')
+      .replace('{amount}', result.amount).replace('{fee}', result.fee_percent).replace('{date}', result.refund_at);
+    emit('notice', { message, type: 'success' });
     await Promise.all([loadInvestments(), loadOverview()]);
-  } catch (error) { emit('notice', { message: error.message || '本金返还申请失败', type: 'error' }); }
+  } catch (error) {
+    const knownErrors = ['该订单不可申请本金返还', '该订单没有可返还的 USDT 本金', '订单日期无效'];
+    emit('notice', { message: lang(knownErrors.includes(error.message) ? error.message : '本金返还申请失败，请刷新订单后重试'), type: 'error' });
+  }
   finally { returningPrincipal.value = false; }
 }
 let overviewRequestId = 0;

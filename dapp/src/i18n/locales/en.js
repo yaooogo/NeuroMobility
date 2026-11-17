@@ -1,4 +1,9 @@
 export default {
+  "订单已结束，返还 {amount} USDT，手续费 {fee}%，预计 {date} 起到账": "Order ended. Return: {amount} USDT. Fee: {fee}%. Expected credit from {date}.",
+  "该订单不可申请本金返还": "This order is not eligible for a principal return.",
+  "该订单没有可返还的 USDT 本金": "This order has no USDT principal to return.",
+  "订单日期无效": "Invalid order date.",
+  "本金返还申请失败，请刷新订单后重试": "Principal return request failed. Refresh your orders and try again.",
   "仅返还 USDT 本金，RUSD 不返还。": "Only USDT principal is returned. RUSD is excluded.",
   "一年内（含一年）手续费": "Fee within one year (inclusive)",
   "超过一年全额返还。确认后订单立即结束并停止分红，返还金额于 T+1 次日到账。": "Full principal is returned after one year. Confirmation ends the order and dividends immediately. Funds arrive the next day (T+1).",
