@@ -20,7 +20,7 @@ export async function ensureTables() {
     created_at DATETIME NOT NULL, paid_at DATETIME NULL
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
   const columns = await DB.query().exec(`SHOW COLUMNS FROM ${p}stock_dividend_batch`);
-  for (const [name, type] of [['mode', "VARCHAR(20) NOT NULL DEFAULT 'total'"], ['per_share_amount', 'DECIMAL(65,0) DEFAULT NULL']]) {
+  for (const [name, type] of [['submitted_at', 'DATETIME DEFAULT NULL'], ['mode', "VARCHAR(20) NOT NULL DEFAULT 'total'"], ['per_share_amount', 'DECIMAL(65,0) DEFAULT NULL']]) {
     if (columns.some(row => row.Field === name)) continue;
     try { await DB.query().exec(`ALTER TABLE ${p}stock_dividend_batch ADD COLUMN ${name} ${type}`); }
     catch (error) { if (error.code !== 'ER_DUP_FIELDNAME') throw error; }
@@ -123,7 +123,7 @@ async function pay(req, res) {
       const count = await DB.query(config, connection).table('stock_dividend_item').where('batch_id', batch.id).count();
       if (!Number(count)) throw new Error('旧预览没有会员快照，请重新预览');
       await DB.query(config, connection).table('stock_dividend_item').where('batch_id', batch.id).where('status', 2).update({ status: 0, error_message: '' });
-      await DB.query(config, connection).table('stock_dividend_batch').where('id', batch.id).update({ status: 2 });
+      await DB.query(config, connection).table('stock_dividend_batch').where('id', batch.id).update({ status: 2, submitted_at: batch.submitted_at || Helper.dateFormat() });
     });
     return res.send(ApiResult.success({}, '分红任务已提交，请在任务列表查看进度'));
   } catch (error) { return res.send(ApiResult.error(400, error.message)); }
