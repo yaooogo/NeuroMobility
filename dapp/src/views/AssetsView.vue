@@ -7,6 +7,7 @@ import { useLocale } from "../composables/useLocale.js";
 import { requestAssetOverview, requestInvestmentAgreement, requestInvestmentOrders } from "../lib/api.js";
 import { downloadInvestmentAgreement } from "../lib/investmentAgreementDocument.js";
 import dividendToken from "../assets/images/dividend-token.png";
+import dividendStock from "../assets/images/dividend-stock.png";
 import { requestInvestmentConfig, requestPrincipalReturn } from '../lib/api.js';
 
 defineOptions({ inheritAttrs: false });
@@ -281,7 +282,7 @@ onBeforeUnmount(() => {
       <article v-for="asset in assetCards" :key="asset.symbol" class="asset-card">
         <button class="asset-record-link" type="button" :aria-label="`${asset.symbol} ${lang('记录')}`" @click="openAssetRecords(asset)">
           <span class="asset-token">
-            <img :src="dividendToken">
+            <img :src="asset.symbol === 'STOCK' ? dividendStock : dividendToken" :alt="asset.symbol">
             <b>{{ asset.symbol }}</b>
           </span>
           <strong>{{ amount(addDecimalAmounts(asset.balance, asset.frozen_balance)) }}</strong>
